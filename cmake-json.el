@@ -30,12 +30,13 @@
 (defun set-cmake-json ()
   (let* ((dir-name (file-name-as-directory (make-temp-file "cmake" t)))
          (default-directory dir-name))
-    (princ (format "Writing to dir %s" dir-name))
+    (message (format "Running cmake in path %s" dir-name))
 
   (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "/home/aalvesne/sla/sla")
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
-                          (setq cmake-json-alist (json-read-file (expand-file-name "compile_commands.json" dir-name)))))))
+                          (let ((json (json-read-file (expand-file-name "compile_commands.json" dir-name))))
+                          (setq cmake-json-alist (cmake--json-to-assoc json)))))))
 
 
 (defun my--filter (condp lst)
