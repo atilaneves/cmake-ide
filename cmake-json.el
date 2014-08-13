@@ -25,6 +25,8 @@
 
 ;;; Code:
 
+(require 'json)
+
 (defun set-cmake-json ()
   (let* ((dir-name (file-name-as-directory (make-temp-file "cmake" t)))
          (default-directory dir-name))
@@ -36,5 +38,22 @@
                           (setq cmake-json-alist (json-read-file (expand-file-name "compile_commands.json" dir-name)))))))
 
 
+(defun my--filter (condp lst)
+  (delq nil
+        (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+
+
+(defun cmake--json-to-assoc (json)
+  "Transform json object from cmake to an assoc list."
+  (mapcar (lambda (x)
+            (let* ((filename (cdr (assq 'file x)))
+                   (command (cdr (assq 'command x)))
+                   (args (split-string command " "))
+                   (flags (my--filter (lambda (x) (string-match "^-[ID]\\w+" x)) args))
+                   (join-flags (mapconcat 'identity flags " ")))
+            (cons filename join-flags)))
+          json))
+
+
 (provide 'cmake-json)
-;;; cmake.el ends here
+;;; cmake-json.el ends here
