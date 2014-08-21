@@ -35,19 +35,36 @@
 (require 'flycheck)
 
 
-(defun set-cmake-json (file-name)
+(defun cmake-json-run (file-name)
   "Run CMake for source file FILE-NAME and set compiler flags for auto-completion and flycheck"
-  (let* ((cmake-dir (cmake--json-locate-cmakelists))
-         (dir-name (file-name-as-directory (make-temp-file "cmake" t)))
-         (default-directory dir-name))
-    (message (format "Running cmake in path %s" dir-name))
+  (when (and (not (get-process "cmake")) (cmake--json-is-src-file file-name))
+    (let* ((cmake-dir (cmake--json-locate-cmakelists))
+           (dir-name (file-name-as-directory (make-temp-file "cmake" t)))
+           (default-directory dir-name))
+      (message (format "Running cmake in path %s" dir-name))
 
-  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" cmake-dir)
-  (set-process-sentinel (get-process "cmake")
-                        (lambda (process event)
-                          (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                 (flags (cmake--json-to-flags file-name json)))
-                            (cmake-json-set-compiler-flags flags))))))
+      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" cmake-dir)
+      (set-process-sentinel (get-process "cmake")
+                            (lambda (process event)
+                              (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
+                                     (flags (cmake--json-to-flags file-name json)))
+                                (cmake-json-set-compiler-flags flags)))))))
+
+
+(defun cmake--json-ends-with (string suffix)
+  "Return t if STRING ends with SUFFIX."
+  (and (string-match (rx-to-string `(: ,suffix eos) t)
+                     string)
+       t))
+
+
+(defun cmake--json-is-src-file (string)
+  "Tests is STRING is a source file or not"
+  (or (cmake--json-ends-with string ".c")
+      (cmake--json-ends-with string ".cpp")
+      (cmake--json-ends-with string ".C")
+      (cmake--json-ends-with string ".cxx")
+      (cmake--json-ends-with string ".cc")))
 
 
 (defun my--filter (condp lst)

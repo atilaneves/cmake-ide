@@ -27,6 +27,8 @@
 
 ; make sure all packages are found
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
+(let ((default-directory "~/.emacs.d/elpa/"))
+  (normal-top-level-add-subdirs-to-load-path))
 
 (require 'ert)
 (require 'cmake-json)
@@ -63,6 +65,19 @@
   (should (equal (cmake--json-flags-to-defines '("-Ifoo" "-Ibar")) nil))
   (should (equal (cmake--json-flags-to-defines '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("loo"))))
 
+(ert-deftest test-is-src-file ()
+  (should (not (eq (cmake--json-is-src-file "foo.c") nil)))
+  (should (not (eq (cmake--json-is-src-file "foo.cpp") nil)))
+  (should (not (eq (cmake--json-is-src-file "foo.C") nil)))
+  (should (not (eq (cmake--json-is-src-file "foo.cxx") nil)))
+  (should (not (eq (cmake--json-is-src-file "foo.cc") nil)))
+  (should (eq (cmake--json-is-src-file "foo.h") nil))
+  (should (eq (cmake--json-is-src-file "foo.hpp") nil))
+  (should (eq (cmake--json-is-src-file "foo.hxx") nil))
+  (should (eq (cmake--json-is-src-file "foo.H") nil))
+  (should (eq (cmake--json-is-src-file "foo.hh") nil))
+  (should (eq (cmake--json-is-src-file "foo.d") nil))
+  (should (eq (cmake--json-is-src-file "foo.py") nil)))
 
 (provide 'cmake-json-test)
 ;;; cmake-json-test.el ends here
