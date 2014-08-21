@@ -60,6 +60,13 @@
           json))
 
 
+(defun cmake--json-to-flags (file-name json)
+  "From JSON to a list of compiler flags"
+  (let* ((cmake-json-alist (cmake--json-to-assoc json))
+         (flags-string (cdr (assoc file-name cmake-json-alist))))
+         (split-string flags-string " +")))
+
+
 (defun cmake-json-set-compiler-flags (flags)
   (make-local-variable 'ac-clang-flags)
   (setq ac-clang-flags flags)

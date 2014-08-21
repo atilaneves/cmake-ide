@@ -43,7 +43,20 @@
                  '(("file3" . "-Itre -Dbre") ("file4" . "-Dloo -Dboo"))))
   (should (equal (cmake--json-to-assoc
                   '[((file . "file1") (command . "/usr/bin/c++    -I/foo/bar/baz/fir    -o CMakeFiles/boo.dir/foo.cpp.o -c /foo/bar/baz/fir/foo.cpp") (directory . "/tmp/foo"))])
-                  '(("file1" . "-I/foo/bar/baz/fir")))))
+                 '(("file1" . "-I/foo/bar/baz/fir")))))
+
+(ert-deftest test-json-to-flags ()
+  (should (equal (cmake--json-to-flags "file1"
+                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
+                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
+                 '("-Ifoo" "-Ibar")))
+  (should (equal (cmake--json-to-flags "file2"
+                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
+                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
+                 '("-Ibaz" "-Iboo" "-Dloo")))
+)
+
+
 
 (provide 'cmake-json-test)
 ;;; cmake-json-test.el ends here
