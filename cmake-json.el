@@ -37,9 +37,7 @@
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
                           (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                 (cmake-json-alist (cmake--json-to-assoc json))
-                                 (flags-string (cdr (assoc file-name cmake-json-alist)))
-                                 (flags (split-string flags-string " +")))
+                                 (flags (cmake-json-to-flags file-name json)))
                             (cmake-json-set-compiler-flags flags))))))
 
 
@@ -67,14 +65,23 @@
     (split-string flags-string " +")))
 
 
-(defun cmake--json-to-includes (file-name json)
+(defun cmake--json-to-simple-flags (flags flag)
   "From JSON to a list of include directories"
-  (let* ((flags (cmake--json-to-flags file-name json))
-         (include-flags (my--filter (lambda (x)
-                                      (let ((match (string-match "-I" x)))
+  (let* ((include-flags (my--filter (lambda (x)
+                                      (let ((match (string-match flag x)))
                                         (and match (zerop match))))
                                     flags)))
-    (mapcar (lambda (x) (replace-regexp-in-string "-I" "" x)) include-flags)))
+    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) include-flags)))
+
+
+(defun cmake--json-flags-to-includes (flags)
+  "From FLAGS to a list of include directories"
+  (cmake--json-to-simple-flags flags "-I"))
+
+
+(defun cmake--json-flags-to-defines (flags)
+  "From FLAGS to a list of defines"
+  (cmake--json-to-simple-flags flags "-D"))
 
 
 (defun cmake-json-set-compiler-flags (flags)

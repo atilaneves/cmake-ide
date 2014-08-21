@@ -56,14 +56,12 @@
                  '("-Ibaz" "-Iboo" "-Dloo"))))
 
 (ert-deftest test-json-to-includes ()
-  (should (equal (cmake--json-to-includes "file1"
-                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
-                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
-                 '("foo" "bar")))
-  (should (equal (cmake--json-to-includes "file2"
-                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
-                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
-                 '("baz" "boo"))))
+  (should (equal (cmake--json-flags-to-includes '("-Ifoo" "-Ibar")) '("foo" "bar")))
+  (should (equal (cmake--json-flags-to-includes '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("boo" "baz" "doo"))))
+
+(ert-deftest test-json-to-defines ()
+  (should (equal (cmake--json-flags-to-defines '("-Ifoo" "-Ibar")) nil))
+  (should (equal (cmake--json-flags-to-defines '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("loo"))))
 
 
 (provide 'cmake-json-test)
