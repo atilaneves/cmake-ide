@@ -40,8 +40,10 @@
   (should (equal (cmake--json-to-assoc
                   '[((file . "file3") (command . "cmd3 -Itre -Dbre"))
                     ((file . "file4") (command . "cmd4 -Dloo -Dboo"))])
-                 '(("file3" . "-Itre -Dbre") ("file4" . "-Dloo -Dboo")))))
-
+                 '(("file3" . "-Itre -Dbre") ("file4" . "-Dloo -Dboo"))))
+  (should (equal (cmake--json-to-assoc
+                  '[((file . "file1") (command . "/usr/bin/c++    -I/foo/bar/baz/fir    -o CMakeFiles/boo.dir/foo.cpp.o -c /foo/bar/baz/fir/foo.cpp") (directory . "/tmp/foo"))])
+                  '(("file1" . "-I/foo/bar/baz/fir")))))
 
 (provide 'cmake-json-test)
 ;;; cmake-json-test.el ends here

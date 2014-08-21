@@ -32,11 +32,15 @@
          (default-directory dir-name))
     (message (format "Running cmake in path %s" dir-name))
 
-  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "/home/aalvesne/sla/sla")
+  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake")
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
-                          (let ((json (json-read-file (expand-file-name "compile_commands.json" dir-name))))
-                          (setq cmake-json-alist (cmake--json-to-assoc json)))))))
+                          (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
+                                        ;cmake-json-set-ac-clang-flags (cmake--json-to-assoc json))
+                                 (cmake-json-alist (cmake--json-to-assoc json)))
+                          (message (format "the alist is %s" cmake-json-alist))
+                          (make-local-variable 'ac-clang-flags)
+                          (setq ac-clang-flags (cdr (assoc "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake/foo.cpp" cmake-json-alist))))))))
 
 
 (defun my--filter (condp lst)
@@ -49,11 +53,19 @@
   (mapcar (lambda (x)
             (let* ((filename (cdr (assq 'file x)))
                    (command (cdr (assq 'command x)))
-                   (args (split-string command " "))
-                   (flags (my--filter (lambda (x) (string-match "^-[ID]\\w+" x)) args))
+                   (args (split-string command " +"))
+                   (flags (my--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
                    (join-flags (mapconcat 'identity flags " ")))
             (cons filename join-flags)))
           json))
+
+
+(defun cmake-json-set-ac-clang-flags (flags)
+  (add-hook 'find-file-hook
+            (lambda ()
+              (make-local-variable 'ac-flang-flags)
+              (setq ac-clang-flags (cdr (assoc "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake/foo.cpp" cmake-json-alist))))))
+
 
 
 (provide 'cmake-json)
