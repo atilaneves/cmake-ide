@@ -36,8 +36,10 @@
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
                           (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                 (cmake-json-alist (cmake--json-to-assoc json)))
-                            (cmake-json-set-compiler-flags (cdr (assoc file-name cmake-json-alist))))))))
+                                 (cmake-json-alist (cmake--json-to-assoc json))
+                                 (flags-string (cdr (assoc file-name cmake-json-alist)))
+                                 (flags (split-string flags-string " +")))
+                            (cmake-json-set-compiler-flags flags))))))
 
 
 (defun my--filter (condp lst)
