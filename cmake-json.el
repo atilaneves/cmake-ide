@@ -28,11 +28,12 @@
 (require 'json)
 
 (defun set-cmake-json (file-name)
-  (let* ((dir-name (file-name-as-directory (make-temp-file "cmake" t)))
+  (let* ((cmake-dir (cmake--json-locate-cmakelists))
+         (dir-name (file-name-as-directory (make-temp-file "cmake" t)))
          (default-directory dir-name))
     (message (format "Running cmake in path %s" dir-name))
 
-  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "~/sla/sla")
+  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" cmake-dir)
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
                           (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
@@ -63,6 +64,19 @@
   (make-local-variable 'ac-clang-flags)
   (setq ac-clang-flags flags)
   (message (format "Set ac-clang-flags from CMake JSON to:\n%s" ac-clang-flags)))
+
+
+(defun cmake--json-locate-cmakelists ()
+  "Find the topmost CMakeLists.txt file"
+  (cmake--json-locate-cmakelists-impl default-directory nil))
+
+
+(defun cmake--json-locate-cmakelists-impl (dir last-found)
+  "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'"
+  (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
+    (if new-dir
+        (cmake--json-locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
+      last-found)))
 
 
 (provide 'cmake-json)
