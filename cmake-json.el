@@ -1,10 +1,14 @@
 ;; -*- lexical-binding: t; -*-
-;;; cmake.el --- Calls CMake to find out include paths and other compiler flags
 
-;; Copyright (C) 2014
+;;; cmake-json --- Calls CMake to find out include paths and other compiler flags
 
-;; Author:  <atila.neves@gmail.com>
-;; Keywords:
+;; Copyright (C) 2014 Atila Neves
+
+;; Author:  Atila Neves <atila.neves@gmail.com>
+;; Version: 0.1
+;; Package-Requires: ((auto-complete "1.3.1") (flycheck "0.17"))
+;; Keywords: languages
+;; URL: http://github.com/atilaneves/cmake-json
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,13 +25,18 @@
 
 ;;; Commentary:
 
-;;
+;; This package runs CMake and sets variables for on the fly syntax checking
+;; and auto-completion using clang.
 
 ;;; Code:
 
 (require 'json)
+(require 'auto-complete)
+(require 'flycheck)
+
 
 (defun set-cmake-json (file-name)
+  "Run CMake for source file FILE-NAME and set compiler flags for auto-completion and flycheck"
   (let* ((cmake-dir (cmake--json-locate-cmakelists))
          (dir-name (file-name-as-directory (make-temp-file "cmake" t)))
          (default-directory dir-name))
@@ -37,7 +46,7 @@
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
                           (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                 (flags (cmake-json-to-flags file-name json)))
+                                 (flags (cmake--json-to-flags file-name json)))
                             (cmake-json-set-compiler-flags flags))))))
 
 
@@ -85,9 +94,15 @@
 
 
 (defun cmake-json-set-compiler-flags (flags)
+  "Set ac-clang and flycheck variables from FLAGS"
   (make-local-variable 'ac-clang-flags)
+  (make-local-variable 'flycheck-clang-include-path)
+  (make-local-variable 'flycheck-clang-definitions)
   (setq ac-clang-flags flags)
-  (message (format "Set ac-clang-flags from CMake JSON to:\n%s" ac-clang-flags)))
+  (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
+  (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
+  (flycheck-clear)
+  (message (format "Setting compiler flags from CMake JSON to:\n%s" ac-clang-flags)))
 
 
 (defun cmake--json-locate-cmakelists ()
