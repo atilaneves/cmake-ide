@@ -28,6 +28,13 @@
 ;; This package runs CMake and sets variables for on the fly syntax checking
 ;; and auto-completion using clang.
 
+;;; Usage:
+
+;(add-hook 'c-mode-common-hook (lambda ()
+;                                (add-hook 'find-file-hook (lambda ()
+;                                                            (cmake-json-run buffer-file-name)))))
+
+
 ;;; Code:
 
 (require 'json)
@@ -67,9 +74,10 @@
       (cmake--json-ends-with string ".cc")))
 
 
-(defun my--filter (condp lst)
+(defun my--filter (pred lst)
+  "Filter LST based on PRED. Because elisp"
   (delq nil
-        (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+        (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
 (defun cmake--json-to-assoc (json)
@@ -101,21 +109,23 @@
 
 
 (defun cmake--json-flags-to-includes (flags)
-  "From FLAGS to a list of include directories"
+  "From FLAGS (a list of flags) to a list of include directories"
   (cmake--json-to-simple-flags flags "-I"))
 
 
 (defun cmake--json-flags-to-defines (flags)
-  "From FLAGS to a list of defines"
+  "From FLAGS (a list of flags) to a list of defines"
   (cmake--json-to-simple-flags flags "-D"))
 
 
 (defun cmake-json-set-compiler-flags (flags)
   "Set ac-clang and flycheck variables from FLAGS"
+  (setq old-ac-clang ac-clang-flags)
   (make-local-variable 'ac-clang-flags)
   (make-local-variable 'flycheck-clang-include-path)
   (make-local-variable 'flycheck-clang-definitions)
-  (setq ac-clang-flags flags)
+  (message (format "old ac-clang was %s" old-ac-clang))
+  (setq ac-clang-flags (append (if (eq major-mode 'c++-mode) ac-clang-flags-c++ ac-clang-flags-c) flags))
   (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
   (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
   (flycheck-clear)
