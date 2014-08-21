@@ -64,7 +64,17 @@
   "From JSON to a list of compiler flags"
   (let* ((cmake-json-alist (cmake--json-to-assoc json))
          (flags-string (cdr (assoc file-name cmake-json-alist))))
-         (split-string flags-string " +")))
+    (split-string flags-string " +")))
+
+
+(defun cmake--json-to-includes (file-name json)
+  "From JSON to a list of include directories"
+  (let* ((flags (cmake--json-to-flags file-name json))
+         (include-flags (my--filter (lambda (x)
+                                      (let ((match (string-match "-I" x)))
+                                        (and match (zerop match))))
+                                    flags)))
+    (mapcar (lambda (x) (replace-regexp-in-string "-I" "" x)) include-flags)))
 
 
 (defun cmake-json-set-compiler-flags (flags)

@@ -53,9 +53,17 @@
   (should (equal (cmake--json-to-flags "file2"
                                        '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                                          ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
-                 '("-Ibaz" "-Iboo" "-Dloo")))
-)
+                 '("-Ibaz" "-Iboo" "-Dloo"))))
 
+(ert-deftest test-json-to-includes ()
+  (should (equal (cmake--json-to-includes "file1"
+                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
+                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
+                 '("foo" "bar")))
+  (should (equal (cmake--json-to-includes "file2"
+                                       '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
+                                         ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
+                 '("baz" "boo"))))
 
 
 (provide 'cmake-json-test)
