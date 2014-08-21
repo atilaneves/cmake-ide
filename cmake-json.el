@@ -27,20 +27,17 @@
 
 (require 'json)
 
-(defun set-cmake-json ()
+(defun set-cmake-json (file-name)
   (let* ((dir-name (file-name-as-directory (make-temp-file "cmake" t)))
          (default-directory dir-name))
     (message (format "Running cmake in path %s" dir-name))
 
-  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake")
+  (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" "~/sla/sla")
   (set-process-sentinel (get-process "cmake")
                         (lambda (process event)
                           (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                        ;cmake-json-set-ac-clang-flags (cmake--json-to-assoc json))
                                  (cmake-json-alist (cmake--json-to-assoc json)))
-                          (message (format "the alist is %s" cmake-json-alist))
-                          (make-local-variable 'ac-clang-flags)
-                          (setq ac-clang-flags (cdr (assoc "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake/foo.cpp" cmake-json-alist))))))))
+                            (cmake-json-set-compiler-flags (cdr (assoc file-name cmake-json-alist))))))))
 
 
 (defun my--filter (condp lst)
@@ -60,12 +57,10 @@
           json))
 
 
-(defun cmake-json-set-ac-clang-flags (flags)
-  (add-hook 'find-file-hook
-            (lambda ()
-              (make-local-variable 'ac-flang-flags)
-              (setq ac-clang-flags (cdr (assoc "/home/aalvesne/coding/cpp/experiments/emacs_clang_cmake/foo.cpp" cmake-json-alist))))))
-
+(defun cmake-json-set-compiler-flags (flags)
+  (make-local-variable 'ac-clang-flags)
+  (setq ac-clang-flags flags)
+  (message (format "Set ac-clang-flags from CMake JSON to:\n%s" ac-clang-flags)))
 
 
 (provide 'cmake-json)
