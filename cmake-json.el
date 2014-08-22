@@ -33,7 +33,8 @@
 ;(add-hook 'c-mode-common-hook (lambda ()
 ;                                (add-hook 'find-file-hook (lambda ()
 ;                                                            (cmake-json-run buffer-file-name)))))
-
+;
+; If ac-clang-flags-c or ac-clang-flags-c++ are set, they will be added to ac-clang-flags.
 
 ;;; Code:
 
