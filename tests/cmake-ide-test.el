@@ -35,33 +35,33 @@
 
 
 (ert-deftest test-json-to-assoc ()
-  (should (equal (cmake-ide--to-assoc
+  (should (equal (cmake-ide--json-to-assoc
                   '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                     ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '(("file1" . "-Ifoo -Ibar") ("file2" . "-Ibaz -Iboo -Dloo"))))
-  (should (equal (cmake-ide--to-assoc
+  (should (equal (cmake-ide--json-to-assoc
                   '[((file . "file3") (command . "cmd3 -Itre -Dbre"))
                     ((file . "file4") (command . "cmd4 -Dloo -Dboo"))])
                  '(("file3" . "-Itre -Dbre") ("file4" . "-Dloo -Dboo"))))
-  (should (equal (cmake-ide--to-assoc
+  (should (equal (cmake-ide--json-to-assoc
                   '[((file . "file1") (command . "/usr/bin/c++    -I/foo/bar/baz/fir    -o CMakeFiles/boo.dir/foo.cpp.o -c /foo/bar/baz/fir/foo.cpp") (directory . "/tmp/foo"))])
                  '(("file1" . "-I/foo/bar/baz/fir")))))
 
 (ert-deftest test-json-to-flags ()
-  (should (equal (cmake-ide--to-flags "file1"
+  (should (equal (cmake-ide--json-to-flags "file1"
                                        '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                                          ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '("-Ifoo" "-Ibar")))
-  (should (equal (cmake-ide--to-flags "file2"
+  (should (equal (cmake-ide--json-to-flags "file2"
                                        '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                                          ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '("-Ibaz" "-Iboo" "-Dloo"))))
 
-(ert-deftest test-json-to-includes ()
+(ert-deftest test-flags-to-includes ()
   (should (equal (cmake-ide--flags-to-includes '("-Ifoo" "-Ibar")) '("foo" "bar")))
   (should (equal (cmake-ide--flags-to-includes '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("boo" "baz" "doo"))))
 
-(ert-deftest test-json-to-defines ()
+(ert-deftest test-flags-to-defines ()
   (should (equal (cmake-ide--flags-to-defines '("-Ifoo" "-Ibar")) nil))
   (should (equal (cmake-ide--flags-to-defines '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("loo"))))
 

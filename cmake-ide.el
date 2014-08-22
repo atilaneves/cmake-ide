@@ -68,7 +68,7 @@
                                 (lambda (process event)
                                   (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
                                          (json (json-read-file json-file))
-                                         (flags (cmake-ide--to-flags src-file json)))
+                                         (flags (cmake-ide--json-to-flags src-file json)))
                                     (mapc (lambda (x)
                                             (cmake-ide-set-compiler-flags x flags))
                                           cmake-ide--buffers)
@@ -93,34 +93,34 @@
       (cmake-ide--ends-with string ".cc")))
 
 
-(defun my--filter (pred lst)
+(defun cmake-ide--filter (pred lst)
   "Filter LST based on PRED. Because elisp"
   (delq nil
         (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
-(defun cmake-ide--to-assoc (json)
+(defun cmake-ide--json-to-assoc (json)
   "Transform json object from cmake to an assoc list."
   (mapcar (lambda (x)
             (let* ((filename (cdr (assq 'file x)))
                    (command (cdr (assq 'command x)))
                    (args (split-string command " +"))
-                   (flags (my--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
+                   (flags (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
                    (join-flags (mapconcat 'identity flags " ")))
             (cons filename join-flags)))
           json))
 
 
-(defun cmake-ide--to-flags (file-name json)
+(defun cmake-ide--json-to-flags (file-name json)
   "From JSON to a list of compiler flags"
-  (let* ((cmake-ide-alist (cmake-ide--to-assoc json))
+  (let* ((cmake-ide-alist (cmake-ide--json-to-assoc json))
          (flags-string (cdr (assoc file-name cmake-ide-alist))))
     (split-string flags-string " +")))
 
 
 (defun cmake-ide--to-simple-flags (flags flag)
   "From JSON to a list of include directories"
-  (let* ((include-flags (my--filter (lambda (x)
+  (let* ((include-flags (cmake-ide--filter (lambda (x)
                                       (let ((match (string-match flag x)))
                                         (and match (zerop match))))
                                     flags)))
