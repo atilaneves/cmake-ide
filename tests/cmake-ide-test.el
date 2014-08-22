@@ -34,25 +34,25 @@
 (require 'cmake-ide)
 
 
-(ert-deftest test-json-to-assoc ()
-  (should (equal (cmake-ide--json-to-assoc
+(ert-deftest test-json-to-src-assoc ()
+  (should (equal (cmake-ide--json-to-src-assoc
                   '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                     ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '(("file1" . "-Ifoo -Ibar") ("file2" . "-Ibaz -Iboo -Dloo"))))
-  (should (equal (cmake-ide--json-to-assoc
+  (should (equal (cmake-ide--json-to-src-assoc
                   '[((file . "file3") (command . "cmd3 -Itre -Dbre"))
                     ((file . "file4") (command . "cmd4 -Dloo -Dboo"))])
                  '(("file3" . "-Itre -Dbre") ("file4" . "-Dloo -Dboo"))))
-  (should (equal (cmake-ide--json-to-assoc
+  (should (equal (cmake-ide--json-to-src-assoc
                   '[((file . "file1") (command . "/usr/bin/c++    -I/foo/bar/baz/fir    -o CMakeFiles/boo.dir/foo.cpp.o -c /foo/bar/baz/fir/foo.cpp") (directory . "/tmp/foo"))])
                  '(("file1" . "-I/foo/bar/baz/fir")))))
 
-(ert-deftest test-json-to-flags ()
-  (should (equal (cmake-ide--json-to-flags "file1"
+(ert-deftest test-json-to-src-flags ()
+  (should (equal (cmake-ide--json-to-src-flags "file1"
                                        '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                                          ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '("-Ifoo" "-Ibar")))
-  (should (equal (cmake-ide--json-to-flags "file2"
+  (should (equal (cmake-ide--json-to-src-flags "file2"
                                        '[((file . "file1") (command . "cmd1 -Ifoo -Ibar"))
                                          ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))])
                  '("-Ibaz" "-Iboo" "-Dloo"))))
@@ -78,6 +78,17 @@
   (should (eq (cmake-ide--is-src-file "foo.hh") nil))
   (should (eq (cmake-ide--is-src-file "foo.d") nil))
   (should (eq (cmake-ide--is-src-file "foo.py") nil)))
+
+(ert-deftest test-json-to-src-hdr-assoc ()
+    (should (equal (cmake-ide--json-to-hdr-assoc
+                  '[((file . "file1") (command . "cmd1 -Ifoo -Ibar") (directory . "/dir/bir"))
+                    ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo") (directory . "/boo/foo"))])
+                    '(("/dir/bir" . "-Ifoo -Ibar") ("/boo/foo" . "-Ibaz -Iboo -Dloo"))))
+  (should (equal (cmake-ide--json-to-hdr-assoc
+                  '[((file . "file3") (command . "cmd3 -Itre -Dbre -c file3.c") (directory . "/dir1"))
+                    ((file . "file4") (command . "cmd3 -Iasda -Dtesco -c file4.c") (directory . "/dir1"))])
+                  '(("/dir1" . "-Itre -Dbre") ("/dir1" . "-Iasda -Dtesco")))))
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
