@@ -120,16 +120,26 @@
 
 (defun cmake-json-set-compiler-flags (flags)
   "Set ac-clang and flycheck variables from FLAGS"
-  (setq old-ac-clang ac-clang-flags)
   (make-local-variable 'ac-clang-flags)
   (make-local-variable 'flycheck-clang-include-path)
   (make-local-variable 'flycheck-clang-definitions)
-  (message (format "old ac-clang was %s" old-ac-clang))
-  (setq ac-clang-flags (append (if (eq major-mode 'c++-mode) ac-clang-flags-c++ ac-clang-flags-c) flags))
+  (setq ac-clang-flags (append (cmake--json-get-existing-ac-clang-flags) flags))
   (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
   (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
   (flycheck-clear)
   (message (format "Setting compiler flags from CMake JSON to:\n%s" ac-clang-flags)))
+
+
+(defun cmake--json-get-existing-ac-clang-flags ()
+  "Return existing ac-clang flags for this mode, if set"
+  (if (eq major-mode 'c++-mode)
+      (cmake--json-symbol-value 'ac-clang-flags-c++)
+    (cmake--json-symbol-value 'ac-clang-flags-c)))
+
+
+(defun cmake--json-symbol-value (sym)
+  "Return the value of SYM if bound, nil if not"
+  (if (boundp sym) (symbol-value sym) nil))
 
 
 (defun cmake--json-locate-cmakelists ()
