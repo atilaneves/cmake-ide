@@ -34,25 +34,32 @@
 ;                                (add-hook 'find-file-hook (lambda ()
 ;                                                            (cmake-json-run buffer-file-name)))))
 ;
-; If ac-clang-flags-c or ac-clang-flags-c++ are set, they will be added to ac-clang-flags.
-
+; If cmake-json-flags-c or cmake-json-flags-c++ are set, they will be added to ac-clang-flags.
+; These variables should be set. Particularly, they should contain the system include paths.
+;
 ;;; Code:
 
 (require 'json)
 (require 'auto-complete-clang)
 (require 'flycheck)
 
+;;; The C flags for ac-clang-flags
+(defvar cmake-json-flags-c nil)
+
+;;; The C++ flags for ac-clang flags
+(defvar cmake-json-flags-c++ nil)
+
 
 ;;; The buffers to set variables for
-(defvar cmake--json-buffers nil)
+(defvar cmake-json--buffers nil)
 
 
 (defun cmake-json-run (src-file)
   "Run CMake for source file SRC-FILE and set compiler flags for auto-completion and flycheck"
-  (when (cmake--json-is-src-file src-file)
-    (add-to-list 'cmake--json-buffers (current-buffer))
+  (when (cmake-json--is-src-file src-file)
+    (add-to-list 'cmake-json--buffers (current-buffer))
     (when (not (get-process "cmake"))
-        (let* ((project-dir (cmake--json-locate-cmakelists))
+        (let* ((project-dir (cmake-json--locate-cmakelists))
                (tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
                (default-directory tmp-dir-name))
           (message (format "Running cmake in path %s" tmp-dir-name))
@@ -61,29 +68,29 @@
                                 (lambda (process event)
                                   (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
                                          (json (json-read-file json-file))
-                                         (flags (cmake--json-to-flags src-file json)))
+                                         (flags (cmake-json--to-flags src-file json)))
                                     (mapc (lambda (x)
                                             (cmake-json-set-compiler-flags x flags))
-                                          cmake--json-buffers)
-                                    (setq cmake--json-buffers nil) ;reset
+                                          cmake-json--buffers)
+                                    (setq cmake-json--buffers nil) ;reset
                                     )))))))
 
 
 
-(defun cmake--json-ends-with (string suffix)
+(defun cmake-json--ends-with (string suffix)
   "Return t if STRING ends with SUFFIX."
   (and (string-match (rx-to-string `(: ,suffix eos) t)
                      string)
        t))
 
 
-(defun cmake--json-is-src-file (string)
+(defun cmake-json--is-src-file (string)
   "Tests is STRING is a source file or not"
-  (or (cmake--json-ends-with string ".c")
-      (cmake--json-ends-with string ".cpp")
-      (cmake--json-ends-with string ".C")
-      (cmake--json-ends-with string ".cxx")
-      (cmake--json-ends-with string ".cc")))
+  (or (cmake-json--ends-with string ".c")
+      (cmake-json--ends-with string ".cpp")
+      (cmake-json--ends-with string ".C")
+      (cmake-json--ends-with string ".cxx")
+      (cmake-json--ends-with string ".cc")))
 
 
 (defun my--filter (pred lst)
@@ -92,7 +99,7 @@
         (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
-(defun cmake--json-to-assoc (json)
+(defun cmake-json--to-assoc (json)
   "Transform json object from cmake to an assoc list."
   (mapcar (lambda (x)
             (let* ((filename (cdr (assq 'file x)))
@@ -104,14 +111,14 @@
           json))
 
 
-(defun cmake--json-to-flags (file-name json)
+(defun cmake-json--to-flags (file-name json)
   "From JSON to a list of compiler flags"
-  (let* ((cmake-json-alist (cmake--json-to-assoc json))
+  (let* ((cmake-json-alist (cmake-json--to-assoc json))
          (flags-string (cdr (assoc file-name cmake-json-alist))))
     (split-string flags-string " +")))
 
 
-(defun cmake--json-to-simple-flags (flags flag)
+(defun cmake-json--to-simple-flags (flags flag)
   "From JSON to a list of include directories"
   (let* ((include-flags (my--filter (lambda (x)
                                       (let ((match (string-match flag x)))
@@ -120,14 +127,14 @@
     (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) include-flags)))
 
 
-(defun cmake--json-flags-to-includes (flags)
+(defun cmake-json--flags-to-includes (flags)
   "From FLAGS (a list of flags) to a list of include directories"
-  (cmake--json-to-simple-flags flags "-I"))
+  (cmake-json--to-simple-flags flags "-I"))
 
 
-(defun cmake--json-flags-to-defines (flags)
+(defun cmake-json--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines"
-  (cmake--json-to-simple-flags flags "-D"))
+  (cmake-json--to-simple-flags flags "-D"))
 
 
 (defun cmake-json-set-compiler-flags (buffer flags)
@@ -136,35 +143,35 @@
     (make-local-variable 'ac-clang-flags)
     (make-local-variable 'flycheck-clang-include-path)
     (make-local-variable 'flycheck-clang-definitions)
-    (setq ac-clang-flags (append (cmake--json-get-existing-ac-clang-flags) flags))
-    (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
-    (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
+    (setq ac-clang-flags (append (cmake-json--get-existing-ac-clang-flags) flags))
+    (setq flycheck-clang-include-path (cmake-json--flags-to-includes flags))
+    (setq flycheck-clang-definitions (cmake-json--flags-to-defines flags))
     (flycheck-clear)
     (message (format "Setting compiler flags for %s from CMake JSON to:\n%s" buffer-file-name ac-clang-flags))))
 
 
-(defun cmake--json-get-existing-ac-clang-flags ()
+(defun cmake-json--get-existing-ac-clang-flags ()
   "Return existing ac-clang flags for this mode, if set"
   (if (eq major-mode 'c++-mode)
-      (cmake--json-symbol-value 'ac-clang-flags-c++)
-    (cmake--json-symbol-value 'ac-clang-flags-c)))
+      (cmake-json--symbol-value 'cmake-json-flags-c++)
+    (cmake-json--symbol-value 'cmake-json-flags-c)))
 
 
-(defun cmake--json-symbol-value (sym)
+(defun cmake-json--symbol-value (sym)
   "Return the value of SYM if bound, nil if not"
   (if (boundp sym) (symbol-value sym) nil))
 
 
-(defun cmake--json-locate-cmakelists ()
+(defun cmake-json--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file"
-  (cmake--json-locate-cmakelists-impl default-directory nil))
+  (cmake-json--locate-cmakelists-impl default-directory nil))
 
 
-(defun cmake--json-locate-cmakelists-impl (dir last-found)
+(defun cmake-json--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'"
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
     (if new-dir
-        (cmake--json-locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
+        (cmake-json--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
 
