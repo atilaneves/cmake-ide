@@ -163,15 +163,16 @@
 
 (defun cmake-ide-set-compiler-flags (buffer flags)
   "Set ac-clang and flycheck variables from FLAGS"
-  (with-current-buffer buffer
-    (make-local-variable 'ac-clang-flags)
-    (make-local-variable 'flycheck-clang-include-path)
-    (make-local-variable 'flycheck-clang-definitions)
-    (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
-    (setq flycheck-clang-include-path (cmake-ide--flags-to-includes flags))
-    (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
-    (flycheck-clear)
-    (message (format "Setting compiler flags for %s from CMake JSON to:\n%s" buffer-file-name ac-clang-flags))))
+  (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (make-local-variable 'ac-clang-flags)
+          (make-local-variable 'flycheck-clang-include-path)
+          (make-local-variable 'flycheck-clang-definitions)
+          (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
+          (setq flycheck-clang-include-path (cmake-ide--flags-to-includes flags))
+          (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
+          (flycheck-clear)
+          (message (format "ac-clang-flags for %s from CMake JSON:\n%s" buffer-file-name ac-clang-flags)))))
 
 
 (defun cmake-ide--get-existing-ac-clang-flags ()
