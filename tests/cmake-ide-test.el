@@ -90,5 +90,26 @@
                   '(("/dir1" . "-Itre -Dbre") ("/dir1" . "-Iasda -Dtesco")))))
 
 
+(ert-deftest test-json-to-hdr-flags ()
+  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file1.h"
+                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+                                                  (directory . "/dir1"))])
+                 '("-Ifoo" "-Ibar")))
+  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file3.h"
+                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+                                                  (directory . "/dir1"))])
+                 '("-Ifoo" "-Ibar")))
+    (should (equal (cmake-ide--json-to-hdr-flags "/dir3/file1.h"
+                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+                                                  (directory . "/dir1"))])
+                 nil))
+  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file2.h"
+                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+                                                  (directory . "/dir1"))
+                                                 ((file . "/dir2/file2.h") (command . "cmd2 -Iloo -Dboo")
+                                                  (directory . "/dir2"))])
+                 '("-Ifoo" "-Ibar"))))
+
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

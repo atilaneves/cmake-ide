@@ -51,30 +51,36 @@
 
 
 ;;; The buffers to set variables for
-(defvar cmake-ide--buffers nil)
+(defvar cmake-ide--src-buffers nil)
+(defvar cmake-ide--hdr-buffers nil)
 
 
 (defun cmake-ide-run (src-file)
   "Run CMake for source file SRC-FILE and set compiler flags for auto-completion and flycheck"
-  (when (cmake-ide--is-src-file src-file)
-    (add-to-list 'cmake-ide--buffers (current-buffer))
-    (when (not (get-process "cmake"))
-        (let* ((project-dir (cmake-ide--locate-cmakelists))
-               (tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
-               (default-directory tmp-dir-name))
-          (message (format "Running cmake in path %s" tmp-dir-name))
-          (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
-          (set-process-sentinel (get-process "cmake")
-                                (lambda (process event)
-                                  (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
-                                         (json (json-read-file json-file))
-                                         (flags (cmake-ide--json-to-src-flags src-file json)))
-                                    (mapc (lambda (x)
-                                            (cmake-ide-set-compiler-flags x flags))
-                                          cmake-ide--buffers)
-                                    (setq cmake-ide--buffers nil) ;reset
-                                    )))))))
+  (if (cmake-ide--is-src-file src-file)
+      (add-to-list 'cmake-ide--src-buffers (current-buffer))
+    (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
 
+  (when (not (get-process "cmake"))
+    (let* ((project-dir (cmake-ide--locate-cmakelists))
+           (tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
+           (default-directory tmp-dir-name))
+      (message (format "Running cmake in path %s" tmp-dir-name))
+      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
+      (set-process-sentinel (get-process "cmake")
+                            (lambda (process event)
+                              (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
+                                     (json (json-read-file json-file))
+                                     (src-flags (cmake-ide--json-to-src-flags src-file json))
+                                     (hdr-flags (cmake-ide--json-to-hdr-flags src-file json)))
+                                (mapc (lambda (x)
+                                        (cmake-ide-set-compiler-flags x src-flags))
+                                      cmake-ide--src-buffers)
+                                (setq cmake-ide--src-buffers nil) ; reset
+                                (mapc (lambda (x)
+                                        (cmake-ide-set-compiler-flags x hdr-flags))
+                                      cmake-ide--hdr-buffers)
+                                (setq cmake-ide--hdr-buffers nil)))))))
 
 
 (defun cmake-ide--ends-with (string suffix)
@@ -129,8 +135,16 @@
     (split-string flags-string " +")))
 
 
+(defun cmake-ide--json-to-hdr-flags (file-name json)
+  "From JSON to a list of compiler flags"
+  (let* ((cmake-ide-alist (cmake-ide--json-to-hdr-assoc json))
+         (dir (directory-file-name (file-name-directory file-name)))
+         (flags-string (cdr (assoc dir cmake-ide-alist))))
+    (if flags-string (split-string flags-string " +") nil)))
+
+
 (defun cmake-ide--to-simple-flags (flags flag)
-  "From JSON to a list of include directories"
+  "From JSON to a list of include directories/defines"
   (let* ((include-flags (cmake-ide--filter (lambda (x)
                                       (let ((match (string-match flag x)))
                                         (and match (zerop match))))
