@@ -16,6 +16,6 @@ Add this to your `.emacs` / `init.el`:
                                     (add-hook 'find-file-hook (lambda ()
                                                                 (cmake-ide-run buffer-file-name)))))
 
-If `ac-clang-flags-c` or `ac-clang-flags-c++` are set, they will be added to `ac-clang-flags`.
+If `cmake-ide-clang-flags-c` or `cmake-ide-flags-c++` are set, they will be added to `ac-clang-flags`.
 These variables should be set. Particularly, they should contain the system include paths.
 And... that's it. It works by calling cmake and parsing the resulting JSON file with compiler flags.
