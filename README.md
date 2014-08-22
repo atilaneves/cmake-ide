@@ -17,5 +17,7 @@ Add this to your `.emacs` / `init.el`:
                                                                 (cmake-ide-run buffer-file-name)))))
 
 If `cmake-ide-clang-flags-c` or `cmake-ide-flags-c++` are set, they will be added to `ac-clang-flags`.
-These variables should be set. Particularly, they should contain the system include paths.
+These variables should be set. Particularly, they should contain the system include paths
+(e.g. `'("-I/usr/include/c++/4.9.1" "...")`. For gcc, you can get this information by running
+`gcc -v -xc++ /dev/null -fsyntax-only` (it's the same prerequisite for `auto-complete-clang` to work).
 And... that's it. It works by calling cmake and parsing the resulting JSON file with compiler flags.
