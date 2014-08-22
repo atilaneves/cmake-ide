@@ -1,4 +1,4 @@
-cmake-json
+cmake-ide
 ==========
 
 Emacs package to call CMake to find out include paths and other compiler flags so that
@@ -14,7 +14,7 @@ Add this to your `.emacs` / `init.el`:
 
     (add-hook 'c-mode-common-hook (lambda ()
                                     (add-hook 'find-file-hook (lambda ()
-                                                                (cmake-json-run buffer-file-name)))))
+                                                                (cmake-ide-run buffer-file-name)))))
 
 If `ac-clang-flags-c` or `ac-clang-flags-c++` are set, they will be added to `ac-clang-flags`.
 These variables should be set. Particularly, they should contain the system include paths.
