@@ -56,17 +56,17 @@
                (tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
                (default-directory tmp-dir-name))
           (message (format "Running cmake in path %s" tmp-dir-name))
-          (message (format "buffers now %s" cmake--json-buffers))
           (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
           (set-process-sentinel (get-process "cmake")
                                 (lambda (process event)
-                                  (message (format "1st sentinel getting event %s" event))
                                   (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
                                          (json (json-read-file json-file))
                                          (flags (cmake--json-to-flags src-file json)))
                                     (mapc (lambda (x)
                                             (cmake-json-set-compiler-flags x flags))
-                                          cmake--json-buffers))))))))
+                                          cmake--json-buffers)
+                                    (setq cmake--json-buffers nil) ;reset
+                                    )))))))
 
 
 
