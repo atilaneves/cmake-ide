@@ -43,20 +43,31 @@
 (require 'flycheck)
 
 
-(defun cmake-json-run (file-name)
-  "Run CMake for source file FILE-NAME and set compiler flags for auto-completion and flycheck"
-  (when (and (not (get-process "cmake")) (cmake--json-is-src-file file-name))
-    (let* ((cmake-dir (cmake--json-locate-cmakelists))
-           (dir-name (file-name-as-directory (make-temp-file "cmake" t)))
-           (default-directory dir-name))
-      (message (format "Running cmake in path %s" dir-name))
+;;; The buffers to set variables for
+(defvar cmake--json-buffers nil)
 
-      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" cmake-dir)
-      (set-process-sentinel (get-process "cmake")
-                            (lambda (process event)
-                              (let* ((json (json-read-file (expand-file-name "compile_commands.json" dir-name)))
-                                     (flags (cmake--json-to-flags file-name json)))
-                                (cmake-json-set-compiler-flags flags)))))))
+
+(defun cmake-json-run (src-file)
+  "Run CMake for source file SRC-FILE and set compiler flags for auto-completion and flycheck"
+  (when (cmake--json-is-src-file src-file)
+    (add-to-list 'cmake--json-buffers (current-buffer))
+    (when (not (get-process "cmake"))
+        (let* ((project-dir (cmake--json-locate-cmakelists))
+               (tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
+               (default-directory tmp-dir-name))
+          (message (format "Running cmake in path %s" tmp-dir-name))
+          (message (format "buffers now %s" cmake--json-buffers))
+          (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
+          (set-process-sentinel (get-process "cmake")
+                                (lambda (process event)
+                                  (message (format "1st sentinel getting event %s" event))
+                                  (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
+                                         (json (json-read-file json-file))
+                                         (flags (cmake--json-to-flags src-file json)))
+                                    (mapc (lambda (x)
+                                            (cmake-json-set-compiler-flags x flags))
+                                          cmake--json-buffers))))))))
+
 
 
 (defun cmake--json-ends-with (string suffix)
@@ -119,16 +130,17 @@
   (cmake--json-to-simple-flags flags "-D"))
 
 
-(defun cmake-json-set-compiler-flags (flags)
+(defun cmake-json-set-compiler-flags (buffer flags)
   "Set ac-clang and flycheck variables from FLAGS"
-  (make-local-variable 'ac-clang-flags)
-  (make-local-variable 'flycheck-clang-include-path)
-  (make-local-variable 'flycheck-clang-definitions)
-  (setq ac-clang-flags (append (cmake--json-get-existing-ac-clang-flags) flags))
-  (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
-  (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
-  (flycheck-clear)
-  (message (format "Setting compiler flags from CMake JSON to:\n%s" ac-clang-flags)))
+  (with-current-buffer buffer
+    (make-local-variable 'ac-clang-flags)
+    (make-local-variable 'flycheck-clang-include-path)
+    (make-local-variable 'flycheck-clang-definitions)
+    (setq ac-clang-flags (append (cmake--json-get-existing-ac-clang-flags) flags))
+    (setq flycheck-clang-include-path (cmake--json-flags-to-includes flags))
+    (setq flycheck-clang-definitions (cmake--json-flags-to-defines flags))
+    (flycheck-clear)
+    (message (format "Setting compiler flags for %s from CMake JSON to:\n%s" buffer-file-name ac-clang-flags))))
 
 
 (defun cmake--json-get-existing-ac-clang-flags ()
