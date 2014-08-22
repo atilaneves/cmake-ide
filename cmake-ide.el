@@ -107,24 +107,23 @@
 
 (defun cmake-ide--json-to-hdr-assoc (json)
   "Transform JSON into an assoc list"
-  (mapcar (lambda (x)
-            (let* ((directory (cdr (assq 'directory x)))
-                   (command (cdr (assq 'command x)))
-                   (args (split-string command " +"))
-                   (flags (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
-                   (join-flags (mapconcat 'identity flags " ")))
-                   (cons directory join-flags)))
-          json))
+    (cmake-ide--json-to-symbol-assoc json 'directory))
+
 
 (defun cmake-ide--json-to-src-assoc (json)
   "Transform JSON object from cmake to an assoc list."
+  (cmake-ide--json-to-symbol-assoc json 'file))
+
+
+(defun cmake-ide--json-to-symbol-assoc (json symbol)
+  "Transform JSON object from cmake to an assoc list."
   (mapcar (lambda (x)
-            (let* ((filename (cdr (assq 'file x)))
+            (let* ((key (cdr (assq symbol x)))
                    (command (cdr (assq 'command x)))
                    (args (split-string command " +"))
                    (flags (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
                    (join-flags (mapconcat 'identity flags " ")))
-            (cons filename join-flags)))
+            (cons key join-flags)))
           json))
 
 
