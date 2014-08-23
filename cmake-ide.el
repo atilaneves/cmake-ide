@@ -63,37 +63,38 @@
 flycheck. This works by calling cmake in a temporary directory
 and parsing the json file deposited there with the compiler
 flags."
-  (let ((project-dir (cmake-ide--locate-cmakelists)))
-    (when project-dir ; no point if it's not a CMake project
-      ;; register this buffer to be either a header or source file
-      ;; waiting for results
-      (if (cmake-ide--is-src-file buffer-file-name)
-          (add-to-list 'cmake-ide--src-buffers (current-buffer))
-        (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
+  (when (file-readable-p (buffer-file-name)) ; new files needs not apply
+    (let ((project-dir (cmake-ide--locate-cmakelists)))
+      (when project-dir ; no point if it's not a CMake project
+        ;; register this buffer to be either a header or source file
+        ;; waiting for results
+        (if (cmake-ide--is-src-file buffer-file-name)
+            (add-to-list 'cmake-ide--src-buffers (current-buffer))
+          (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
 
-      ;; run CMake if necessary
-      (when (not (get-process "cmake")) ; only run it if not running
-        (let* ((cmake-dir (cmake-ide--get-dir))
-               (default-directory cmake-dir))
-          (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
-          (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
-          ;; register callback to run when cmake is finished
-          (set-process-sentinel (get-process "cmake")
-                                (lambda (process event)
-                                  (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
-                                         (json (json-read-file json-file))
-                                         (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
-                                         (hdr-flags (cmake-ide--json-to-hdr-flags buffer-file-name json)))
-                                    ;set flags for all source files that registered
-                                    (mapc (lambda (x)
-                                            (cmake-ide-set-compiler-flags x src-flags))
-                                          cmake-ide--src-buffers)
-                                    (setq cmake-ide--src-buffers nil) ; reset
-                                    ;set flags for all header fiels that registered
-                                    (mapc (lambda (x)
-                                            (cmake-ide-set-compiler-flags x hdr-flags))
-                                          cmake-ide--hdr-buffers)
-                                    (setq cmake-ide--hdr-buffers nil)))))))))
+        ;; run CMake if necessary
+        (when (not (get-process "cmake")) ; only run it if not running
+          (let* ((cmake-dir (cmake-ide--get-dir))
+                 (default-directory cmake-dir))
+            (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
+            (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
+            ;; register callback to run when cmake is finished
+            (set-process-sentinel (get-process "cmake")
+                                  (lambda (process event)
+                                    (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
+                                           (json (json-read-file json-file))
+                                           (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
+                                           (hdr-flags (cmake-ide--json-to-hdr-flags buffer-file-name json)))
+                                        ;set flags for all source files that registered
+                                      (mapc (lambda (x)
+                                              (cmake-ide-set-compiler-flags x src-flags))
+                                            cmake-ide--src-buffers)
+                                      (setq cmake-ide--src-buffers nil) ; reset
+                                        ;set flags for all header fiels that registered
+                                      (mapc (lambda (x)
+                                              (cmake-ide-set-compiler-flags x hdr-flags))
+                                            cmake-ide--hdr-buffers)
+                                      (setq cmake-ide--hdr-buffers nil))))))))))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags)
