@@ -15,10 +15,14 @@ Just ask CMake.
 
 Features
 --------
-* Automatically reruns CMake when a file is saved. Great when using
-  CMake globs, but needs `cmake-ide-dir` to be set.
 * Sets variables for `auto-complete-clang` and `flycheck` for a CMake
   project automagically.
+* Automatically reruns CMake when a file is saved. Great when using
+CMake globs, but needs `cmake-ide-dir` to be set.
+* `cmake-ide-delete-file` allows you to have the same convenience when
+deleting files. I can't figure out a better way to do this. Obviously
+simply deleting the file means having to run CMake again manually for
+it to register the change in the list of files to be compiled
 
 
 Usage
