@@ -140,6 +140,7 @@ flags."
 
 
 (defun cmake-ide--run-cmake-impl (project-dir)
+  "Run the CMake process."
   (when project-dir
     (let* ((cmake-dir (cmake-ide--get-dir))
            (default-directory cmake-dir))
