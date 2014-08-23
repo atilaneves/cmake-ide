@@ -59,9 +59,15 @@
   "Sets up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
                                   (add-hook 'find-file-hook #'cmake-ide-run-cmake)))
-  (add-hook 'after-save-hook (lambda ()
-                               (when (cmake-ide--is-src-file (buffer-file-name))
-                                 (cmake-ide-run-cmake)))))
+  (add-hook 'before-save-hook (lambda ()
+                                (when (and (cmake-ide--is-src-file (buffer-file-name))
+                                           (not (file-readable-p (buffer-file-name))))
+                                  (add-hook 'after-save-hook 'cmake-ide--new-file-saved nil 'local)))))
+
+
+(defun cmake-ide--new-file-saved ()
+  (cmake-ide-run-cmake)
+  (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
 
 ;;;###autoload
