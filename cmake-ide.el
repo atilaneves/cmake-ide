@@ -49,6 +49,9 @@
 ;;; The C++ flags for ac-clang flags
 (defvar cmake-ide-flags-c++ nil)
 
+;;; The directory to run CMake in. If nil, a temporary directory is used.
+(defvar cmake-ide-dir nil)
+
 
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
@@ -70,14 +73,14 @@ flags."
 
       ;; run CMake if necessary
       (when (not (get-process "cmake")) ; only run it if not running
-        (let* ((tmp-dir-name (file-name-as-directory (make-temp-file "cmake" t)))
-               (default-directory tmp-dir-name))
-          (message (format "Running cmake in path %s" tmp-dir-name))
+        (let* ((cmake-dir (cmake-ide--get-dir))
+               (default-directory cmake-dir))
+          (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
           (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
           ;; register callback to run when cmake is finished
           (set-process-sentinel (get-process "cmake")
                                 (lambda (process event)
-                                  (let* ((json-file (expand-file-name "compile_commands.json" tmp-dir-name))
+                                  (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
                                          (json (json-read-file json-file))
                                          (src-flags (cmake-ide--json-to-src-flags src-file json))
                                          (hdr-flags (cmake-ide--json-to-hdr-flags src-file json)))
@@ -91,6 +94,10 @@ flags."
                                             (cmake-ide-set-compiler-flags x hdr-flags))
                                           cmake-ide--hdr-buffers)
                                     (setq cmake-ide--hdr-buffers nil)))))))))
+
+(defun cmake-ide--get-dir ()
+  "Return the directory name to run CMake in"
+  (file-name-as-directory (or cmake-ide-dir (make-temp-file "cmake" t))))
 
 
 (defun cmake-ide--ends-with (string suffix)
