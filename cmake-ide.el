@@ -89,8 +89,7 @@ flags."
         (when (not (get-process "cmake")) ; only run it if not running
           (let* ((cmake-dir (cmake-ide--get-dir))
                  (default-directory cmake-dir))
-            (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
-            (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)
+            (cmake-ide--run-cmake-impl project-dir)
             ;; register callback to run when cmake is finished
             (set-process-sentinel (get-process "cmake")
                                   (lambda (process event)
@@ -136,12 +135,16 @@ flags."
         (delete-file filename)
         (kill-buffer buffer)
         (let ((project-dir (cmake-ide--locate-cmakelists)))
-          (when project-dir
-            (let* ((cmake-dir (cmake-ide--get-dir))
-                   (default-directory cmake-dir))
-              (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
-            (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
-        (message "File '%s' successfully removed" filename)))))
+          (when project-dir (cmake-ide--run-cmake-impl project-dir))
+          (message "File '%s' successfully removed" filename))))))
+
+
+(defun cmake-ide--run-cmake-impl (project-dir)
+  (when project-dir
+    (let* ((cmake-dir (cmake-ide--get-dir))
+           (default-directory cmake-dir))
+      (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
+      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-dir ()
