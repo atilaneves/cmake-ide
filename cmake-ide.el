@@ -30,8 +30,7 @@
 
 ;;; Usage:
 
-;(add-hook 'c-mode-common-hook (lambda ()
-;                                (add-hook 'find-file-hook 'cmake-ide-run-cmake)))
+;; (cmake-ide-setup)
 ;
 ; If cmake-ide-flags-c or cmake-ide-flags-c++ are set, they will be added to ac-clang-flags.
 ; These variables should be set. Particularly, they should contain the system include paths.
@@ -56,6 +55,11 @@
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
 
+;;;###autoload
+(defun cmake-ide-setup ()
+  "Sets up the Emacs hooks for working with CMake projects."
+  (add-hook 'c-mode-common-hook (lambda ()
+                                (add-hook 'find-file-hook #'cmake-ide-run-cmake))))
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()

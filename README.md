@@ -12,9 +12,7 @@ Usage
 
 Add this to your `.emacs` / `init.el`:
 
-    (add-hook 'c-mode-common-hook (lambda ()
-                                    (add-hook 'find-file-hook (lambda ()
-                                                                (cmake-ide-run buffer-file-name)))))
+    (cmake-ide-setup)
 
 If `cmake-ide-clang-flags-c` or `cmake-ide-flags-c++` are set, they will be added to `ac-clang-flags`.
 These variables should be set. Particularly, they should contain the system include paths
