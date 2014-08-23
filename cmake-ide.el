@@ -50,7 +50,6 @@
 ;;; The directory to run CMake in. If nil, a temporary directory is used.
 (defvar cmake-ide-dir nil)
 
-
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
@@ -59,7 +58,11 @@
 (defun cmake-ide-setup ()
   "Sets up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
-                                (add-hook 'find-file-hook #'cmake-ide-run-cmake))))
+                                  (add-hook 'find-file-hook #'cmake-ide-run-cmake)))
+  (add-hook 'after-save-hook (lambda ()
+                               (when (cmake-ide--is-src-file (buffer-file-name))
+                                 (cmake-ide-run-cmake)))))
+
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
