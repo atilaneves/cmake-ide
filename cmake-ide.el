@@ -31,8 +31,7 @@
 ;;; Usage:
 
 ;(add-hook 'c-mode-common-hook (lambda ()
-;                                (add-hook 'find-file-hook (lambda ()
-;                                                            (cmake-ide-run buffer-file-name)))))
+;                                (add-hook 'find-file-hook 'cmake-ide-run-cmake)))
 ;
 ; If cmake-ide-flags-c or cmake-ide-flags-c++ are set, they will be added to ac-clang-flags.
 ; These variables should be set. Particularly, they should contain the system include paths.
@@ -58,16 +57,17 @@
 (defvar cmake-ide--hdr-buffers nil)
 
 
-(defun cmake-ide-run (src-file)
-  "Run CMake for source file SRC-FILE and set compiler flags for
-auto-completion and flycheck. This works by calling cmake in a temporary
-directory and parsing the json file deposited there with the compiler
+;;;###autoload
+(defun cmake-ide-run-cmake ()
+  "Run CMake and set compiler flags for auto-completion and
+flycheck. This works by calling cmake in a temporary directory
+and parsing the json file deposited there with the compiler
 flags."
   (let ((project-dir (cmake-ide--locate-cmakelists)))
     (when project-dir ; no point if it's not a CMake project
       ;; register this buffer to be either a header or source file
       ;; waiting for results
-      (if (cmake-ide--is-src-file src-file)
+      (if (cmake-ide--is-src-file buffer-file-name)
           (add-to-list 'cmake-ide--src-buffers (current-buffer))
         (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
 
@@ -82,8 +82,8 @@ flags."
                                 (lambda (process event)
                                   (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
                                          (json (json-read-file json-file))
-                                         (src-flags (cmake-ide--json-to-src-flags src-file json))
-                                         (hdr-flags (cmake-ide--json-to-hdr-flags src-file json)))
+                                         (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
+                                         (hdr-flags (cmake-ide--json-to-hdr-flags buffer-file-name json)))
                                     ;set flags for all source files that registered
                                     (mapc (lambda (x)
                                             (cmake-ide-set-compiler-flags x src-flags))
@@ -94,6 +94,21 @@ flags."
                                             (cmake-ide-set-compiler-flags x hdr-flags))
                                           cmake-ide--hdr-buffers)
                                     (setq cmake-ide--hdr-buffers nil)))))))))
+
+
+(defun cmake-ide-set-compiler-flags (buffer flags)
+  "Set ac-clang and flycheck variables from FLAGS"
+  (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (make-local-variable 'ac-clang-flags)
+          (make-local-variable 'flycheck-clang-include-path)
+          (make-local-variable 'flycheck-clang-definitions)
+          (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
+          (setq flycheck-clang-include-path (cmake-ide--flags-to-includes flags))
+          (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
+          (flycheck-clear)
+          (message (format "ac-clang-flags for %s from CMake JSON:\n%s" buffer-file-name ac-clang-flags)))))
+
 
 (defun cmake-ide--get-dir ()
   "Return the directory name to run CMake in"
@@ -176,20 +191,6 @@ flags."
 (defun cmake-ide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines"
   (cmake-ide--to-simple-flags flags "-D"))
-
-
-(defun cmake-ide-set-compiler-flags (buffer flags)
-  "Set ac-clang and flycheck variables from FLAGS"
-  (when (buffer-live-p buffer)
-        (with-current-buffer buffer
-          (make-local-variable 'ac-clang-flags)
-          (make-local-variable 'flycheck-clang-include-path)
-          (make-local-variable 'flycheck-clang-definitions)
-          (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
-          (setq flycheck-clang-include-path (cmake-ide--flags-to-includes flags))
-          (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
-          (flycheck-clear)
-          (message (format "ac-clang-flags for %s from CMake JSON:\n%s" buffer-file-name ac-clang-flags)))))
 
 
 (defun cmake-ide--get-existing-ac-clang-flags ()
