@@ -1,6 +1,8 @@
 cmake-ide
 ==========
 
+[![Build Status](https://travis-ci.org/atilaneves/cmake-ide.svg?branch=master)](https://travis-ci.org/atilaneves/cmake-ide)
+
 `cmake-ide` enables autocompletion and on-the-fly syntax checking
 in Emacs for CMake projects with minimal configuration. It depends
 on [flycheck](https://github.com/flycheck/flycheck) and
