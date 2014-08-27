@@ -23,12 +23,11 @@
 ;;
 
 ;;; Code:
+(require 'f)
 
-
-; make sure all packages are found
-(add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
-(let ((default-directory "~/.emacs.d/elpa/"))
-  (normal-top-level-add-subdirs-to-load-path))
+(setq cmake-ide--test-path (f-dirname load-file-name))
+(setq cmake-ide--root-path (f-parent cmake-ide--test-path))
+(add-to-list 'load-path cmake-ide--root-path)
 
 (require 'ert)
 (require 'cmake-ide)
