@@ -89,7 +89,7 @@ flags."
         (when (not (get-process "cmake")) ; only run it if not running
           (let* ((cmake-dir (cmake-ide--get-dir))
                  (default-directory cmake-dir))
-            (cmake-ide--run-cmake-impl project-dir)
+            (cmake-ide--run-cmake-impl project-dir cmake-dir)
             ;; register callback to run when cmake is finished
             (set-process-sentinel (get-process "cmake")
                                   (lambda (process event)
@@ -126,26 +126,27 @@ flags."
 (defun cmake-ide-delete-file ()
   "Removes file connected to current buffer and kills buffer, then runs CMake."
   (interactive)
-  (let ((filename (buffer-file-name))
-        (buffer (current-buffer))
-        (name (buffer-name)))
-    (if (not (and filename (file-exists-p filename)))
-        (error "Buffer '%s' is not visiting a file!" name)
-      (when (yes-or-no-p "Are you sure you want to remove this file? ")
-        (delete-file filename)
-        (kill-buffer buffer)
-        (let ((project-dir (cmake-ide--locate-cmakelists)))
-          (when project-dir (cmake-ide--run-cmake-impl project-dir))
-          (message "File '%s' successfully removed" filename))))))
+  (if cmake-ide-dir
+      (let ((filename (buffer-file-name))
+            (buffer (current-buffer))
+            (name (buffer-name)))
+        (if (not (and filename (file-exists-p filename)))
+            (error "Buffer '%s' is not visiting a file!" name)
+          (when (yes-or-no-p "Are you sure you want to remove this file? ")
+            (delete-file filename)
+            (kill-buffer buffer)
+            (let ((project-dir (cmake-ide--locate-cmakelists)))
+              (when project-dir (cmake-ide--run-cmake-impl project-dir cmake-ide-dir))
+              (message "File '%s' successfully removed" filename)))))
+    (error "Not possible to delete a file without setting cmake-ide-dir")))
 
 
-(defun cmake-ide--run-cmake-impl (project-dir)
+(defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process."
   (when project-dir
-    (let* ((cmake-dir (cmake-ide--get-dir))
-           (default-directory cmake-dir))
+    (let* (default-directory cmake-dir))
       (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
-      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)))
 
 
 (defun cmake-ide--get-dir ()
