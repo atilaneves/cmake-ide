@@ -1,6 +1,4 @@
-;; -*- lexical-binding: t; -*-
-
-;;; cmake-ide --- Calls CMake to find out include paths and other compiler flags
+;;; cmake-ide --- Calls CMake to find out include paths and other compiler flags -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014 Atila Neves
 
@@ -56,7 +54,7 @@
 
 ;;;###autoload
 (defun cmake-ide-setup ()
-  "Sets up the Emacs hooks for working with CMake projects."
+  "Set up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
                                   (add-hook 'find-file-hook #'cmake-ide-run-cmake)))
   (add-hook 'before-save-hook (lambda ()
@@ -66,14 +64,15 @@
 
 
 (defun cmake-ide--new-file-saved ()
+  "Run CMake to pick up newly created files."
   (cmake-ide-run-cmake)
   (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
-  "Run CMake and set compiler flags for auto-completion and
-flycheck. This works by calling cmake in a temporary directory
+  "Run CMake and set compiler flags for auto-completion and flycheck.
+This works by calling cmake in a temporary directory
 and parsing the json file deposited there with the compiler
 flags."
   (when (file-readable-p (buffer-file-name)) ; new files needs not apply
@@ -110,7 +109,7 @@ flags."
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags)
-  "Set ac-clang and flycheck variables from FLAGS"
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS."
   (when (buffer-live-p buffer)
         (with-current-buffer buffer
           (make-local-variable 'ac-clang-flags)
@@ -124,7 +123,7 @@ flags."
 
 
 (defun cmake-ide-delete-file ()
-  "Removes file connected to current buffer and kills buffer, then runs CMake."
+  "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
   (if cmake-ide-dir
       (let ((filename (buffer-file-name))
@@ -142,7 +141,7 @@ flags."
 
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
-  "Run the CMake process."
+  "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
     (let* (default-directory cmake-dir))
       (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
@@ -150,7 +149,7 @@ flags."
 
 
 (defun cmake-ide--get-dir ()
-  "Return the directory name to run CMake in"
+  "Return the directory name to run CMake in."
   (file-name-as-directory (or cmake-ide-dir (make-temp-file "cmake" t))))
 
 
@@ -162,7 +161,7 @@ flags."
 
 
 (defun cmake-ide--is-src-file (string)
-  "Tests is STRING is a source file or not"
+  "Test if STRING is a source file or not."
   (or (cmake-ide--ends-with string ".c")
       (cmake-ide--ends-with string ".cpp")
       (cmake-ide--ends-with string ".C")
@@ -171,13 +170,13 @@ flags."
 
 
 (defun cmake-ide--filter (pred lst)
-  "Filter LST based on PRED. Because elisp"
+  "Apply PRED to filter LST."
   (delq nil
         (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
 (defun cmake-ide--json-to-hdr-assoc (json)
-  "Transform JSON into an assoc list"
+  "Transform JSON into an assoc list."
     (cmake-ide--json-to-symbol-assoc json 'directory))
 
 
@@ -187,7 +186,7 @@ flags."
 
 
 (defun cmake-ide--json-to-symbol-assoc (json symbol)
-  "Transform JSON object from cmake to an assoc list."
+  "Transform JSON object from cmake to an assoc list for SYMBOL."
   (mapcar (lambda (x)
             (let* ((key (cdr (assq symbol x)))
                    (command (cdr (assq 'command x)))
@@ -199,22 +198,32 @@ flags."
 
 
 (defun cmake-ide--json-to-src-flags (file-name json)
-  "From JSON to a list of compiler flags for compileable source files"
+  "Source compiler flags for FILE-NAME from JSON."
   (let* ((cmake-ide-alist (cmake-ide--json-to-src-assoc json))
          (flags-string (cdr (assoc file-name cmake-ide-alist))))
     (split-string flags-string " +")))
 
 
 (defun cmake-ide--json-to-hdr-flags (file-name json)
-  "From JSON to a list of compiler flags for headers"
+  "Header compiler flags for FILE-NAME from JSON."
   (let* ((cmake-ide-alist (cmake-ide--json-to-hdr-assoc json))
          (dir (directory-file-name (file-name-directory file-name)))
          (flags-string (cdr (assoc dir cmake-ide-alist))))
     (if flags-string (split-string flags-string " +") nil)))
 
 
+(defun cmake-ide--flags-to-includes (flags)
+  "From FLAGS (a list of flags) to a list of include directories."
+  (cmake-ide--to-simple-flags flags "-I"))
+
+
+(defun cmake-ide--flags-to-defines (flags)
+  "From FLAGS (a list of flags) to a list of defines."
+  (cmake-ide--to-simple-flags flags "-D"))
+
+
 (defun cmake-ide--to-simple-flags (flags flag)
-  "From JSON to a list of include directories/defines"
+  "A list of either directories or defines from FLAGS depending on FLAG."
   (let* ((include-flags (cmake-ide--filter (lambda (x)
                                       (let ((match (string-match flag x)))
                                         (and match (zerop match))))
@@ -222,35 +231,27 @@ flags."
     (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) include-flags)))
 
 
-(defun cmake-ide--flags-to-includes (flags)
-  "From FLAGS (a list of flags) to a list of include directories"
-  (cmake-ide--to-simple-flags flags "-I"))
-
-
-(defun cmake-ide--flags-to-defines (flags)
-  "From FLAGS (a list of flags) to a list of defines"
-  (cmake-ide--to-simple-flags flags "-D"))
 
 
 (defun cmake-ide--get-existing-ac-clang-flags ()
-  "Return existing ac-clang flags for this mode, if set"
+  "Return existing ac-clang flags for this mode, if set."
   (if (eq major-mode 'c++-mode)
       (cmake-ide--symbol-value 'cmake-ide-flags-c++)
     (cmake-ide--symbol-value 'cmake-ide-flags-c)))
 
 
 (defun cmake-ide--symbol-value (sym)
-  "Return the value of SYM if bound, nil if not"
+  "Return the value of SYM if bound, nil if not."
   (if (boundp sym) (symbol-value sym) nil))
 
 
 (defun cmake-ide--locate-cmakelists ()
-  "Find the topmost CMakeLists.txt file"
+  "Find the topmost CMakeLists.txt file."
   (cmake-ide--locate-cmakelists-impl default-directory nil))
 
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
-  "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'"
+  "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
     (if new-dir
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
