@@ -78,36 +78,16 @@
   (should (eq (cmake-ide--is-src-file "foo.d") nil))
   (should (eq (cmake-ide--is-src-file "foo.py") nil)))
 
-(ert-deftest test-json-to-src-hdr-assoc ()
-    (should (equal (cmake-ide--json-to-hdr-assoc
-                  '[((file . "file1") (command . "cmd1 -Ifoo -Ibar") (directory . "/dir/bir"))
-                    ((file . "file2") (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo") (directory . "/boo/foo"))])
-                    '(("/dir/bir" . "-Ifoo -Ibar") ("/boo/foo" . "-Ibaz -Iboo -Dloo"))))
-  (should (equal (cmake-ide--json-to-hdr-assoc
-                  '[((file . "file3") (command . "cmd3 -Itre -Dbre -c file3.c") (directory . "/dir1"))
-                    ((file . "file4") (command . "cmd3 -Iasda -Dtesco -c file4.c") (directory . "/dir1"))])
-                  '(("/dir1" . "-Itre -Dbre") ("/dir1" . "-Iasda -Dtesco")))))
-
 
 (ert-deftest test-json-to-hdr-flags ()
-  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file1.h"
-                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+  (should (equal (cmake-ide--json-to-hdr-flags '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
                                                   (directory . "/dir1"))])
                  '("-Ifoo" "-Ibar")))
-  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file3.h"
-                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
-                                                  (directory . "/dir1"))])
-                 '("-Ifoo" "-Ibar")))
-    (should (equal (cmake-ide--json-to-hdr-flags "/dir3/file1.h"
-                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
-                                                  (directory . "/dir1"))])
-                 nil))
-  (should (equal (cmake-ide--json-to-hdr-flags "/dir1/file2.h"
-                                               '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+  (should (equal (cmake-ide--json-to-hdr-flags '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
                                                   (directory . "/dir1"))
                                                  ((file . "/dir2/file2.h") (command . "cmd2 -Iloo -Dboo")
                                                   (directory . "/dir2"))])
-                 '("-Ifoo" "-Ibar"))))
+                 '("-Ifoo" "-Ibar" "-Iloo" "-Dboo"))))
 
 
 (provide 'cmake-ide-test)

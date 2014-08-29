@@ -91,20 +91,28 @@ flags."
             (cmake-ide--run-cmake-impl project-dir cmake-dir)
             ;; register callback to run when cmake is finished
             (set-process-sentinel (get-process "cmake")
-                                  (lambda (process event)
+                                  (lambda (_process _event)
+                                    (message (format "Running CMake callback for %s" buffer-file-name))
+                                    (message (format "src files: %s" cmake-ide--src-buffers))
+                                    (message (format "hdr files: %s" cmake-ide--hdr-buffers))
                                     (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
                                            (json (json-read-file json-file))
                                            (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
-                                           (hdr-flags (cmake-ide--json-to-hdr-flags buffer-file-name json)))
+                                           (hdr-flags (cmake-ide--json-to-hdr-flags json)))
+                                      (message (format "json is %s" json))
+                                      (message (format "src-flags is %s" src-flags))
+                                      (message (format "hdr-flags is %s" hdr-flags))
                                         ;set flags for all source files that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide-set-compiler-flags x src-flags))
-                                            cmake-ide--src-buffers)
+                                      (when src-flags (mapc (lambda (x)
+                                                              (message (format "Setting src flags for %s" x))
+                                                              (cmake-ide-set-compiler-flags x src-flags))
+                                                            cmake-ide--src-buffers))
                                       (setq cmake-ide--src-buffers nil) ; reset
                                         ;set flags for all header fiels that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide-set-compiler-flags x hdr-flags))
-                                            cmake-ide--hdr-buffers)
+                                      (when hdr-flags (mapc (lambda (x)
+                                                              (message (format "Setting hdr flags for %s" x))
+                                                              (cmake-ide-set-compiler-flags x hdr-flags))
+                                                            cmake-ide--hdr-buffers))
                                       (setq cmake-ide--hdr-buffers nil))))))))))
 
 
@@ -143,7 +151,7 @@ flags."
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
-    (let* (default-directory cmake-dir))
+    (let (default-directory cmake-dir))
       (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
       (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)))
 
@@ -175,11 +183,6 @@ flags."
         (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
-(defun cmake-ide--json-to-hdr-assoc (json)
-  "Transform JSON into an assoc list."
-    (cmake-ide--json-to-symbol-assoc json 'directory))
-
-
 (defun cmake-ide--json-to-src-assoc (json)
   "Transform JSON object from cmake to an assoc list."
   (cmake-ide--json-to-symbol-assoc json 'file))
@@ -191,25 +194,35 @@ flags."
             (let* ((key (cdr (assq symbol x)))
                    (command (cdr (assq 'command x)))
                    (args (split-string command " +"))
-                   (flags (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
+                   (flags (cmake-ide--args-to-include-and-define-flags args))
                    (join-flags (mapconcat 'identity flags " ")))
             (cons key join-flags)))
           json))
 
 
+(defun cmake-ide--args-to-include-and-define-flags (args)
+  "Filters a list of compiler command ARGS to yield only includes and defines."
+  (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
+
+
 (defun cmake-ide--json-to-src-flags (file-name json)
   "Source compiler flags for FILE-NAME from JSON."
-  (let* ((cmake-ide-alist (cmake-ide--json-to-src-assoc json))
-         (flags-string (cdr (assoc file-name cmake-ide-alist))))
-    (split-string flags-string " +")))
-
-
-(defun cmake-ide--json-to-hdr-flags (file-name json)
-  "Header compiler flags for FILE-NAME from JSON."
-  (let* ((cmake-ide-alist (cmake-ide--json-to-hdr-assoc json))
-         (dir (directory-file-name (file-name-directory file-name)))
-         (flags-string (cdr (assoc dir cmake-ide-alist))))
+    (let* ((cmake-ide-alist (cmake-ide--json-to-src-assoc json))
+         (value (assoc file-name cmake-ide-alist))
+         (flags-string (if value (cdr value) nil)))
     (if flags-string (split-string flags-string " +") nil)))
+
+
+(defun cmake-ide--json-to-hdr-flags (json)
+  "Header compiler flags from JSON."
+  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
+        (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+    (cmake-ide--args-to-include-and-define-flags args)))
+
+
+(defun cmake-ide--flatten (lst)
+  "Flatten LST."
+  (apply 'append lst))
 
 
 (defun cmake-ide--flags-to-includes (flags)
@@ -224,13 +237,12 @@ flags."
 
 (defun cmake-ide--to-simple-flags (flags flag)
   "A list of either directories or defines from FLAGS depending on FLAG."
-  (let* ((include-flags (cmake-ide--filter (lambda (x)
-                                      (let ((match (string-match flag x)))
-                                        (and match (zerop match))))
-                                    flags)))
+  (let* ((include-flags (cmake-ide--filter
+                         (lambda (x)
+                           (let ((match (string-match flag x)))
+                             (and match (zerop match))))
+                         flags)))
     (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) include-flags)))
-
-
 
 
 (defun cmake-ide--get-existing-ac-clang-flags ()
