@@ -5,9 +5,15 @@ before_install:
   - export PATH="$HOME/.evm/bin:$PATH"
   - evm install $EVM_EMACS --use
   - cask
+  - sudo wget http://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list -O /etc/apt/sources.list.d/d-apt.list
+  - sudo apt-get update
+  - sudo apt-get -y --allow-unauthenticated install --reinstall d-apt-keyring
+  - sudo apt-get update
+  - sudo apt-get -y install dub
+
 env:
   - EVM_EMACS=emacs-24.1-bin
   - EVM_EMACS=emacs-24.2-bin
 script:
   - emacs --version
-  - cask exec ert-runner
+  - make test
