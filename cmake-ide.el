@@ -217,7 +217,7 @@ flags."
   "Header compiler flags from JSON."
   (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
-    (cmake-ide--args-to-include-and-define-flags args)))
+    (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
 
 (defun cmake-ide--flatten (lst)

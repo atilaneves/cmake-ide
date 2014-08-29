@@ -87,7 +87,16 @@
                                                   (directory . "/dir1"))
                                                  ((file . "/dir2/file2.h") (command . "cmd2 -Iloo -Dboo")
                                                   (directory . "/dir2"))])
+                 '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))
+    (should (equal (cmake-ide--json-to-hdr-flags '[((file . "/dir1/file1.h") (command . "cmd1 -Ifoo -Ibar")
+                                                  (directory . "/dir1"))
+                                                 ((file . "/dir2/file2.h") (command . "cmd2 -Iloo -Dboo")
+                                                  (directory . "/dir2"))
+                                                 ((file . "/dir2/file2.h") (command . "cmd2 -Iloo -Dboo")
+                                                  (directory . "/dir2"))])
+
                  '("-Ifoo" "-Ibar" "-Iloo" "-Dboo"))))
+
 
 
 (provide 'cmake-ide-test)
