@@ -93,26 +93,18 @@ flags."
             ;; register callback to run when cmake is finished
             (set-process-sentinel (get-process "cmake")
                                   (lambda (_process _event)
-                                    (message (format "Running CMake callback for %s" buffer-file-name))
-                                    (message (format "src files: %s" cmake-ide--src-buffers))
-                                    (message (format "hdr files: %s" cmake-ide--hdr-buffers))
                                     (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
                                            (json (json-read-file json-file))
                                            (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
                                            (hdr-flags (cmake-ide--json-to-hdr-flags json))
                                            (includes (cmake-ide--json-to-includes buffer-file-name json)))
-                                      (message (format "json is %s" json))
-                                      (message (format "src-flags is %s" src-flags))
-                                      (message (format "hdr-flags is %s" hdr-flags))
                                         ;set flags for all source files that registered
                                       (when src-flags (mapc (lambda (x)
-                                                              (message (format "Setting src flags for %s" x))
                                                               (cmake-ide-set-compiler-flags x src-flags includes))
                                                             cmake-ide--src-buffers))
                                       (setq cmake-ide--src-buffers nil) ; reset
                                         ;set flags for all header fiels that registered
                                       (when hdr-flags (mapc (lambda (x)
-                                                              (message (format "Setting hdr flags for %s" x))
                                                               (cmake-ide-set-compiler-flags x hdr-flags includes))
                                                             cmake-ide--hdr-buffers))
                                       (setq cmake-ide--hdr-buffers nil))))))))))
