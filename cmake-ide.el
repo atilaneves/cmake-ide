@@ -84,7 +84,6 @@ flags."
         (if (cmake-ide--is-src-file buffer-file-name)
             (add-to-list 'cmake-ide--src-buffers (current-buffer))
           (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
-
         ;; run CMake if necessary
         (when (not (get-process "cmake")) ; only run it if not running
           (let* ((cmake-dir (cmake-ide--get-dir))
@@ -94,20 +93,27 @@ flags."
             (set-process-sentinel (get-process "cmake")
                                   (lambda (_process _event)
                                     (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
-                                           (json (json-read-file json-file))
-                                           (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
-                                           (hdr-flags (cmake-ide--json-to-hdr-flags json))
-                                           (includes (cmake-ide--json-to-includes buffer-file-name json)))
-                                        ;set flags for all source files that registered
-                                      (when src-flags (mapc (lambda (x)
-                                                              (cmake-ide-set-compiler-flags x src-flags includes))
-                                                            cmake-ide--src-buffers))
+                                           (json (json-read-file json-file)))
+                                      ;; set flags for all source files that registered
+                                      (mapc (lambda (x)
+                                              (cmake-ide--set-flags-for-file json x))
+                                            cmake-ide--src-buffers)
                                       (setq cmake-ide--src-buffers nil) ; reset
-                                        ;set flags for all header fiels that registered
-                                      (when hdr-flags (mapc (lambda (x)
-                                                              (cmake-ide-set-compiler-flags x hdr-flags includes))
-                                                            cmake-ide--hdr-buffers))
+                                      ;; set flags for all header files that registered
+                                      (mapc (lambda (x)
+                                              (cmake-ide--set-flags-for-file json x))
+                                            cmake-ide--hdr-buffers)
                                       (setq cmake-ide--hdr-buffers nil))))))))))
+
+
+(defun cmake-ide--set-flags-for-file (json buffer)
+  "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
+  (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
+         (hdr-flags (cmake-ide--json-to-hdr-flags json))
+         (includes (cmake-ide--json-to-includes (buffer-file-name buffer) json)))
+    ;; set flags for all source files that registered
+    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags includes))
+    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags includes))))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes)
