@@ -153,9 +153,9 @@ flags."
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
-    (let (default-directory cmake-dir))
+    (let ((default-directory cmake-dir))
       (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
-      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir)))
+      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-dir ()
@@ -246,8 +246,7 @@ flags."
 
 (defun cmake-ide--flags-to-includes (flags)
   "From FLAGS (a list of flags) to a list of includes."
-  (let ((sublist (member "-include" flags))
-        (includes nil))
+  (let ((includes nil))
     (while (member "-include" flags)
       (setq flags (cdr (member "-include" flags)))
       (when flags (setq includes (cons (car flags) includes))))
