@@ -130,7 +130,7 @@ flags."
           (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
           (setq flycheck-clang-includes includes)
           (flycheck-clear)
-          (flycheck-buffer)
+          (run-at-time "0.5 sec" nil 'flycheck-buffer)
           (message (format "ac-clang-flags for %s from CMake JSON:\n%s" buffer-file-name ac-clang-flags)))))
 
 
