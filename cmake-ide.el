@@ -75,6 +75,7 @@
 This works by calling cmake in a temporary directory
 and parsing the json file deposited there with the compiler
 flags."
+  (interactive)
   (when (file-readable-p (buffer-file-name)) ; new files needs not apply
     (let ((project-dir (cmake-ide--locate-cmakelists)))
       (when project-dir ; no point if it's not a CMake project
@@ -98,35 +99,38 @@ flags."
                                     (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
                                            (json (json-read-file json-file))
                                            (src-flags (cmake-ide--json-to-src-flags buffer-file-name json))
-                                           (hdr-flags (cmake-ide--json-to-hdr-flags json)))
+                                           (hdr-flags (cmake-ide--json-to-hdr-flags json))
+                                           (includes (cmake-ide--json-to-includes buffer-file-name json)))
                                       (message (format "json is %s" json))
                                       (message (format "src-flags is %s" src-flags))
                                       (message (format "hdr-flags is %s" hdr-flags))
                                         ;set flags for all source files that registered
                                       (when src-flags (mapc (lambda (x)
                                                               (message (format "Setting src flags for %s" x))
-                                                              (cmake-ide-set-compiler-flags x src-flags))
+                                                              (cmake-ide-set-compiler-flags x src-flags includes))
                                                             cmake-ide--src-buffers))
                                       (setq cmake-ide--src-buffers nil) ; reset
                                         ;set flags for all header fiels that registered
                                       (when hdr-flags (mapc (lambda (x)
                                                               (message (format "Setting hdr flags for %s" x))
-                                                              (cmake-ide-set-compiler-flags x hdr-flags))
+                                                              (cmake-ide-set-compiler-flags x hdr-flags includes))
                                                             cmake-ide--hdr-buffers))
                                       (setq cmake-ide--hdr-buffers nil))))))))))
 
 
-(defun cmake-ide-set-compiler-flags (buffer flags)
-  "Set ac-clang and flycheck variables for BUFFER from FLAGS."
+(defun cmake-ide-set-compiler-flags (buffer flags includes)
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES."
   (when (buffer-live-p buffer)
         (with-current-buffer buffer
           (make-local-variable 'ac-clang-flags)
           (make-local-variable 'flycheck-clang-include-path)
           (make-local-variable 'flycheck-clang-definitions)
           (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
-          (setq flycheck-clang-include-path (cmake-ide--flags-to-includes flags))
+          (setq flycheck-clang-include-path (cmake-ide--flags-to-include-paths flags))
           (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
+          (setq flycheck-clang-includes includes)
           (flycheck-clear)
+          (flycheck-buffer)
           (message (format "ac-clang-flags for %s from CMake JSON:\n%s" buffer-file-name ac-clang-flags)))))
 
 
@@ -183,31 +187,33 @@ flags."
         (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
 
 
-(defun cmake-ide--json-to-src-assoc (json)
-  "Transform JSON object from cmake to an assoc list."
-  (cmake-ide--json-to-symbol-assoc json 'file))
+(defun cmake-ide--json-to-src-assoc (json filter-func)
+  "Transform JSON object from cmake to an assoc list using FILTER-FUNC."
+  (cmake-ide--json-to-symbol-assoc json 'file filter-func))
 
 
-(defun cmake-ide--json-to-symbol-assoc (json symbol)
-  "Transform JSON object from cmake to an assoc list for SYMBOL."
+(defun cmake-ide--json-to-symbol-assoc (json symbol filter-func)
+  "Transform JSON object from cmake to an assoc list for SYMBOL using FILTER-FUNC."
   (mapcar (lambda (x)
             (let* ((key (cdr (assq symbol x)))
                    (command (cdr (assq 'command x)))
                    (args (split-string command " +"))
-                   (flags (cmake-ide--args-to-include-and-define-flags args))
+                   (flags (funcall filter-func args))
                    (join-flags (mapconcat 'identity flags " ")))
-            (cons key join-flags)))
+              (cons key join-flags)))
           json))
 
 
 (defun cmake-ide--args-to-include-and-define-flags (args)
   "Filters a list of compiler command ARGS to yield only includes and defines."
-  (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args))
+  (let ((case-fold-search)) ;; case sensitive matching
+    (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args)))
 
 
-(defun cmake-ide--json-to-src-flags (file-name json)
-  "Source compiler flags for FILE-NAME from JSON."
-    (let* ((cmake-ide-alist (cmake-ide--json-to-src-assoc json))
+(defun cmake-ide--json-to-src-flags (file-name json &optional filter-func)
+  "Source compiler flags for FILE-NAME from JSON using FILTER-FUNC."
+  (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
+         (cmake-ide-alist (cmake-ide--json-to-src-assoc json filter-func))
          (value (assoc file-name cmake-ide-alist))
          (flags-string (if value (cdr value) nil)))
     (if flags-string (split-string flags-string " +") nil)))
@@ -220,19 +226,34 @@ flags."
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
 
+(defun cmake-ide--json-to-includes (file-name json)
+  "-include compiler flags for FILE-NAME from JSON."
+  (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
+
+
 (defun cmake-ide--flatten (lst)
   "Flatten LST."
   (apply 'append lst))
 
 
-(defun cmake-ide--flags-to-includes (flags)
-  "From FLAGS (a list of flags) to a list of include directories."
+(defun cmake-ide--flags-to-include-paths (flags)
+  "From FLAGS (a list of flags) to a list of include paths."
   (cmake-ide--to-simple-flags flags "-I"))
 
 
 (defun cmake-ide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines."
   (cmake-ide--to-simple-flags flags "-D"))
+
+
+(defun cmake-ide--flags-to-includes (flags)
+  "From FLAGS (a list of flags) to a list of includes."
+  (let ((sublist (member "-include" flags))
+        (includes nil))
+    (while (member "-include" flags)
+      (setq flags (cdr (member "-include" flags)))
+      (when flags (setq includes (cons (car flags) includes))))
+    includes))
 
 
 (defun cmake-ide--to-simple-flags (flags flag)
