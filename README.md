@@ -25,6 +25,8 @@ CMake globs, but needs `cmake-ide-dir` to be set.
 deleting files. I can't figure out a better way to do this. Obviously
 simply deleting the file means having to run CMake again manually for
 it to register the change in the list of files to be compiled
+* If `cmake-ide-dir` is set, `cmake-ide-compile` compiles in the build directory.
+Automatically detects Ninja and Make builds and sets the compile command accordingly.
 
 
 Usage
