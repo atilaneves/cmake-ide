@@ -287,6 +287,7 @@ flags."
       last-found)))
 
 
+;;;###autoload
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
