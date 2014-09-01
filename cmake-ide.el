@@ -72,13 +72,12 @@
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
-  (when (featurep 'rtags)
-    (cmake-ide-maybe-start-rdm)
-    (when cmake-ide-dir
-      (rtags-call-rc "-J" cmake-ide-dir)))
-
   (add-hook 'c-mode-common-hook (lambda ()
-                                  (add-hook 'find-file-hook #'cmake-ide-run-cmake)))
+                                  (add-hook 'find-file-hook #'cmake-ide-run-cmake)
+                                    (when (and (featurep 'rtags) cmake-ide-dir)
+                                      (cmake-ide-maybe-start-rdm)
+                                        (rtags-call-rc "-J" cmake-ide-dir))))
+
   (add-hook 'before-save-hook (lambda ()
                                 (when (and (cmake-ide--is-src-file (buffer-file-name))
                                            (not (file-readable-p (buffer-file-name))))
