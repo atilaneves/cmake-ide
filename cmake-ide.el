@@ -62,7 +62,6 @@
                                            (not (file-readable-p (buffer-file-name))))
                                   (add-hook 'after-save-hook 'cmake-ide--new-file-saved nil 'local)))))
 
-
 (defun cmake-ide--new-file-saved ()
   "Run CMake to pick up newly created files."
   (cmake-ide-run-cmake)
@@ -287,6 +286,21 @@ flags."
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
+
+(defun cmake-ide-compile ()
+  "Compile the project."
+  (interactive)
+  (if cmake-ide-dir
+      (compile (cmake-ide--get-compile-command cmake-ide-dir))
+    (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
+      (compile command))))
+
+
+(defun cmake-ide--get-compile-command (dir)
+  "Return the compile command to use for DIR."
+  (cond ((file-exists-p (expand-file-name "build.ninja" dir)) (concat "ninja -C " dir))
+        ((file-exists-p (expand-file-name "Makefile" dir)) (concat "make -C " dir))
+         (t nil)))
 
 (provide 'cmake-ide)
 ;;; cmake-ide.el ends here
