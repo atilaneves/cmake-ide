@@ -49,8 +49,7 @@
   nil
   "The C++ compiler flags to use.  Should have -I flags for system includes.")
 
-(defvar
-  cmake-ide-dir
+(defvar cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temp dir.")
 
