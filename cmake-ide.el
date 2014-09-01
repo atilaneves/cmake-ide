@@ -39,22 +39,43 @@
 (require 'auto-complete-clang)
 (require 'flycheck)
 
-;;; The C flags for ac-clang-flags
-(defvar cmake-ide-flags-c nil)
+(defvar cmake-ide-flags-c
+  nil
+  "The C compiler flags to use.  Should have -I flags for system includes.")
 
-;;; The C++ flags for ac-clang flags
-(defvar cmake-ide-flags-c++ nil)
+(defvar cmake-ide-flags-c++
+  nil
+  "The C++ compiler flags to use.  Should have -I flags for system includes.")
 
-;;; The directory to run CMake in. If nil, a temporary directory is used.
-(defvar cmake-ide-dir nil)
+(defvar
+  cmake-ide-dir
+  nil
+  "The build directory to run CMake in.  If nil, runs in a temp dir.")
 
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
 
+(defcustom cmake-ide-rdm-executable
+  "rdm"
+  "Location of rdm executable."
+  :group 'rtags
+  :type 'file)
+
+(defcustom cmake-ide-rc-executable
+  "rc"
+  "Location of rc executable."
+  :group 'rtags
+  :type 'file)
+
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
+  (when (featurep 'rtags)
+    (cmake-ide-maybe-start-rdm)
+    (when cmake-ide-dir
+      (rtags-call-rc "-J" cmake-ide-dir)))
+
   (add-hook 'c-mode-common-hook (lambda ()
                                   (add-hook 'find-file-hook #'cmake-ide-run-cmake)))
   (add-hook 'before-save-hook (lambda ()
@@ -300,7 +321,18 @@ flags."
   "Return the compile command to use for DIR."
   (cond ((file-exists-p (expand-file-name "build.ninja" dir)) (concat "ninja -C " dir))
         ((file-exists-p (expand-file-name "Makefile" dir)) (concat "make -C " dir))
-         (t nil)))
+        (t nil)))
+
+
+;;;###autoload
+(defun cmake-ide-maybe-start-rdm ()
+  "Start the rdm (rtags) server."
+  (when (featurep 'rtags)
+    (unless (get-process "rdm")
+      (let ((buf (get-buffer-create "*rdm*")))
+        (with-current-buffer buf (start-process "rdm" (current-buffer)
+                                                cmake-ide-rdm-executable))))))
+
 
 (provide 'cmake-ide)
 ;;; cmake-ide.el ends here
