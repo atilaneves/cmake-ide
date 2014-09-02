@@ -135,10 +135,11 @@ flags."
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
   (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
          (hdr-flags (cmake-ide--json-to-hdr-flags json))
-         (includes (cmake-ide--json-to-includes (buffer-file-name buffer) json)))
+         (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
+         (hdr-includes (cmake-ide--json-to-hdr-includes json)))
     ;; set flags for all source files that registered
-    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags includes))
-    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags includes))))
+    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes))
+    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes))))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes)
@@ -248,9 +249,16 @@ flags."
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
 
-(defun cmake-ide--json-to-includes (file-name json)
+(defun cmake-ide--json-to-src-includes (file-name json)
   "-include compiler flags for FILE-NAME from JSON."
   (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
+
+
+(defun cmake-ide--json-to-hdr-includes (json)
+  "Header `-include` flags from JSON."
+  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
+         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+    (delete-dups (cmake-ide--flags-to-includes args))))
 
 
 (defun cmake-ide--flatten (lst)
