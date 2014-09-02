@@ -74,7 +74,7 @@
   "Set up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
                                   (add-hook 'find-file-hook #'cmake-ide-run-cmake)
-                                    (when (featurep 'rtags)
+                                    (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
                                       (cmake-ide-maybe-start-rdm))))
 
   (add-hook 'before-save-hook (lambda ()
