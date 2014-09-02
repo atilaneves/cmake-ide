@@ -69,6 +69,8 @@
   :group 'rtags
   :type 'file)
 
+(defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
+
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
@@ -123,7 +125,9 @@ flags."
                                               (cmake-ide--set-flags-for-file json x))
                                             cmake-ide--hdr-buffers)
                                       (setq cmake-ide--hdr-buffers nil)
-                                      (rtags-call-rc "-J" cmake-dir))))))))))
+                                      (when (and (featurep 'rtags) (get-process "rdm"))
+                                        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+                                          (rtags-call-rc "-J" cmake-dir))))))))))))
 
 
 
@@ -330,7 +334,7 @@ flags."
   "Start the rdm (rtags) server."
   (when (featurep 'rtags)
     (unless (get-process "rdm")
-      (let ((buf (get-buffer-create "*rdm*")))
+      (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (with-current-buffer buf (start-process "rdm" (current-buffer)
                                                 cmake-ide-rdm-executable))))))
 
