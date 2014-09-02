@@ -37,12 +37,11 @@ accordingly.
 * `cmake-ide` can make usage of
 [rtags](https://github.com/Andersbakken/rtags) for finding
 definitions, also using clang. If `(require 'rtags)` is called before
-and `cmake-ide-dir` is set, `cmake-ide-setup` will automatically start
-the rtags server (`rdm`) and call `rc -J` to index the project
-files. 0-config "jump to definition" and everything else rtags offers.
-This only works if both `rdm` and `rc` and in the system path or if
-`cmake-ide-rdm-executable` and `cmake-ide-rc-executable` are
-customized correctly.
+`cmake-ide-setup`, it will automatically start the rtags server (`rdm`)
+and call `rc -J` to index the project files for 0-config "jump to
+definition" and everything else rtags offers.  This only works if both
+`rdm` and `rc` and in the system path or if `cmake-ide-rdm-executable`
+and `cmake-ide-rc-executable` are customized correctly.
 
 Usage
 -----

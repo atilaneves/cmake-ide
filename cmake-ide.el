@@ -74,9 +74,8 @@
   "Set up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
                                   (add-hook 'find-file-hook #'cmake-ide-run-cmake)
-                                    (when (and (featurep 'rtags) cmake-ide-dir)
-                                      (cmake-ide-maybe-start-rdm)
-                                        (rtags-call-rc "-J" cmake-ide-dir))))
+                                    (when (featurep 'rtags)
+                                      (cmake-ide-maybe-start-rdm))))
 
   (add-hook 'before-save-hook (lambda ()
                                 (when (and (cmake-ide--is-src-file (buffer-file-name))
@@ -123,7 +122,9 @@ flags."
                                       (mapc (lambda (x)
                                               (cmake-ide--set-flags-for-file json x))
                                             cmake-ide--hdr-buffers)
-                                      (setq cmake-ide--hdr-buffers nil))))))))))
+                                      (setq cmake-ide--hdr-buffers nil)
+                                      (rtags-call-rc "-J" cmake-dir))))))))))
+
 
 
 (defun cmake-ide--set-flags-for-file (json buffer)
