@@ -4,7 +4,7 @@
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
 ;; Version: 0.1
-;; Package-Requires: ((auto-complete-clang "0.1") (flycheck "0.17"))
+;; Package-Requires: ((emacs "24") (auto-complete-clang "0.1") (flycheck "0.17"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
 
