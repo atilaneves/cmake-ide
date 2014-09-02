@@ -39,6 +39,8 @@
 (require 'auto-complete-clang)
 (require 'flycheck)
 
+(declare-function rtags-call-rc "rtags")
+
 (defvar cmake-ide-flags-c
   nil
   "The C compiler flags to use.  Should have -I flags for system includes.")
