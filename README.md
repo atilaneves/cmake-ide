@@ -43,6 +43,14 @@ definition" and everything else rtags offers.  This only works if both
 `rdm` and `rc` and in the system path or if `cmake-ide-rdm-executable`
 and `cmake-ide-rc-executable` are customized correctly.
 
+Installation
+------------
+
+Install from [MELPA](melpa.milkbox.net) or [MELPA Stable](http://melpa-stable.milkbox.net/) with:
+
+    M-x package-install RET cmake-ide.
+
+
 Usage
 -----
 
