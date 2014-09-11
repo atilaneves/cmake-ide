@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014 Atila Neves
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((auto-complete-clang "0.1") (flycheck "0.17")  (emacs "24.1"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
@@ -151,7 +151,7 @@ flags."
           (make-local-variable 'flycheck-clang-definitions)
           (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
           (setq flycheck-clang-include-path (cmake-ide--flags-to-include-paths flags))
-          (setq flycheck-clang-definitions (cmake-ide--flags-to-defines flags))
+          (setq flycheck-clang-definitions (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
           (setq flycheck-clang-includes includes)
           (flycheck-clear)
           (run-at-time "0.5 sec" nil 'flycheck-buffer))))
@@ -300,6 +300,10 @@ flags."
   (if (eq major-mode 'c++-mode)
       (cmake-ide--symbol-value 'cmake-ide-flags-c++)
     (cmake-ide--symbol-value 'cmake-ide-flags-c)))
+
+(defun cmake-ide--get-existing-definitions ()
+  "Return existing compiler defines, if set."
+  (cmake-ide--symbol-value 'cmake-ide-definitions))
 
 
 (defun cmake-ide--symbol-value (sym)
