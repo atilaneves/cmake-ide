@@ -145,7 +145,7 @@ flags."
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
-  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES AND SYS-INCLUDES."
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES and SYS-INCLUDES."
   (when (buffer-live-p buffer)
         (with-current-buffer buffer
           (make-local-variable 'ac-clang-flags)
