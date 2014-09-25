@@ -136,21 +136,23 @@ flags."
   (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
          (hdr-flags (cmake-ide--json-to-hdr-flags json))
          (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
-         (hdr-includes (cmake-ide--json-to-hdr-includes json)))
+         (hdr-includes (cmake-ide--json-to-hdr-includes json))
+         (sys-includes (cmake-ide--json-to-sys-includes (buffer-file-name buffer) json))
+         )
     ;; set flags for all source files that registered
-    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes))
-    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes))))
+    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes))
+    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
 
 
-(defun cmake-ide-set-compiler-flags (buffer flags includes)
-  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES."
+(defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES AND SYS-INCLUDES."
   (when (buffer-live-p buffer)
         (with-current-buffer buffer
           (make-local-variable 'ac-clang-flags)
           (make-local-variable 'flycheck-clang-include-path)
           (make-local-variable 'flycheck-clang-definitions)
           (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
-          (setq flycheck-clang-include-path (cmake-ide--flags-to-include-paths flags))
+          (setq flycheck-clang-include-path  (append sys-includes (cmake-ide--flags-to-include-paths flags)))
           (setq flycheck-clang-definitions (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
           (setq flycheck-clang-includes includes)
           (flycheck-clear)
@@ -254,6 +256,12 @@ flags."
   (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
 
 
+
+(defun cmake-ide--json-to-sys-includes (file-name json)
+  "-include compiler flags for FILE-NAME from JSON."
+  (cmake-ide--flags-to-sys-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
+
+
 (defun cmake-ide--json-to-hdr-includes (json)
   "Header `-include` flags from JSON."
   (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
@@ -283,6 +291,14 @@ flags."
       (setq flags (cdr (member "-include" flags)))
       (when flags (setq includes (cons (car flags) includes))))
     includes))
+
+(defun cmake-ide--flags-to-sys-includes (flags)
+  "From FLAGS (a list of flags) to a list of isystem includes."
+  (let ((sysincludes nil))
+    (while (member "-isystem" flags)
+      (setq flags (cdr (member "-isystem" flags)))
+      (when flags (setq sysincludes (cons (car flags) sysincludes))))
+    sysincludes))
 
 
 (defun cmake-ide--to-simple-flags (flags flag)
