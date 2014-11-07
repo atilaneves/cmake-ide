@@ -33,7 +33,8 @@ it to register the change in the list of files to be compiled.
 directory to run CMake in. Additionally, this will cause
 `cmake-ide-compile` to compile the project there. It automatically
 detects Ninja and Make builds and sets the compile command
-accordingly.
+accordingly. The command to use can be customised by setting
+the `cmake-compile-command` variable.
 * `cmake-ide` can make usage of
 [rtags](https://github.com/Andersbakken/rtags) for finding
 definitions, also using clang. If `(require 'rtags)` is called before

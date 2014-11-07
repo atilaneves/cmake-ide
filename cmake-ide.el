@@ -53,6 +53,10 @@
   nil
   "The build directory to run CMake in.  If nil, runs in a temp dir.")
 
+(defvar cmake-ide-compile-command
+  nil
+  "The command to use to compile the project.  Can also include running tests.")
+
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
@@ -352,7 +356,8 @@ flags."
 
 (defun cmake-ide--get-compile-command (dir)
   "Return the compile command to use for DIR."
-  (cond ((file-exists-p (expand-file-name "build.ninja" dir)) (concat "ninja -C " dir))
+  (cond (cmake-ide-compile-command cmake-ide-compile-command)
+        ((file-exists-p (expand-file-name "build.ninja" dir)) (concat "ninja -C " dir))
         ((file-exists-p (expand-file-name "Makefile" dir)) (concat "make -C " dir))
         (t nil)))
 
