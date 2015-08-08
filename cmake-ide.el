@@ -151,16 +151,23 @@ flags."
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES and SYS-INCLUDES."
   (when (buffer-live-p buffer)
-        (with-current-buffer buffer
-          (make-local-variable 'ac-clang-flags)
-          (make-local-variable 'flycheck-clang-include-path)
-          (make-local-variable 'flycheck-clang-definitions)
-          (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
-          (setq flycheck-clang-include-path  (append sys-includes (cmake-ide--flags-to-include-paths flags)))
-          (setq flycheck-clang-definitions (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
-          (setq flycheck-clang-includes includes)
-          (flycheck-clear)
-          (run-at-time "0.5 sec" nil 'flycheck-buffer))))
+    (with-current-buffer buffer
+      (make-local-variable 'flycheck-clang-include-path)
+      (setq flycheck-clang-include-path  (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+
+      (make-local-variable 'flycheck-clang-definitions)
+      (setq flycheck-clang-definitions
+            (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
+
+      (make-local-variable 'flycheck-cppcheck-include-path)
+      (setq flycheck-cppcheck-include-path  (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+
+      (make-local-variable 'ac-clang-flags)
+      (setq ac-clang-flags (append (cmake-ide--get-existing-ac-clang-flags) flags))
+
+      (setq flycheck-clang-includes includes)
+      (flycheck-clear)
+      (run-at-time "0.5 sec" nil 'flycheck-buffer))))
 
 
 (defun cmake-ide-delete-file ()
