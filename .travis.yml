@@ -1,19 +1,25 @@
 language: emacs-lisp
-before_install:
-  - curl -fsSkL https://gist.github.com/rejeep/7736123/raw | sh
-  - export PATH="$HOME/.cask/bin:$PATH"
-  - export PATH="$HOME/.evm/bin:$PATH"
-  - evm install $EVM_EMACS --use
-  - cask
-  - sudo wget http://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list -O /etc/apt/sources.list.d/d-apt.list
-  - sudo apt-get update
-  - sudo apt-get -y --allow-unauthenticated install --reinstall d-apt-keyring
-  - sudo apt-get update
-  - sudo apt-get -y install dub
 
 env:
-  - EVM_EMACS=emacs-24.1-bin
-  - EVM_EMACS=emacs-24.2-bin
+  matrix:
+    - EMACS=emacs24
+    - EMACS=emacs-snapshot
+
+install:
+  - if [ "$EMACS" = "emacs24" ]; then
+      sudo add-apt-repository -y ppa:cassou/emacs &&
+      sudo apt-get update -qq &&
+      sudo apt-get install -qq emacs24 emacs24-el;
+    fi
+  - if [ "$EMACS" = "emacs-snapshot" ]; then
+      sudo add-apt-repository -y ppa:ubuntu-elisp/ppa &&
+      sudo apt-get update -qq &&
+      sudo apt-get install -qq emacs-snapshot;
+    fi
+  - curl -fsSL https://raw.githubusercontent.com/cask/cask/master/go | python
+  - export PATH="$HOME/.cask/bin:$PATH"
+  - cask
+
 script:
   - emacs --version
-  - make test
+  - make test EMACS=${EMACS} CASK=cask
