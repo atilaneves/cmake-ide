@@ -153,17 +153,15 @@ flags."
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
   (let ((json (json-read-file (cmake-ide--comp-db-file-name))))
-    (mapc (lambda (x)
-            (cmake-ide--set-flags-for-file json x))
-          cmake-ide--src-buffers)
-    (setq cmake-ide--src-buffers nil) ; reset
-
-    (mapc (lambda (x)
-            (cmake-ide--set-flags-for-file json x))
-          cmake-ide--hdr-buffers)
-    (setq cmake-ide--hdr-buffers nil)
+    (cmake-ide--set-flags-for-buffer-list json cmake-ide--src-buffers)
+    (cmake-ide--set-flags-for-buffer-list json cmake-ide--hdr-buffers)
     (cmake-ide--run-rc)))
 
+(defmacro cmake-ide--set-flags-for-buffer-list (json-var buffer-list)
+  "Use the json in JSON-VAR to set flags for all files/buffers in BUFFER-LIST."
+  `(progn
+     (mapc (lambda (x) (cmake-ide--set-flags-for-file ,json-var x)) ,buffer-list)
+     (setq ,buffer-list nil)))
 
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
