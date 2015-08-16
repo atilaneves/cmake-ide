@@ -79,10 +79,11 @@
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
-                                  (add-hook 'find-file-hook #'cmake-ide-run-cmake)
-                                    (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
-                                      (cmake-ide-maybe-start-rdm))))
+                                  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake)
+                                  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
+                                    (cmake-ide-maybe-start-rdm))))
 
+  ;; When creating a file in Emacs, run CMake again to pick it up
   (add-hook 'before-save-hook (lambda ()
                                 (when (and (cmake-ide--is-src-file (buffer-file-name))
                                            (not (file-readable-p (buffer-file-name))))
@@ -93,6 +94,28 @@
   (cmake-ide-run-cmake)
   (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
+(defun cmake-ide--maybe-run-cmake ()
+  "Run CMake if the compilation database json file is not found."
+  (if (cmake-ide--need-to-run-cmake)
+      (cmake-ide-run-cmake)
+    (progn
+      (cmake-ide--add-file-to-buffer-list)
+      (cmake-ide--on-cmake-finished))))
+
+(defun cmake-ide--add-file-to-buffer-list ()
+  "Add buffer to the appropriate list for when CMake finishes running."
+  (if (cmake-ide--is-src-file buffer-file-name)
+      (add-to-list 'cmake-ide--src-buffers (current-buffer))
+    (add-to-list 'cmake-ide--hdr-buffers (current-buffer))))
+
+(defun cmake-ide--comp-db-file-name ()
+  "The name of the compilation database file."
+  (expand-file-name "compile_commands.json" (cmake-ide--get-dir)))
+
+(defun cmake-ide--need-to-run-cmake ()
+  "If CMake needs to be run or not."
+  (and (not (get-process "cmake")) ; don't run if already running
+       (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
@@ -101,42 +124,56 @@ This works by calling cmake in a temporary directory
 and parsing the json file deposited there with the compiler
 flags."
   (interactive)
-  (when (file-readable-p (buffer-file-name)) ; new files needs not apply
+  (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-cmakelists)))
       (when project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-        (if (cmake-ide--is-src-file buffer-file-name)
-            (add-to-list 'cmake-ide--src-buffers (current-buffer))
-          (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
-        ;; run CMake if necessary
-        (when (not (get-process "cmake")) ; only run it if not running
-          (let* ((cmake-dir (cmake-ide--get-dir))
-                 (default-directory cmake-dir))
-            (cmake-ide--run-cmake-impl project-dir cmake-dir)
-            ;; register callback to run when cmake is finished
-            (set-process-sentinel (get-process "cmake")
-                                  (lambda (_process _event)
-                                    (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
-                                           (json (json-read-file json-file)))
-                                      ;; set flags for all source files that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide--set-flags-for-file json x))
-                                            cmake-ide--src-buffers)
-                                      (setq cmake-ide--src-buffers nil) ; reset
-                                      ;; set flags for all header files that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide--set-flags-for-file json x))
-                                            cmake-ide--hdr-buffers)
-                                      (setq cmake-ide--hdr-buffers nil)
-                                      (when (and (featurep 'rtags) (get-process "rdm"))
-                                        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-                                          (rtags-call-rc "-J" cmake-dir))))))))))))
+        (cmake-ide--add-file-to-buffer-list)
+
+        (let ((default-directory (cmake-ide--get-dir)))
+          (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-dir))
+          (cmake-ide--register-callback project-dir))))))
+
+(defun cmake-ide--message (str &rest vars)
+  "Output a message with STR and formatted by VARS."
+  (message (apply #'format (concat "cmake-ide: " str) vars)))
+
+(defun cmake-ide--register-callback (project-dir)
+  "Register callback for when CMake finishes running for PROJECT-DIR."
+  (let* ((cmake-dir (cmake-ide--get-dir))
+         (default-directory cmake-dir))
+    (cmake-ide--run-cmake-impl project-dir cmake-dir)
+    ;; register callback to run when cmake is finished
+    (set-process-sentinel (get-process "cmake")
+                          (lambda (_process _event)
+                            (cmake-ide--message "Finished running CMake")
+                            (cmake-ide--on-cmake-finished)))))
+
+(defun cmake-ide--on-cmake-finished ()
+  "Set compiler flags for all buffers that requested it."
+  (let ((json (json-read-file (cmake-ide--comp-db-file-name))))
+    (mapc (lambda (x)
+            (cmake-ide--set-flags-for-file json x))
+          cmake-ide--src-buffers)
+    (setq cmake-ide--src-buffers nil) ; reset
+
+    (mapc (lambda (x)
+            (cmake-ide--set-flags-for-file json x))
+          cmake-ide--hdr-buffers)
+    (setq cmake-ide--hdr-buffers nil)
+    (cmake-ide--run-rc)))
 
 
+(defun cmake-ide--run-rc ()
+  "Run rc to add definitions to the rtags daemon."
+  (when (and (featurep 'rtags) (get-process "rdm"))
+    (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+      (rtags-call-rc "-J" (cmake-ide--get-dir)))))
 
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
+  (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
   (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
          (hdr-flags (cmake-ide--json-to-hdr-flags json))
          (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
@@ -149,7 +186,7 @@ flags."
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
-  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES and SYS-INCLUDES."
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (make-local-variable 'flycheck-clang-include-path)
@@ -184,7 +221,7 @@ flags."
             (kill-buffer buffer)
             (let ((project-dir (cmake-ide--locate-cmakelists)))
               (when project-dir (cmake-ide--run-cmake-impl project-dir cmake-ide-dir))
-              (message "File '%s' successfully removed" filename)))))
+              (cmake-ide--message "File '%s' successfully removed" filename)))))
     (error "Not possible to delete a file without setting cmake-ide-dir")))
 
 
@@ -192,7 +229,7 @@ flags."
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
     (let ((default-directory cmake-dir))
-      (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
+      (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
       (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
@@ -358,7 +395,8 @@ flags."
   (if cmake-ide-dir
       (compile (cmake-ide--get-compile-command cmake-ide-dir))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
-      (compile command))))
+      (compile command)))
+  (cmake-ide--run-rc))
 
 
 (defun cmake-ide--get-compile-command (dir)
