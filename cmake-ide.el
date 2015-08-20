@@ -258,6 +258,10 @@ flags."
 
 (defun cmake-ide--json-to-src-assoc (json filter-func)
   "Transform JSON object from cmake to an assoc list using FILTER-FUNC."
+  ;; The compilation database is a json array of json objects
+  ;; Each object is a file with directory, file and command fields
+  ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
+  ;; An example would be -I include flags
   (mapcar (lambda (x)
             (let* ((key (cmake-ide--get-val 'file x))
                    (command (cmake-ide--get-val 'command x))
