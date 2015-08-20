@@ -171,10 +171,11 @@ flags."
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
   (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
   (let* ((file-params (cmake-ide--file-params json (buffer-file-name buffer)))
-         (src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
-         (hdr-flags (cmake-ide--json-to-hdr-flags json))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+         (src-flags (cmake-ide--params-to-src-flags file-params))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
          (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
-         (hdr-includes (cmake-ide--json-to-hdr-includes json))
+         (hdr-includes (cmake-ide--commands-to-hdr-includes commands))
          (sys-includes (cmake-ide--json-to-sys-includes (buffer-file-name buffer) json))
          )
     ;; set flags for all source files that registered
@@ -291,10 +292,9 @@ flags."
     (if flags-string (split-string flags-string " +") nil)))
 
 
-(defun cmake-ide--json-to-hdr-flags (json)
-  "Header compiler flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
-         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+(defun cmake-ide--commands-to-hdr-flags (commands)
+  "Header compiler flags from COMMANDS."
+  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
 
@@ -303,16 +303,14 @@ flags."
   (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
 
 
-
 (defun cmake-ide--json-to-sys-includes (file-name json)
   "-include compiler flags for FILE-NAME from JSON."
   (cmake-ide--flags-to-sys-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
 
 
-(defun cmake-ide--json-to-hdr-includes (json)
-  "Header `-include` flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
-         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+(defun cmake-ide--commands-to-hdr-includes (commands)
+  "Header `-include` flags from COMMANDS."
+  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
 

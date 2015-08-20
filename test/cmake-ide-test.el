@@ -44,25 +44,6 @@
     (should (equal (cmake-ide--get-file-param 'directory fake-params) nil))))
 
 
-(ert-deftest test-json-to-src-flags-1 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"},
-                 {\"file\": \"file2\",
-                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
-    (should (equal (cmake-ide--json-to-src-flags "file1" json)
-                   '("-Ifoo" "-Ibar")))))
-
-(ert-deftest test-json-to-src-flags-2 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"},
-                 {\"file\": \"file2\",
-                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
-    (should (equal (cmake-ide--json-to-src-flags "file2" json)
-                   '("-Ibaz" "-Iboo" "-Dloo")))))
-
-
 (ert-deftest test-params-to-src-flags-1 ()
   (let* ((json (cmake-ide--string-to-json
                 "[{\"file\": \"file1\",
@@ -109,33 +90,36 @@
   (should (eq (cmake-ide--is-src-file "foo.py") nil)))
 
 
-(ert-deftest test-json-to-hdr-flags-1 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"/dir1/file1.h\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"}]")))
+(ert-deftest test-commands-to-hdr-flags-1 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"/dir1/file1.h\",
+                  \"command\": \"cmd1 -Ifoo -Ibar\"}]"))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
 
-    (should (equal (cmake-ide--json-to-hdr-flags json)
+    (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '("-Ifoo" "-Ibar")))))
 
-(ert-deftest test-json-to-hdr-flags-2 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"/dir1/file1.h\",
+(ert-deftest test-commands-to-hdr-flags-2 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"/dir1/file1.h\",
                   \"command\": \"cmd1 -Ifoo -Ibar\"},
                  {\"file\": \"/dir2/file2.h\",
-                  \"command\": \"cmd2 -Iloo -Dboo\"}]")))
+                  \"command\": \"cmd2 -Iloo -Dboo\"}]"))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
 
-    (should (equal (cmake-ide--json-to-hdr-flags json)
+    (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
 
-(ert-deftest test-json-to-hdr-flags-3 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"/dir1/file1.h\",
+(ert-deftest test-commands-to-hdr-flags-3 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"/dir1/file1.h\",
                   \"command\": \"cmd1 -Ifoo -Ibar\"},
                  {\"file\": \"/dir2/file2.h\",
                   \"command\": \"cmd2 -Iloo -Dboo\"},
                  {\"file\": \"/dir2/file2.h\",
-                  \"command\": \"cmd2 -Iloo -Dboo\"}]")))
-    (should (equal (cmake-ide--json-to-hdr-flags json)
+                  \"command\": \"cmd2 -Iloo -Dboo\"}]"))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
+    (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
 
 (defun equal-lists (lst1 lst2)
@@ -165,22 +149,24 @@
              (cmake-ide--json-to-src-includes "file2" json)
              '("h.h")))))
 
-(ert-deftest test-json-to-hdr-includes-1 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
+(ert-deftest test-commands-to-hdr-includes-1 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
-                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]")))
-    (should (equal-lists (cmake-ide--json-to-hdr-includes json)
+                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
+    (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
-(ert-deftest test-json-to-hdr-includes-2 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
+(ert-deftest test-commands-to-hdr-includes-2 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
-                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]")))
-    (should (equal-lists (cmake-ide--json-to-hdr-includes json)
+                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
+    (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
 (provide 'cmake-ide-test)
