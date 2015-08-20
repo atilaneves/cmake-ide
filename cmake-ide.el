@@ -250,10 +250,10 @@ flags."
       (cmake-ide--ends-with string ".cc")))
 
 
-(defun cmake-ide--filter (pred lst)
-  "Apply PRED to filter LST."
+(defun cmake-ide--filter (pred seq)
+  "Apply PRED to filter SEQ."
   (delq nil
-        (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
+        (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
 
 
 (defun cmake-ide--json-to-src-assoc (json filter-func)
@@ -387,6 +387,32 @@ flags."
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
+(defun cmake-ide--string-to-json (json-str)
+  "Tranform JSON-STR into an opaque json object."
+  (json-read-from-string json-str))
+
+
+(defun cmake-ide--file-params (json file)
+  "Get parameters from a JSON object for FILE."
+  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-val 'file x) file)) json))
+
+
+(defun cmake-ide--find-in-vector (pred vec)
+  "Find the 1st element satisfying PRED in VEC."
+  (cmake-ide--find-in-vector-impl pred vec (length vec) 0)
+  )
+
+(defun cmake-ide--find-in-vector-impl (pred vec max n)
+  "Check if PRED is true for VEC of length MAX at position N."
+  (if (>= n max) nil
+
+    (if (funcall pred (elt vec n))
+        (elt vec n)
+      (cmake-ide--find-in-vector-impl pred vec max (+ n 1)))))
+
+(defun cmake-ide--get-file-param (key obj)
+  "Get value for KEY in OBJ."
+  (cmake-ide--get-val key obj))
 
 ;;;###autoload
 (defun cmake-ide-compile ()

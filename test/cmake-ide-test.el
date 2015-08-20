@@ -33,6 +33,16 @@
 (require 'cmake-ide)
 (require 'cl)
 
+
+(ert-deftest test-json-to-file-params ()
+  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\", \"command\": \"do the twist\", \"file\": \"/foo/bar/dir/foo.cpp\"}]")
+         (json (cmake-ide--string-to-json json-str))
+         (real-params (cmake-ide--file-params json "/foo/bar/dir/foo.cpp"))
+         (fake-params (cmake-ide--file-params json "oops")))
+    (should (equal (cmake-ide--get-file-param 'directory real-params) "/foo/bar/dir"))
+    (should (equal (cmake-ide--get-file-param 'directory fake-params) nil))))
+
+
 (ert-deftest test-json-to-src-assoc ()
 
   (should (equal (cmake-ide--json-to-src-assoc
