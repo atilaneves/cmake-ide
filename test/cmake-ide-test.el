@@ -128,25 +128,27 @@
        (null (set-difference lst1 lst2 :test 'equal))))
 
 
-(ert-deftest test-json-to-src-includes-1 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
+(ert-deftest test-params-to-src-includes-1 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
                 \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                {\"file\": \"file2\",
-                \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]")))
+                \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
+         (file-params (cmake-ide--file-params json "file1")))
 
     (should (equal-lists
-             (cmake-ide--json-to-src-includes "file1" json)
+             (cmake-ide--params-to-src-includes file-params)
              '("/foo/bar.h" "a.h")))))
 
-(ert-deftest test-json-to-src-includes-2 ()
-  (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
+(ert-deftest test-params-to-src-includes-2 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
-                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]")))
+                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
+         (file-params (cmake-ide--file-params json "file2")))
     (should (equal-lists
-             (cmake-ide--json-to-src-includes "file2" json)
+             (cmake-ide--params-to-src-includes file-params)
              '("h.h")))))
 
 (ert-deftest test-commands-to-hdr-includes-1 ()

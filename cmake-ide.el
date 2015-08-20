@@ -152,11 +152,10 @@ flags."
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
-  (let ((json (json-read-file (cmake-ide--comp-db-file-name))))
-    (defun set-flags (buffer)
-      (cmake-ide--set-flags-for-file json buffer))
-    (mapc #'set-flags cmake-ide--src-buffers)
-    (mapc #'set-flags cmake-ide--hdr-buffers)
+  (let* ((json (json-read-file (cmake-ide--comp-db-file-name)))
+         (set-flags (lambda (x) (cmake-ide--set-flags-for-file json x))))
+    (mapc set-flags cmake-ide--src-buffers)
+    (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
     (cmake-ide--run-rc)))
 
@@ -174,9 +173,9 @@ flags."
          (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
          (src-flags (cmake-ide--params-to-src-flags file-params))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
-         (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
+         (src-includes (cmake-ide--params-to-src-includes file-params))
          (hdr-includes (cmake-ide--commands-to-hdr-includes commands))
-         (sys-includes (cmake-ide--json-to-sys-includes (buffer-file-name buffer) json))
+         (sys-includes (cmake-ide--params-to-sys-includes file-params))
          )
     ;; set flags for all source files that registered
     (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes))
@@ -275,15 +274,6 @@ flags."
   (let ((case-fold-search)) ;; case sensitive matching
     (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args)))
 
-
-(defun cmake-ide--json-to-src-flags (file-name json &optional filter-func)
-  "Source compiler flags for FILE-NAME from JSON using FILTER-FUNC."
-  (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
-         (file-params (cmake-ide--file-params json file-name))
-         (value (cmake-ide--filter-params file-params filter-func))
-         (flags-string (if value value nil)))
-    (if flags-string (split-string flags-string " +") nil)))
-
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
   (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
@@ -297,15 +287,14 @@ flags."
   (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
+(defun cmake-ide--params-to-src-includes (file-params)
+  "-include compiler flags for from FILE-PARAMS."
+  (cmake-ide--flags-to-includes (cmake-ide--params-to-src-flags file-params 'identity)))
 
-(defun cmake-ide--json-to-src-includes (file-name json)
-  "-include compiler flags for FILE-NAME from JSON."
-  (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
 
-
-(defun cmake-ide--json-to-sys-includes (file-name json)
-  "-include compiler flags for FILE-NAME from JSON."
-  (cmake-ide--flags-to-sys-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
+(defun cmake-ide--params-to-sys-includes (file-params)
+  "-include compiler flags for from FILE-PARAMS."
+  (cmake-ide--flags-to-sys-includes (cmake-ide--params-to-src-flags file-params 'identity)))
 
 
 (defun cmake-ide--commands-to-hdr-includes (commands)
