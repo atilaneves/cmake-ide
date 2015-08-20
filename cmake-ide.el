@@ -274,7 +274,7 @@ flags."
 
 (defun cmake-ide--get-val (key obj)
   "Get the value for KEY in OBJ."
-  (cdr (assq key obj)))
+  (cdr (assoc key obj)))
 
 
 (defun cmake-ide--args-to-include-and-define-flags (args)
@@ -287,8 +287,8 @@ flags."
   "Source compiler flags for FILE-NAME from JSON using FILTER-FUNC."
   (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
          (cmake-ide-alist (cmake-ide--json-to-src-assoc json filter-func))
-         (value (assoc file-name cmake-ide-alist))
-         (flags-string (if value (cdr value) nil)))
+         (value (cmake-ide--get-val file-name cmake-ide-alist))
+         (flags-string (if value value nil)))
     (if flags-string (split-string flags-string " +") nil)))
 
 
