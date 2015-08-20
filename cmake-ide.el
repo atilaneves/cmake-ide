@@ -258,13 +258,8 @@ flags."
 
 (defun cmake-ide--json-to-src-assoc (json filter-func)
   "Transform JSON object from cmake to an assoc list using FILTER-FUNC."
-  (cmake-ide--json-to-symbol-assoc json 'file filter-func))
-
-
-(defun cmake-ide--json-to-symbol-assoc (json symbol filter-func)
-  "Transform JSON object from cmake to an assoc list for SYMBOL using FILTER-FUNC."
   (mapcar (lambda (x)
-            (let* ((key (cmake-ide--get-val symbol x))
+            (let* ((key (cmake-ide--get-val 'file x))
                    (command (cmake-ide--get-val 'command x))
                    (args (split-string command " +"))
                    (flags (funcall filter-func args))
