@@ -35,7 +35,8 @@
 
 
 (ert-deftest test-json-to-file-params ()
-  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\", \"command\": \"do the twist\", \"file\": \"/foo/bar/dir/foo.cpp\"}]")
+  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"/foo/bar/dir/foo.cpp\"}]")
          (json (cmake-ide--string-to-json json-str))
          (real-params (cmake-ide--file-params json "/foo/bar/dir/foo.cpp"))
          (fake-params (cmake-ide--file-params json "oops")))
@@ -49,8 +50,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar\"},
                  {\"file\": \"file2\",
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
-    (should (equal (cmake-ide--json-to-src-flags "file1"
-                                                 json)
+    (should (equal (cmake-ide--json-to-src-flags "file1" json)
                    '("-Ifoo" "-Ibar")))))
 
 (ert-deftest test-json-to-src-flags-2 ()

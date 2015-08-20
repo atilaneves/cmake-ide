@@ -256,25 +256,16 @@ flags."
         (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
 
 
-(defun cmake-ide--json-to-src-assoc (json filter-func)
-  "Transform JSON object from cmake to an assoc list using FILTER-FUNC."
+(defun cmake-ide--filter-params (file-params filter-func)
+  "Filter FILE-PARAMS with FILTER-FUNC."
   ;; The compilation database is a json array of json objects
   ;; Each object is a file with directory, file and command fields
   ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
   ;; An example would be -I include flags
-  (mapcar (lambda (x)
-            (let* ((key (cmake-ide--get-val 'file x))
-                   (command (cmake-ide--get-val 'command x))
-                   (args (split-string command " +"))
-                   (flags (funcall filter-func args))
-                   (join-flags (mapconcat 'identity flags " ")))
-              (cons key join-flags)))
-          json))
-
-
-(defun cmake-ide--get-val (key obj)
-  "Get the value for KEY in OBJ."
-  (cdr (assoc key obj)))
+  (let* ((command (cmake-ide--get-file-param 'command file-params))
+         (args (split-string command " +"))
+         (flags (funcall filter-func args)))
+    (mapconcat 'identity flags " ")))
 
 
 (defun cmake-ide--args-to-include-and-define-flags (args)
@@ -286,15 +277,15 @@ flags."
 (defun cmake-ide--json-to-src-flags (file-name json &optional filter-func)
   "Source compiler flags for FILE-NAME from JSON using FILTER-FUNC."
   (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
-         (cmake-ide-alist (cmake-ide--json-to-src-assoc json filter-func))
-         (value (cmake-ide--get-val file-name cmake-ide-alist))
+         (file-params (cmake-ide--file-params json file-name))
+         (value (cmake-ide--filter-params file-params filter-func))
          (flags-string (if value value nil)))
     (if flags-string (split-string flags-string " +") nil)))
 
 
 (defun cmake-ide--json-to-hdr-flags (json)
   "Header compiler flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-val 'command x)) json))
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
          (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
@@ -312,7 +303,7 @@ flags."
 
 (defun cmake-ide--json-to-hdr-includes (json)
   "Header `-include` flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-val 'command x)) json))
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
          (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
@@ -394,7 +385,7 @@ flags."
 
 (defun cmake-ide--file-params (json file)
   "Get parameters from a JSON object for FILE."
-  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-val 'file x) file)) json))
+  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-file-param 'file x) file)) json))
 
 
 (defun cmake-ide--find-in-vector (pred vec)
@@ -411,8 +402,8 @@ flags."
       (cmake-ide--find-in-vector-impl pred vec max (+ n 1)))))
 
 (defun cmake-ide--get-file-param (key obj)
-  "Get value for KEY in OBJ."
-  (cmake-ide--get-val key obj))
+  "Get the value for KEY in OBJ."
+  (cdr (assoc key obj)))
 
 ;;;###autoload
 (defun cmake-ide-compile ()
