@@ -264,13 +264,18 @@ flags."
 (defun cmake-ide--json-to-symbol-assoc (json symbol filter-func)
   "Transform JSON object from cmake to an assoc list for SYMBOL using FILTER-FUNC."
   (mapcar (lambda (x)
-            (let* ((key (cdr (assq symbol x)))
-                   (command (cdr (assq 'command x)))
+            (let* ((key (cmake-ide--get-val symbol x))
+                   (command (cmake-ide--get-val 'command x))
                    (args (split-string command " +"))
                    (flags (funcall filter-func args))
                    (join-flags (mapconcat 'identity flags " ")))
               (cons key join-flags)))
           json))
+
+
+(defun cmake-ide--get-val (key obj)
+  "Get the value for KEY in OBJ."
+  (cdr (assq key obj)))
 
 
 (defun cmake-ide--args-to-include-and-define-flags (args)
@@ -290,8 +295,8 @@ flags."
 
 (defun cmake-ide--json-to-hdr-flags (json)
   "Header compiler flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
-        (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-val 'command x)) json))
+         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
 
@@ -308,7 +313,7 @@ flags."
 
 (defun cmake-ide--json-to-hdr-includes (json)
   "Header `-include` flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-val 'command x)) json))
          (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
