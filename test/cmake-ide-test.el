@@ -131,42 +131,40 @@
 
 
 (ert-deftest test-json-to-src-includes-1 ()
-  (should (equal-lists
-           (cmake-ide--json-to-src-includes "file1"
-                                            '[((file . "file1")
-                                               (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
-                                              ((file . "file2")
-                                               (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))])
-           '("/foo/bar.h" "a.h")))
-  )
+  (let ((json '[((file . "file1")
+                 (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
+                ((file . "file2")
+                 (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))]))
+
+    (should (equal-lists
+             (cmake-ide--json-to-src-includes "file1" json)
+             '("/foo/bar.h" "a.h")))))
 
 (ert-deftest test-json-to-src-includes-2 ()
-  (should (equal-lists
-           (cmake-ide--json-to-src-includes "file2"
-                                            '[((file . "file1")
-                                               (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
-                                              ((file . "file2")
-                                               (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))])
-           '("h.h"))))
-
+  (let ((json '[((file . "file1")
+                 (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
+                ((file . "file2")
+                 (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))]))
+    (should (equal-lists
+             (cmake-ide--json-to-src-includes "file2" json)
+             '("h.h")))))
 
 (ert-deftest test-json-to-hdr-includes-1 ()
-  (should (equal-lists (cmake-ide--json-to-hdr-includes
-                        '[((file . "file1")
-                           (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
-                          ((file . "file2")
-                           (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))])
-                       '("/foo/bar.h" "a.h" "h.h")))
+  (let ((json '[((file . "file1")
+                 (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
+                ((file . "file2")
+                 (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))]))
+    (should (equal-lists (cmake-ide--json-to-hdr-includes json)
+                         '("/foo/bar.h" "a.h" "h.h"))))
   )
 
 (ert-deftest test-json-to-hdr-includes-2 ()
-  (should (equal-lists (cmake-ide--json-to-hdr-includes
-                        '[((file . "file1")
-                           (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
-                          ((file . "file2")
-                           (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))])
-                       '("/foo/bar.h" "a.h" "h.h"))))
-
+  (let ((json '[((file . "file1")
+                 (command . "cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h"))
+                ((file . "file2")
+                 (command . "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h"))]))
+    (should (equal-lists (cmake-ide--json-to-hdr-includes json)
+                         '("/foo/bar.h" "a.h" "h.h")))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
