@@ -276,10 +276,11 @@ flags."
 
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
-  (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
-         (value (cmake-ide--filter-params file-params filter-func))
-         (flags-string (if value value nil)))
-    (if flags-string (split-string flags-string " +") nil)))
+  (if (not file-params) nil
+    (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
+           (value (cmake-ide--filter-params file-params filter-func))
+           (flags-string (if value value nil)))
+      (if flags-string (split-string flags-string " +") nil))))
 
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
@@ -385,16 +386,15 @@ flags."
 
 (defun cmake-ide--find-in-vector (pred vec)
   "Find the 1st element satisfying PRED in VEC."
-  (cmake-ide--find-in-vector-impl pred vec (length vec) 0)
-  )
-
-(defun cmake-ide--find-in-vector-impl (pred vec max n)
-  "Check if PRED is true for VEC of length MAX at position N."
-  (if (>= n max) nil
-
-    (if (funcall pred (elt vec n))
-        (elt vec n)
-      (cmake-ide--find-in-vector-impl pred vec max (+ n 1)))))
+  (let ((i 0)
+        (max (length vec))
+        (found nil))
+    (while (and (not found) (< i max))
+      (if (funcall pred (elt vec i))
+          (setq found t)
+        (setq i (1+ i)))
+      )
+    (if found (elt vec i) nil)))
 
 (defun cmake-ide--get-file-param (key obj)
   "Get the value for KEY in OBJ."
