@@ -156,7 +156,7 @@ flags."
     (defun set-flags (buffer)
       (cmake-ide--set-flags-for-file json buffer))
     (mapc #'set-flags cmake-ide--src-buffers)
-    (mapc #'set-flags cmake-ide--src-buffers)
+    (mapc #'set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
     (cmake-ide--run-rc)))
 
