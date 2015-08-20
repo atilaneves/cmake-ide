@@ -170,7 +170,8 @@ flags."
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
   (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
-  (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
+  (let* ((file-params (cmake-ide--file-params json (buffer-file-name buffer)))
+         (src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
          (hdr-flags (cmake-ide--json-to-hdr-flags json))
          (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
          (hdr-includes (cmake-ide--json-to-hdr-includes json))
@@ -282,6 +283,13 @@ flags."
          (flags-string (if value value nil)))
     (if flags-string (split-string flags-string " +") nil)))
 
+(defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
+  "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
+  (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
+         (value (cmake-ide--filter-params file-params filter-func))
+         (flags-string (if value value nil)))
+    (if flags-string (split-string flags-string " +") nil)))
+
 
 (defun cmake-ide--json-to-hdr-flags (json)
   "Header compiler flags from JSON."
@@ -383,9 +391,9 @@ flags."
   (json-read-from-string json-str))
 
 
-(defun cmake-ide--file-params (json file)
-  "Get parameters from a JSON object for FILE."
-  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-file-param 'file x) file)) json))
+(defun cmake-ide--file-params (json file-name)
+  "Get parameters from a JSON object for FILE-NAME."
+  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-file-param 'file x) file-name)) json))
 
 
 (defun cmake-ide--find-in-vector (pred vec)

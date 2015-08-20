@@ -62,6 +62,28 @@
     (should (equal (cmake-ide--json-to-src-flags "file2" json)
                    '("-Ibaz" "-Iboo" "-Dloo")))))
 
+
+(ert-deftest test-params-to-src-flags-1 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 -Ifoo -Ibar\"},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (file-params (cmake-ide--file-params json "file1")))
+    (should (equal (cmake-ide--params-to-src-flags file-params)
+                   '("-Ifoo" "-Ibar")))))
+
+(ert-deftest test-params-to-src-flags-2 ()
+  (let* ((json (cmake-ide--string-to-json
+                "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 -Ifoo -Ibar\"},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (file-params (cmake-ide--file-params json "file2")))
+    (should (equal (cmake-ide--params-to-src-flags file-params)
+                   '("-Ibaz" "-Iboo" "-Dloo")))))
+
+
 (ert-deftest test-flags-to-include-paths ()
   (should (equal (cmake-ide--flags-to-include-paths '("-Ifoo" "-Ibar")) '("foo" "bar")))
   (should (equal (cmake-ide--flags-to-include-paths '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("boo" "baz" "doo"))))
