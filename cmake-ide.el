@@ -133,22 +133,18 @@ flags."
 
         (let ((default-directory (cmake-ide--get-dir)))
           (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-dir))
-          (cmake-ide--register-callback project-dir))))))
+          (cmake-ide--register-callback))))))
 
 (defun cmake-ide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
   (message (apply #'format (concat "cmake-ide: " str) vars)))
 
-(defun cmake-ide--register-callback (project-dir)
-  "Register callback for when CMake finishes running for PROJECT-DIR."
-  (let* ((cmake-dir (cmake-ide--get-dir))
-         (default-directory cmake-dir))
-    (cmake-ide--run-cmake-impl project-dir cmake-dir)
-    ;; register callback to run when cmake is finished
-    (set-process-sentinel (get-process "cmake")
-                          (lambda (_process _event)
-                            (cmake-ide--message "Finished running CMake")
-                            (cmake-ide--on-cmake-finished)))))
+(defun cmake-ide--register-callback ()
+  "Register callback for when CMake finishes running."
+  (set-process-sentinel (get-process "cmake")
+                        (lambda (_process _event)
+                          (cmake-ide--message "Finished running CMake")
+                          (cmake-ide--on-cmake-finished))))
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
@@ -232,7 +228,8 @@ flags."
 
 (defun cmake-ide--get-dir ()
   "Return the directory name to run CMake in."
-  (file-name-as-directory (or cmake-ide-dir (make-temp-file "cmake" t))))
+  (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
+  (file-name-as-directory cmake-ide-dir))
 
 
 (defun cmake-ide--ends-with (string suffix)
