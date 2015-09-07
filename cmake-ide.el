@@ -79,10 +79,11 @@
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
   (add-hook 'c-mode-common-hook (lambda ()
-                                  (add-hook 'find-file-hook #'cmake-ide-run-cmake)
-                                    (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
-                                      (cmake-ide-maybe-start-rdm))))
+                                  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake)
+                                  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
+                                    (cmake-ide-maybe-start-rdm))))
 
+  ;; When creating a file in Emacs, run CMake again to pick it up
   (add-hook 'before-save-hook (lambda ()
                                 (when (and (cmake-ide--is-src-file (buffer-file-name))
                                            (not (file-readable-p (buffer-file-name))))
@@ -93,6 +94,28 @@
   (cmake-ide-run-cmake)
   (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
+(defun cmake-ide--maybe-run-cmake ()
+  "Run CMake if the compilation database json file is not found."
+  (if (cmake-ide--need-to-run-cmake)
+      (cmake-ide-run-cmake)
+    (progn
+      (cmake-ide--add-file-to-buffer-list)
+      (cmake-ide--on-cmake-finished))))
+
+(defun cmake-ide--add-file-to-buffer-list ()
+  "Add buffer to the appropriate list for when CMake finishes running."
+  (if (cmake-ide--is-src-file buffer-file-name)
+      (add-to-list 'cmake-ide--src-buffers (current-buffer))
+    (add-to-list 'cmake-ide--hdr-buffers (current-buffer))))
+
+(defun cmake-ide--comp-db-file-name ()
+  "The name of the compilation database file."
+  (expand-file-name "compile_commands.json" (cmake-ide--get-dir)))
+
+(defun cmake-ide--need-to-run-cmake ()
+  "If CMake needs to be run or not."
+  (and (not (get-process "cmake")) ; don't run if already running
+       (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
@@ -101,47 +124,54 @@ This works by calling cmake in a temporary directory
 and parsing the json file deposited there with the compiler
 flags."
   (interactive)
-  (when (file-readable-p (buffer-file-name)) ; new files needs not apply
+  (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-cmakelists)))
       (when project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-        (if (cmake-ide--is-src-file buffer-file-name)
-            (add-to-list 'cmake-ide--src-buffers (current-buffer))
-          (add-to-list 'cmake-ide--hdr-buffers (current-buffer)))
-        ;; run CMake if necessary
-        (when (not (get-process "cmake")) ; only run it if not running
-          (let* ((cmake-dir (cmake-ide--get-dir))
-                 (default-directory cmake-dir))
-            (cmake-ide--run-cmake-impl project-dir cmake-dir)
-            ;; register callback to run when cmake is finished
-            (set-process-sentinel (get-process "cmake")
-                                  (lambda (_process _event)
-                                    (let* ((json-file (expand-file-name "compile_commands.json" cmake-dir))
-                                           (json (json-read-file json-file)))
-                                      ;; set flags for all source files that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide--set-flags-for-file json x))
-                                            cmake-ide--src-buffers)
-                                      (setq cmake-ide--src-buffers nil) ; reset
-                                      ;; set flags for all header files that registered
-                                      (mapc (lambda (x)
-                                              (cmake-ide--set-flags-for-file json x))
-                                            cmake-ide--hdr-buffers)
-                                      (setq cmake-ide--hdr-buffers nil)
-                                      (when (and (featurep 'rtags) (get-process "rdm"))
-                                        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-                                          (rtags-call-rc "-J" cmake-dir))))))))))))
+        (cmake-ide--add-file-to-buffer-list)
+
+        (let ((default-directory (cmake-ide--get-dir)))
+          (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-dir))
+          (cmake-ide--register-callback))))))
+
+(defun cmake-ide--message (str &rest vars)
+  "Output a message with STR and formatted by VARS."
+  (message (apply #'format (concat "cmake-ide: " str) vars)))
+
+(defun cmake-ide--register-callback ()
+  "Register callback for when CMake finishes running."
+  (set-process-sentinel (get-process "cmake")
+                        (lambda (_process _event)
+                          (cmake-ide--message "Finished running CMake")
+                          (cmake-ide--on-cmake-finished))))
+
+(defun cmake-ide--on-cmake-finished ()
+  "Set compiler flags for all buffers that requested it."
+  (let* ((json (json-read-file (cmake-ide--comp-db-file-name)))
+         (set-flags (lambda (x) (cmake-ide--set-flags-for-file json x))))
+    (mapc set-flags cmake-ide--src-buffers)
+    (mapc set-flags cmake-ide--hdr-buffers)
+    (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
+    (cmake-ide--run-rc)))
 
 
+(defun cmake-ide--run-rc ()
+  "Run rc to add definitions to the rtags daemon."
+  (when (and (featurep 'rtags) (get-process "rdm"))
+    (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+      (rtags-call-rc "-J" (cmake-ide--get-dir)))))
 
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
-  (let* ((src-flags (cmake-ide--json-to-src-flags (buffer-file-name buffer) json))
-         (hdr-flags (cmake-ide--json-to-hdr-flags json))
-         (src-includes (cmake-ide--json-to-src-includes (buffer-file-name buffer) json))
-         (hdr-includes (cmake-ide--json-to-hdr-includes json))
-         (sys-includes (cmake-ide--json-to-sys-includes (buffer-file-name buffer) json))
+  (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
+  (let* ((file-params (cmake-ide--file-params json (buffer-file-name buffer)))
+         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+         (src-flags (cmake-ide--params-to-src-flags file-params))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
+         (src-includes (cmake-ide--params-to-src-includes file-params))
+         (hdr-includes (cmake-ide--commands-to-hdr-includes commands))
+         (sys-includes (cmake-ide--params-to-sys-includes file-params))
          )
     ;; set flags for all source files that registered
     (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes))
@@ -149,7 +179,7 @@ flags."
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
-  "Set ac-clang and flycheck variables for BUFFER from FLAGS and INCLUDES and SYS-INCLUDES."
+  "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (make-local-variable 'flycheck-clang-include-path)
@@ -184,7 +214,7 @@ flags."
             (kill-buffer buffer)
             (let ((project-dir (cmake-ide--locate-cmakelists)))
               (when project-dir (cmake-ide--run-cmake-impl project-dir cmake-ide-dir))
-              (message "File '%s' successfully removed" filename)))))
+              (cmake-ide--message "File '%s' successfully removed" filename)))))
     (error "Not possible to delete a file without setting cmake-ide-dir")))
 
 
@@ -192,13 +222,14 @@ flags."
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
     (let ((default-directory cmake-dir))
-      (message (format "Running cmake for src path %s in build path %s" project-dir cmake-dir))
+      (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
       (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-dir ()
   "Return the directory name to run CMake in."
-  (file-name-as-directory (or cmake-ide-dir (make-temp-file "cmake" t))))
+  (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
+  (file-name-as-directory cmake-ide-dir))
 
 
 (defun cmake-ide--ends-with (string suffix)
@@ -217,27 +248,22 @@ flags."
       (cmake-ide--ends-with string ".cc")))
 
 
-(defun cmake-ide--filter (pred lst)
-  "Apply PRED to filter LST."
+(defun cmake-ide--filter (pred seq)
+  "Apply PRED to filter SEQ."
   (delq nil
-        (mapcar (lambda (x) (and (funcall pred x) x)) lst)))
+        (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
 
 
-(defun cmake-ide--json-to-src-assoc (json filter-func)
-  "Transform JSON object from cmake to an assoc list using FILTER-FUNC."
-  (cmake-ide--json-to-symbol-assoc json 'file filter-func))
-
-
-(defun cmake-ide--json-to-symbol-assoc (json symbol filter-func)
-  "Transform JSON object from cmake to an assoc list for SYMBOL using FILTER-FUNC."
-  (mapcar (lambda (x)
-            (let* ((key (cdr (assq symbol x)))
-                   (command (cdr (assq 'command x)))
-                   (args (split-string command " +"))
-                   (flags (funcall filter-func args))
-                   (join-flags (mapconcat 'identity flags " ")))
-              (cons key join-flags)))
-          json))
+(defun cmake-ide--filter-params (file-params filter-func)
+  "Filter FILE-PARAMS with FILTER-FUNC."
+  ;; The compilation database is a json array of json objects
+  ;; Each object is a file with directory, file and command fields
+  ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
+  ;; An example would be -I include flags
+  (let* ((command (cmake-ide--get-file-param 'command file-params))
+         (args (split-string command " +"))
+         (flags (funcall filter-func args)))
+    (mapconcat 'identity flags " ")))
 
 
 (defun cmake-ide--args-to-include-and-define-flags (args)
@@ -245,38 +271,33 @@ flags."
   (let ((case-fold-search)) ;; case sensitive matching
     (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args)))
 
+(defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
+  "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
+  (if (not file-params) nil
+    (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
+           (value (cmake-ide--filter-params file-params filter-func))
+           (flags-string (if value value nil)))
+      (if flags-string (split-string flags-string " +") nil))))
 
-(defun cmake-ide--json-to-src-flags (file-name json &optional filter-func)
-  "Source compiler flags for FILE-NAME from JSON using FILTER-FUNC."
-  (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-and-define-flags))
-         (cmake-ide-alist (cmake-ide--json-to-src-assoc json filter-func))
-         (value (assoc file-name cmake-ide-alist))
-         (flags-string (if value (cdr value) nil)))
-    (if flags-string (split-string flags-string " +") nil)))
 
-
-(defun cmake-ide--json-to-hdr-flags (json)
-  "Header compiler flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
-        (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+(defun cmake-ide--commands-to-hdr-flags (commands)
+  "Header compiler flags from COMMANDS."
+  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--args-to-include-and-define-flags args))))
 
-
-(defun cmake-ide--json-to-src-includes (file-name json)
-  "-include compiler flags for FILE-NAME from JSON."
-  (cmake-ide--flags-to-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
-
+(defun cmake-ide--params-to-src-includes (file-params)
+  "-include compiler flags for from FILE-PARAMS."
+  (cmake-ide--flags-to-includes (cmake-ide--params-to-src-flags file-params 'identity)))
 
 
-(defun cmake-ide--json-to-sys-includes (file-name json)
-  "-include compiler flags for FILE-NAME from JSON."
-  (cmake-ide--flags-to-sys-includes (cmake-ide--json-to-src-flags file-name json 'identity)))
+(defun cmake-ide--params-to-sys-includes (file-params)
+  "-include compiler flags for from FILE-PARAMS."
+  (cmake-ide--flags-to-sys-includes (cmake-ide--params-to-src-flags file-params 'identity)))
 
 
-(defun cmake-ide--json-to-hdr-includes (json)
-  "Header `-include` flags from JSON."
-  (let* ((commands (mapcar (lambda (x) (cdr (assq 'command x))) json))
-         (args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+(defun cmake-ide--commands-to-hdr-includes (commands)
+  "Header `-include` flags from COMMANDS."
+  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
 
@@ -350,6 +371,31 @@ flags."
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
+(defun cmake-ide--string-to-json (json-str)
+  "Tranform JSON-STR into an opaque json object."
+  (json-read-from-string json-str))
+
+
+(defun cmake-ide--file-params (json file-name)
+  "Get parameters from a JSON object for FILE-NAME."
+  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-file-param 'file x) file-name)) json))
+
+
+(defun cmake-ide--find-in-vector (pred vec)
+  "Find the 1st element satisfying PRED in VEC."
+  (let ((i 0)
+        (max (length vec))
+        (found nil))
+    (while (and (not found) (< i max))
+      (if (funcall pred (elt vec i))
+          (setq found t)
+        (setq i (1+ i)))
+      )
+    (if found (elt vec i) nil)))
+
+(defun cmake-ide--get-file-param (key obj)
+  "Get the value for KEY in OBJ."
+  (cdr (assoc key obj)))
 
 ;;;###autoload
 (defun cmake-ide-compile ()
@@ -358,7 +404,8 @@ flags."
   (if cmake-ide-dir
       (compile (cmake-ide--get-compile-command cmake-ide-dir))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
-      (compile command))))
+      (compile command)))
+  (cmake-ide--run-rc))
 
 
 (defun cmake-ide--get-compile-command (dir)
