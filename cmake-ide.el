@@ -1,4 +1,4 @@
-;;; cmake-ide --- Calls CMake to find out include paths and other compiler flags -*- lexical-binding: t; -*-
+;;; cmake-ide.el --- Calls CMake to find out include paths and other compiler flags -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014 Atila Neves
 
