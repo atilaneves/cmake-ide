@@ -77,13 +77,17 @@
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
+(defun cmake-ide--mode-hook()
+  "Function to add to a major mode hook"
+  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake nil 'local)
+  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
+    (cmake-ide-maybe-start-rdm)))
+
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
-  (add-hook 'c-mode-common-hook (lambda ()
-                                  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake nil 'local)
-                                  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
-                                    (cmake-ide-maybe-start-rdm))))
+  (add-hook 'c-mode-hook #'cmake-ide--mode-hook)
+  (add-hook 'c++-mode-hook #'cmake-ide--mode-hook)
 
   ;; When creating a file in Emacs, run CMake again to pick it up
   (add-hook 'before-save-hook (lambda ()
