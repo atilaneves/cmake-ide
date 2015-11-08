@@ -3,6 +3,8 @@ cmake-ide
 
 [![Build Status](https://travis-ci.org/atilaneves/cmake-ide.svg?branch=master)](https://travis-ci.org/atilaneves/cmake-ide)
 
+[CppCon 2015 Lighning talk on cmake-ide](https://www.youtube.com/watch?v=5FQwQ0QWBTU).
+
 `cmake-ide` is a package to enable IDE-like features on Emacs for
 [CMake](http://www.cmake.org/) projects. This includes autocompletion
 and on-the-fly syntax checking in Emacs for CMake projects with
