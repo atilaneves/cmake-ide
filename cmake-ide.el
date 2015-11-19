@@ -197,6 +197,10 @@ flags."
         (make-local-variable 'company-clang-arguments)
         (setq company-clang-arguments (cmake-ide--get-compiler-flags flags)))
 
+      (when (featurep 'company-c-headers)
+        (make-local-variable 'company-c-headers-path-user)
+        (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
+
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
         (setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
