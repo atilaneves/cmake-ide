@@ -209,6 +209,9 @@ flags."
         (setq flycheck-clang-definitions
               (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
 
+        (make-local-variable 'flycheck-clang-args)
+        (setq flycheck-clang-args (cmake-ide--flags-filtered flags))
+
         (make-local-variable 'flycheck-cppcheck-include-path)
         (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
 
@@ -285,7 +288,7 @@ flags."
 (defun cmake-ide--args-to-include-and-define-flags (args)
   "Filters a list of compiler command ARGS to yield only includes and defines."
   (let ((case-fold-search)) ;; case sensitive matching
-    (cmake-ide--filter (lambda (x) (string-match "^-[ID].+\\b" x)) args)))
+    (cmake-ide--filter (lambda (x) (string-match "^-[IFD].+\\b" x)) args)))
 
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
@@ -347,6 +350,17 @@ flags."
       (setq flags (cdr (member "-isystem" flags)))
       (when flags (setq sysincludes (cons (car flags) sysincludes))))
     sysincludes))
+
+
+(defun cmake-ide--flags-filtered (flags)
+  "Filter out defines and includes from FLAGS."
+  (cmake-ide--filter
+   (lambda (x)
+     (let ((imatch (string-match "^-I" x))
+           (dmatch (string-match "^-D" x)))
+       (and (not imatch) (not dmatch))
+       ))
+   flags))
 
 
 (defun cmake-ide--to-simple-flags (flags flag)

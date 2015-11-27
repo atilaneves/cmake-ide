@@ -74,6 +74,11 @@
   (should (equal (cmake-ide--flags-to-defines '("-Ifoo" "-Ibar")) nil))
   (should (equal (cmake-ide--flags-to-defines '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("loo"))))
 
+(ert-deftest test-flags-minus-includes-defs ()
+  (should (equal (cmake-ide--flags-filtered '("-Iinc" "-Ddef" "-F/dir")) '("-F/dir")))
+  (should (equal (cmake-ide--flags-filtered '("-Iinc" "-Ddef")) nil))
+  )
+
 
 (ert-deftest test-is-src-file ()
   (should (not (eq (cmake-ide--is-src-file "foo.c") nil)))
