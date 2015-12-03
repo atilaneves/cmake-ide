@@ -47,17 +47,17 @@
 (ert-deftest test-params-to-src-flags-1 ()
   (let* ((json (cmake-ide--string-to-json
                 "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"},
+                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14\"},
                  {\"file\": \"file2\",
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
          (file-params (cmake-ide--file-params json "file1")))
     (should (equal (cmake-ide--params-to-src-flags file-params)
-                   '("-Ifoo" "-Ibar")))))
+                   '("-Ifoo" "-Ibar" "-std=c++14")))))
 
 (ert-deftest test-params-to-src-flags-2 ()
   (let* ((json (cmake-ide--string-to-json
                 "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"},
+                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14\"},
                  {\"file\": \"file2\",
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
          (file-params (cmake-ide--file-params json "file2")))
