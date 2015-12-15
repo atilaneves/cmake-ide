@@ -49,12 +49,12 @@
 (ert-deftest test-params-to-src-flags-1 ()
   (let* ((json (cmake-ide--string-to-json
                 "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14\"},
+                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14 --foo --bar\"},
                  {\"file\": \"file2\",
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
          (file-params (cmake-ide--file-params json "file1")))
     (should (equal (cmake-ide--params-to-src-flags file-params)
-                   '("-Ifoo" "-Ibar" "-std=c++14")))))
+                   '("-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar")))))
 
 (ert-deftest test-params-to-src-flags-2 ()
   (let* ((json (cmake-ide--string-to-json
@@ -64,7 +64,7 @@
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
          (file-params (cmake-ide--file-params json "file2")))
     (should (equal (cmake-ide--params-to-src-flags file-params)
-                   '("-Ibaz" "-Iboo" "-Dloo")))))
+                   '("-g" "-pg" "-Ibaz" "-Iboo" "-Dloo")))))
 
 
 (ert-deftest test-flags-to-include-paths ()
@@ -185,10 +185,10 @@
     (cmake-ide--set-flags-for-file json (current-buffer))
     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
     (should (equal-lists company-clang-arguments ac-clang-flags))
-    (should (equal-lists flycheck-clang-include-path '("inc1", "inc2")))
+    (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
     (should (equal-lists flycheck-clang-definitions '("foo=bar")))
     (should (equal-lists flycheck-clang-includes nil))
-    (should (equal-lists flycheck-clang-args '("-S", "-F", "-g")))))
+    (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

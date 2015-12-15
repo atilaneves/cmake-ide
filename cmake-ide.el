@@ -190,12 +190,8 @@ flags."
     (with-current-buffer buffer
 
       (when (featurep 'auto-complete-clang)
-        (princ "I has auto complete clang")
         (make-local-variable 'ac-clang-flags)
         (setq ac-clang-flags (cmake-ide--get-compiler-flags flags)))
-
-      (when (not (featurep 'auto-complete-clang))
-        (princ "Oh noes!!!!!\n"))
 
       (when (featurep 'company)
         (make-local-variable 'company-clang-arguments)
@@ -289,15 +285,15 @@ flags."
     (mapconcat 'identity flags " ")))
 
 
-(defun cmake-ide--args-to-include-define-and-std-flags (args)
+(defun cmake-ide--args-to-only-flags (args)
   "Filters a list of compiler command ARGS to yield only includes, defines and standards."
   (let ((case-fold-search)) ;; case sensitive matching
-    (cmake-ide--filter (lambda (x) (string-match "^-\\([IFD]\\|std\\).+\\b" x)) args)))
+    (cmake-ide--filter (lambda (x) (string-match "^-.+\\b" x)) args)))
 
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
   (if (not file-params) nil
-    (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-define-and-std-flags))
+    (let* ((filter-func (or filter-func #'cmake-ide--args-to-only-flags))
            (value (cmake-ide--filter-params file-params filter-func))
            (flags-string (if value value nil)))
       (if flags-string (split-string flags-string " +") nil))))
@@ -306,7 +302,7 @@ flags."
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
   (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
-    (delete-dups (cmake-ide--args-to-include-define-and-std-flags args))))
+    (delete-dups (cmake-ide--args-to-only-flags args))))
 
 (defun cmake-ide--params-to-src-includes (file-params)
   "-include compiler flags for from FILE-PARAMS."
