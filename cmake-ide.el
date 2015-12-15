@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014 Atila Neves
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
