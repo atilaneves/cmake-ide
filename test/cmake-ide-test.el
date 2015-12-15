@@ -183,12 +183,12 @@
                "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
     (cmake-ide--set-flags-for-file json (current-buffer))
-    (should (equal-lists ac-clang-flags nil))
-    (should (equal-lists company-clang-arguments nil))
-    (should (equal-lists flycheck-clang-include-path nil))
-    (should (equal-lists flycheck-clang-definitions nil))
+    (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
+    (should (equal-lists company-clang-arguments ac-clang-flags))
+    (should (equal-lists flycheck-clang-include-path '("inc1", "inc2")))
+    (should (equal-lists flycheck-clang-definitions '("foo=bar")))
     (should (equal-lists flycheck-clang-includes nil))
-    (should (equal-lists flycheck-clang-args nil))))
+    (should (equal-lists flycheck-clang-args '("-S", "-F", "-g")))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
