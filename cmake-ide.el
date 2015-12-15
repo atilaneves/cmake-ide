@@ -180,8 +180,9 @@ flags."
          (sys-includes (cmake-ide--params-to-sys-includes file-params))
          )
     ;; set flags for all source files that registered
-    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes))
-    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
+    (if (cmake-ide--is-src-file (buffer-file-name buffer))
+        (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)
+      (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
