@@ -190,8 +190,12 @@ flags."
     (with-current-buffer buffer
 
       (when (featurep 'auto-complete-clang)
+        (princ "I has auto complete clang")
         (make-local-variable 'ac-clang-flags)
         (setq ac-clang-flags (cmake-ide--get-compiler-flags flags)))
+
+      (when (not (featurep 'auto-complete-clang))
+        (princ "Oh noes!!!!!\n"))
 
       (when (featurep 'company)
         (make-local-variable 'company-clang-arguments)

@@ -32,7 +32,9 @@
 (require 'ert)
 (require 'cmake-ide)
 (require 'cl)
-
+(require 'auto-complete-clang)
+(require 'company)
+(require 'flycheck)
 
 (ert-deftest test-json-to-file-params ()
   (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
@@ -175,6 +177,18 @@
          (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
+
+(ert-deftest test-all-vars ()
+  (let ((json (cmake-ide--string-to-json
+               "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
+    (cmake-ide--set-flags-for-file json (current-buffer))
+    (should (equal-lists ac-clang-flags nil))
+    (should (equal-lists company-clang-arguments nil))
+    (should (equal-lists flycheck-clang-include-path nil))
+    (should (equal-lists flycheck-clang-definitions nil))
+    (should (equal-lists flycheck-clang-includes nil))
+    (should (equal-lists flycheck-clang-args nil))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
