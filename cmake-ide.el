@@ -304,8 +304,6 @@ flags."
            (value (cmake-ide--filter-params file-params filter-func))
            (flags-string (if value value nil))
            (unescaped-flags-string (cmake-ide--unescape value)))
-      (cmake-ide--message "original: %s" flags-string)
-      (cmake-ide--message "processd: %s" unescaped-flags-string)
       (if flags-string (split-string unescaped-flags-string " +") nil))))
 
 
