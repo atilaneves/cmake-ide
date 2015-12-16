@@ -1,4 +1,4 @@
-(source melpa)
+(source melpa-stable)
 
 (package "cmake-ide" "0.3" "")
 
