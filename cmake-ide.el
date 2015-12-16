@@ -291,13 +291,22 @@ flags."
   (let ((case-fold-search)) ;; case sensitive matching
     (cmake-ide--filter (lambda (x) (string-match "^-.+\\b" x)) args)))
 
+(defun cmake-ide--unescape (str)
+  "Remove JSON-escaped backslashes in STR."
+  (let* ((no-double-backslashes (replace-regexp-in-string "\\\\\\\\" "\\\\" str))
+         (no-backslash-quote (replace-regexp-in-string "\\\\\"" "\"" no-double-backslashes)))
+    no-backslash-quote))
+
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
   (if (not file-params) nil
     (let* ((filter-func (or filter-func #'cmake-ide--args-to-only-flags))
            (value (cmake-ide--filter-params file-params filter-func))
-           (flags-string (if value value nil)))
-      (if flags-string (split-string flags-string " +") nil))))
+           (flags-string (if value value nil))
+           (unescaped-flags-string (cmake-ide--unescape value)))
+      (cmake-ide--message "original: %s" flags-string)
+      (cmake-ide--message "processd: %s" unescaped-flags-string)
+      (if flags-string (split-string unescaped-flags-string " +") nil))))
 
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
