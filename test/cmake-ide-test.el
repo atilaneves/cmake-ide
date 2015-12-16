@@ -64,7 +64,7 @@
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
          (file-params (cmake-ide--file-params json "file2")))
     (should (equal (cmake-ide--params-to-src-flags file-params)
-                   '("-g" "-pg" "-Ibaz" "-Iboo" "-Dloo")))))
+                   '("foo" "bar" "-g" "-pg" "-Ibaz" "-Iboo" "-Dloo")))))
 
 
 (ert-deftest test-flags-to-include-paths ()
