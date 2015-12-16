@@ -192,11 +192,11 @@ flags."
 
       (when (featurep 'auto-complete-clang)
         (make-local-variable 'ac-clang-flags)
-        (setq ac-clang-flags (cmake-ide--get-compiler-flags flags)))
+        (setq ac-clang-flags (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
 
       (when (featurep 'company)
         (make-local-variable 'company-clang-arguments)
-        (setq company-clang-arguments (cmake-ide--get-compiler-flags flags)))
+        (setq company-clang-arguments (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
 
       (when (featurep 'company-c-headers)
         (make-local-variable 'company-c-headers-path-user)
@@ -287,10 +287,14 @@ flags."
     (mapconcat 'identity flags " ")))
 
 
+;; (defun cmake-ide--args-to-only-flags (args)
+;;   "Filters a list of compiler command ARGS to yield only includes, defines and standards."
+;;   (let ((case-fold-search)) ;; case sensitive matching
+;;     (cmake-ide--filter (lambda (x) (string-match "^-.+\\b" x)) args)))
+
 (defun cmake-ide--args-to-only-flags (args)
-  "Filters a list of compiler command ARGS to yield only includes, defines and standards."
-  (let ((case-fold-search)) ;; case sensitive matching
-    (cmake-ide--filter (lambda (x) (string-match "^-.+\\b" x)) args)))
+  "Do the ARGS."
+  args)
 
 (defun cmake-ide--unescape (str)
   "Remove JSON-escaped backslashes in STR."
@@ -310,12 +314,12 @@ flags."
   "Clean up and filter STR to yield a list of compiler flags."
   (let* ((unescaped-flags-string (cmake-ide--unescape str))
          (flags (split-string unescaped-flags-string " +")))
-    (cmake-ide--filter-flags flags)))
+    flags))
 
-(defun cmake-ide--filter-flags (flags)
+(defun cmake-ide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
   (cmake-ide--filter
-   (lambda (x) (not (string-match "^-m32$" x)))
+   (lambda (x) (not (or (string-match "^-m32$" x) (string-match "^-Werror$" x))))
    flags))
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
