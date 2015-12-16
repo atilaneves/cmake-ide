@@ -254,7 +254,8 @@ flags."
 
 (defun cmake-ide--ends-with (string suffix)
   "Return t if STRING ends with SUFFIX."
-  (and (string-match (rx-to-string `(: ,suffix eos) t)
+  (and (not (null string))
+       (string-match (rx-to-string `(: ,suffix eos) t)
                      string)
        t))
 

@@ -180,7 +180,7 @@
 
 (ert-deftest test-all-vars ()
   (let ((json (cmake-ide--string-to-json
-               "[{\"file\": \"file1\",
+               "[{\"file\": \"file1.c\",
                   \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
     (cmake-ide--set-flags-for-file json (current-buffer))
     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
