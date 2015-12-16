@@ -291,7 +291,7 @@ flags."
   "Get compiler flags from ARGS."
   (cmake-ide--filter
    (lambda (x) (not (string-match "\\.\\(?:c\\|C\\|cc\\|cxx\\|cpp\\)$" x)))
-   (cdr args)))
+   args))
 
 (defun cmake-ide--unescape (str)
   "Remove JSON-escaped backslashes in STR."
@@ -310,7 +310,7 @@ flags."
 (defun cmake-ide--cleanup-flags-str (str)
   "Clean up and filter STR to yield a list of compiler flags."
   (let* ((unescaped-flags-string (cmake-ide--unescape str))
-         (flags (split-string unescaped-flags-string " +")))
+         (flags (cdr (split-string unescaped-flags-string " +"))))
     flags))
 
 (defun cmake-ide--filter-ac-flags (flags)
@@ -321,7 +321,7 @@ flags."
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
-  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (cdr (split-string x " +"))) commands))))
     (delete-dups (cmake-ide--args-to-only-flags args))))
 
 (defun cmake-ide--params-to-src-includes (file-params)
