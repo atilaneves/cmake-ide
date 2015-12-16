@@ -303,10 +303,20 @@ flags."
   (if (not file-params) nil
     (let* ((filter-func (or filter-func #'cmake-ide--args-to-only-flags))
            (value (cmake-ide--filter-params file-params filter-func))
-           (flags-string (if value value nil))
-           (unescaped-flags-string (cmake-ide--unescape value)))
-      (if flags-string (split-string unescaped-flags-string " +") nil))))
+           (flags-string (if value value nil)))
+      (if flags-string (cmake-ide--cleanup-flags-str flags-string) nil))))
 
+(defun cmake-ide--cleanup-flags-str (str)
+  "Clean up and filter STR to yield a list of compiler flags."
+  (let* ((unescaped-flags-string (cmake-ide--unescape str))
+         (flags (split-string unescaped-flags-string " +")))
+    (cmake-ide--filter-flags flags)))
+
+(defun cmake-ide--filter-flags (flags)
+  "Filter unwanted compiler arguments out from FLAGS."
+  (cmake-ide--filter
+   (lambda (x) (not (string-match "^-m32$" x)))
+   flags))
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
