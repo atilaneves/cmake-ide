@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014 Atila Neves
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
@@ -180,8 +180,9 @@ flags."
          (sys-includes (cmake-ide--params-to-sys-includes file-params))
          )
     ;; set flags for all source files that registered
-    (when src-flags (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes))
-    (when hdr-flags (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
+    (if (cmake-ide--is-src-file (buffer-file-name buffer))
+        (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)
+      (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
@@ -253,7 +254,8 @@ flags."
 
 (defun cmake-ide--ends-with (string suffix)
   "Return t if STRING ends with SUFFIX."
-  (and (string-match (rx-to-string `(: ,suffix eos) t)
+  (and (not (null string))
+       (string-match (rx-to-string `(: ,suffix eos) t)
                      string)
        t))
 
@@ -285,24 +287,31 @@ flags."
     (mapconcat 'identity flags " ")))
 
 
-(defun cmake-ide--args-to-include-define-and-std-flags (args)
+(defun cmake-ide--args-to-only-flags (args)
   "Filters a list of compiler command ARGS to yield only includes, defines and standards."
   (let ((case-fold-search)) ;; case sensitive matching
-    (cmake-ide--filter (lambda (x) (string-match "^-\\([IFD]\\|std\\).+\\b" x)) args)))
+    (cmake-ide--filter (lambda (x) (string-match "^-.+\\b" x)) args)))
+
+(defun cmake-ide--unescape (str)
+  "Remove JSON-escaped backslashes in STR."
+  (let* ((no-double-backslashes (replace-regexp-in-string "\\\\\\\\" "\\\\" str))
+         (no-backslash-quote (replace-regexp-in-string "\\\\\"" "\"" no-double-backslashes)))
+    no-backslash-quote))
 
 (defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
   (if (not file-params) nil
-    (let* ((filter-func (or filter-func #'cmake-ide--args-to-include-define-and-std-flags))
+    (let* ((filter-func (or filter-func #'cmake-ide--args-to-only-flags))
            (value (cmake-ide--filter-params file-params filter-func))
-           (flags-string (if value value nil)))
-      (if flags-string (split-string flags-string " +") nil))))
+           (flags-string (if value value nil))
+           (unescaped-flags-string (cmake-ide--unescape value)))
+      (if flags-string (split-string unescaped-flags-string " +") nil))))
 
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
   (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
-    (delete-dups (cmake-ide--args-to-include-define-and-std-flags args))))
+    (delete-dups (cmake-ide--args-to-only-flags args))))
 
 (defun cmake-ide--params-to-src-includes (file-params)
   "-include compiler flags for from FILE-PARAMS."
