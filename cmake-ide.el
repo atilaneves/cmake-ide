@@ -59,6 +59,11 @@
   nil
   "The command to use to compile the project.  Can also include running tests.")
 
+
+(defvar cmake-ide-cmake-command
+  "cmake"
+  "The command use to invoke cmake.")
+
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
@@ -243,7 +248,7 @@ flags."
   (when project-dir
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
-      (start-process "cmake" "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (start-process cmake-ide-cmake-command "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-dir ()
