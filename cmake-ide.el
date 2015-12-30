@@ -309,9 +309,15 @@ flags."
 
 (defun cmake-ide--cleanup-flags-str (str)
   "Clean up and filter STR to yield a list of compiler flags."
-  (let* ((unescaped-flags-string (cmake-ide--unescape str))
-         (flags (cdr (split-string unescaped-flags-string " +"))))
-    flags))
+  (let ((unescaped-flags-string (cmake-ide--unescape str)))
+    (cmake-ide--remove-compiler-from-args unescaped-flags-string)))
+
+(defun cmake-ide--remove-compiler-from-args (str)
+  "Remove the compiler command from STR, leaving only arguments."
+  (let ((args (split-string str " +")))
+    (if (equal (car args) "ccache")
+        (cddr args)
+      (cdr args))))
 
 (defun cmake-ide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
@@ -321,7 +327,7 @@ flags."
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
-  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (cdr (split-string x " +"))) commands))))
+  (let ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands))))
     (delete-dups (cmake-ide--args-to-only-flags args))))
 
 (defun cmake-ide--params-to-src-includes (file-params)
