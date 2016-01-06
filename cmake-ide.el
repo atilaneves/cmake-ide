@@ -172,6 +172,7 @@ flags."
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
   (when (and (featurep 'rtags) (get-process "rdm"))
+    ;; change buffer so as to not insert text into a working file buffer
     (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
       (rtags-call-rc "-J" (cmake-ide--get-build-dir)))))
 
