@@ -40,6 +40,7 @@
 ;;; Code:
 
 (require 'json)
+(require 'find-file)
 
 (declare-function rtags-call-rc "rtags")
 
@@ -175,7 +176,6 @@ flags."
 
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
-  (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
   (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--file-params json file-name))
          (sys-includes (cmake-ide--params-to-sys-includes file-params)))
@@ -194,11 +194,26 @@ flags."
 
 (defun cmake-ide--set-flags-for-hdr-file (json buffer sys-includes)
   "Set the compiler flags from JSON for header BUFFER with SYS-INCLUDES."
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
-         (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
-    (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
+  (let ((src-file-name (cmake-ide--src-file-for-hdr buffer)))
+    (if src-file-name
+        (progn
+          (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
+          ;; if we can find a corresponding source file, use its flags
+          (let ((file-params (cmake-ide--file-params json src-file-name)))
+            (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)))
+      ;; no file? Use all flags from all files
+      (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+             (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
+             (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
+        (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
+    ))
 
+(defun cmake-ide--src-file-for-hdr (buffer)
+  "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
+  (when (and buffer (buffer-live-p buffer))
+    (with-current-buffer buffer
+      (let ((other-file-name (ff-other-file-name)))
+        (if other-file-name (expand-file-name other-file-name) nil)))))
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
