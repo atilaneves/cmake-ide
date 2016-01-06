@@ -333,7 +333,7 @@ flags."
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
-  (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands))))
+  (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands)))
          (flags (cmake-ide--args-to-only-flags args)))
     (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
     (setq flags (cmake-ide--filter (lambda (x) (not (cmake-ide--ends-with x ".o"))) flags))
