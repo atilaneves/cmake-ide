@@ -122,12 +122,12 @@
                 "[{\"file\": \"/dir1/file1.c\",
                   \"command\": \"cmd1 -o file1.c.o otherfile -Ifoo -Ibar -weird\"},
                  {\"file\": \"/dir2/file2.c\",
-                  \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo\"},
+                  \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo -include foo.h\"},
                  {\"file\": \"/dir2/file2.c\",
-                  \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo\"}]"))
+                  \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo -include bar.h\"}]"))
          (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
     (should (equal (cmake-ide--commands-to-hdr-flags commands)
-                   '("otherfile" "-Ifoo" "-Ibar" "-weird" "-Iloo" "-Dboo")))))
+                   '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
 
 
 (defun equal-lists (lst1 lst2)

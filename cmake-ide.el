@@ -330,6 +330,11 @@ flags."
    (lambda (x) (not (or (string-match "^-m32$" x) (string-match "^-Werror$" x) (string-match "^-c$" x))))
    flags))
 
+(defun cmake-ide--delete-dup-hdr-flags (flags)
+  "Delete duplicates in FLAGS for header files."
+  (let* ((rest (cmake-ide--flags-filtered flags))
+         (dashes (cmake-ide--filter #'cmake-ide--dash-i-or-dash-d-p flags)))
+    (append (delete-dups dashes) rest)))
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
@@ -338,7 +343,7 @@ flags."
     (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
     (setq flags (cmake-ide--filter (lambda (x) (not (cmake-ide--ends-with x ".o"))) flags))
     (setq flags (cmake-ide--filter (lambda (x) (not (cmake-ide--ends-with x ".obj"))) flags))
-    (delete-dups flags)))
+    (cmake-ide--delete-dup-hdr-flags flags)))
 
 (defun cmake-ide--params-to-src-includes (file-params)
   "-include compiler flags for from FILE-PARAMS."
@@ -352,7 +357,7 @@ flags."
 
 (defun cmake-ide--commands-to-hdr-includes (commands)
   "Header `-include` flags from COMMANDS."
-  (let ((args (cmake-ide--flatten (mapcar (lambda (x) (split-string x " +")) commands))))
+  (let ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
 
@@ -388,15 +393,16 @@ flags."
     sysincludes))
 
 
+(defun cmake-ide--dash-i-or-dash-d-p (flag)
+  "If FLAG is -I or -D."
+  (let* ((case-fold-search nil)
+         (imatch (string-match "^-I" flag))
+         (dmatch (string-match "^-D" flag)))
+    (or imatch dmatch)))
+
 (defun cmake-ide--flags-filtered (flags)
   "Filter out defines and includes from FLAGS."
-  (cmake-ide--filter
-   (lambda (x)
-     (let ((imatch (string-match "^-I" x))
-           (dmatch (string-match "^-D" x)))
-       (and (not imatch) (not dmatch))
-       ))
-   flags))
+  (cmake-ide--filter (lambda (x) (not (cmake-ide--dash-i-or-dash-d-p x))) flags))
 
 
 (defun cmake-ide--to-simple-flags (flags flag)
