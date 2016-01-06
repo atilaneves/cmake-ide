@@ -84,10 +84,34 @@
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
+(defvar cmake-ide-auto-complete-clang-enabled
+  t
+  "Flag to enable or disable setting auto complete clang flags.")
+
+(defvar cmake-ide-company-enabled
+  t
+  "Flag to enable or disable setting company flags.")
+
+(defvar cmake-ide-company-c-headers-enabled
+  t
+  "Flag to enable or disable setting company c headers flags.")
+
+(defvar cmake-ide-flycheck-enabled
+  t
+  "Flag to enable or disable setting flycheck flags.")
+
+(defvar cmake-ide-irony-enabled
+  t
+  "Flag to enable or disable setting irony flags.")
+
+(defvar cmake-ide-rtags-enabled
+  t
+  "Flag to enable or disable setting rtags flags.")
+
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
   (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake nil 'local)
-  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
+  (when (and (featurep 'rtags) cmake-ide-rtags-enabled (cmake-ide--locate-cmakelists))
     (cmake-ide-maybe-start-rdm)))
 
 ;;;###autoload
@@ -166,12 +190,19 @@ flags."
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
-    (cmake-ide--run-rc)))
+    (cmake-ide--run-rc)
+    (cmake-ide--set-cmake-dir-for-irony)))
 
+(defun cmake-ide--set-cmake-dir-for-irony ()
+  "Set the cmake compilation directory for irony mode."
+  (when (and (featurep 'irony) cmake-ide-irony-enabled)
+	 (setq irony-cdb-search-directory-list '())
+	 (add-to-list 'irony-cdb-search-directory-list (cmake-ide--get-dir))
+	 (irony-cdb-autosetup-compile-options)))
 
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
-  (when (and (featurep 'rtags) (get-process "rdm"))
+  (when (and (featurep 'rtags) cmake-ide-rtags-enabled (get-process "rdm"))
     (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
       (rtags-call-rc "-J" (cmake-ide--get-dir)))))
 
@@ -271,35 +302,35 @@ flags."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
 
-      (when (featurep 'auto-complete-clang)
-        (make-local-variable 'ac-clang-flags)
+      (when (and (featurep 'auto-complete-clang) cmake-ide-auto-complete-clang-enabled)
+	(make-local-variable 'ac-clang-flags)
         (setq ac-clang-flags (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
 
-      (when (featurep 'company)
-        (make-local-variable 'company-clang-arguments)
-        (setq company-clang-arguments (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
+      (when (and (featurep 'company) cmake-ide-company-enabled)
+	(make-local-variable 'company-clang-arguments)
+	(setq company-clang-arguments (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
 
-      (when (featurep 'company-c-headers)
+      (when (and (featurep 'company-c-headers) cmake-ide-company-c-headers-enabled)
         (make-local-variable 'company-c-headers-path-user)
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
-      (when (featurep 'flycheck)
-        (make-local-variable 'flycheck-clang-include-path)
-        (setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+      (when (and (featurep 'flycheck) cmake-ide-flycheck-enabled)
+	(make-local-variable 'flycheck-clang-include-path)
+	(setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
 
-        (make-local-variable 'flycheck-clang-definitions)
-        (setq flycheck-clang-definitions
-              (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
+	(make-local-variable 'flycheck-clang-definitions)
+	(setq flycheck-clang-definitions
+	      (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
 
-        (make-local-variable 'flycheck-clang-args)
-        (setq flycheck-clang-args (cmake-ide--flags-filtered flags))
+	(make-local-variable 'flycheck-clang-args)
+	(setq flycheck-clang-args (cmake-ide--flags-filtered flags))
 
-        (make-local-variable 'flycheck-cppcheck-include-path)
-        (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+	(make-local-variable 'flycheck-cppcheck-include-path)
+	(setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
 
-        (setq flycheck-clang-includes includes)
-        (flycheck-clear)
-        (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
+	(setq flycheck-clang-includes includes)
+	(flycheck-clear)
+	(run-at-time "0.5 sec" nil 'flycheck-buffer)))))
 
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
@@ -561,7 +592,8 @@ flags."
       (compile (cmake-ide--get-compile-command cmake-ide-dir))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
       (compile command)))
-  (cmake-ide--run-rc))
+  (cmake-ide--run-rc)
+  (cmake-ide--set-cmake-dir-for-irony))
 
 
 (defun cmake-ide--get-compile-command (dir)
@@ -576,10 +608,11 @@ flags."
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (when (featurep 'rtags)
-    (unless (get-process "rdm")
-      (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-        (with-current-buffer buf (start-process "rdm" (current-buffer)
-                                                cmake-ide-rdm-executable))))))
+    (and cmake-ide-rtags-enabled
+	 (unless (get-process "rdm")
+	   (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
+	     (with-current-buffer buf (start-process "rdm" (current-buffer)
+						     cmake-ide-rdm-executable)))))))
 
 
 (provide 'cmake-ide)
