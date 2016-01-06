@@ -123,7 +123,7 @@
 
 (defun cmake-ide--comp-db-file-name ()
   "The name of the compilation database file."
-  (expand-file-name "compile_commands.json" (cmake-ide--get-dir)))
+  (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir)))
 
 (defun cmake-ide--need-to-run-cmake ()
   "If CMake needs to be run or not."
@@ -144,8 +144,8 @@ flags."
         ;; waiting for results
         (cmake-ide--add-file-to-buffer-list)
 
-        (let ((default-directory (cmake-ide--get-dir)))
-          (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-dir))
+        (let ((default-directory (cmake-ide--get-build-dir)))
+          (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir))
           (cmake-ide--register-callback))))))
 
 (defun cmake-ide--message (str &rest vars)
@@ -173,7 +173,7 @@ flags."
   "Run rc to add definitions to the rtags daemon."
   (when (and (featurep 'rtags) (get-process "rdm"))
     (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-      (rtags-call-rc "-J" (cmake-ide--get-dir)))))
+      (rtags-call-rc "-J" (cmake-ide--get-build-dir)))))
 
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
@@ -283,6 +283,9 @@ flags."
         (make-local-variable 'company-c-headers-path-user)
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
+      (when (featurep 'irony)
+        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--get-build-dir)))
+
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
         (setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
@@ -327,7 +330,7 @@ flags."
       (start-process cmake-ide-cmake-command "*cmake*" "cmake" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
-(defun cmake-ide--get-dir ()
+(defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
   (file-name-as-directory cmake-ide-dir))
