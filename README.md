@@ -8,11 +8,17 @@ cmake-ide
 `cmake-ide` is a package to enable IDE-like features on Emacs for
 [CMake](http://www.cmake.org/) projects. This includes autocompletion
 and on-the-fly syntax checking in Emacs for CMake projects with
-minimal configuration. It depends on
-[flycheck](https://github.com/flycheck/flycheck) and
-[auto-complete-clang](https://github.com/brianjcj/auto-complete-clang).
-Support might be added for other packages later (e.g. flymake,
-company).
+minimal configuration. It uses other packages to do its heavy lifting,
+in a combination of:
+
+* [rtags](https://github.com/Andersbakken/rtags)
+* [flycheck](https://github.com/flycheck/flycheck)
+* [auto-complete-clang](https://github.com/brianjcj/auto-complete-clang)
+* [company-clang](https://github.com/company-mode/company-mode/blob/master/company-clang.el)
+* [irony](https://github.com/Sarcasm/irony-mode)
+
+`cmake-ide` will set variables and call functions for the installed
+dependent packages.
 
 It works by running CMake in Emacs in order to obtain the necessary
 `-I` and `-D` compiler flags to pass to the other tools. Since all
@@ -22,7 +28,7 @@ Just ask CMake.
 
 Features
 --------
-* Sets variables for `auto-complete-clang` and `flycheck` for a CMake
+* Sets variables for `auto-complete-clang`, `flycheck` and others for a CMake
   project automagically. Hardly any configuration necessary.
 * Automatically reruns CMake when a file is saved. Great when using
 CMake file globs to pick up newly created files, but needs
