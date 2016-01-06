@@ -285,7 +285,7 @@ flags."
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
       (when (featurep 'irony)
-        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--get-build-dir)))
+        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name)))
 
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
