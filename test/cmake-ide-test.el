@@ -58,13 +58,13 @@
 
 (ert-deftest test-params-to-src-flags-2 ()
   (let* ((json (cmake-ide--string-to-json
-                "[{\"file\": \"file1\",
-                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14\"},
-                 {\"file\": \"file2\",
-                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
-         (file-params (cmake-ide--file-params json "file2")))
+                "[{\"file\": \"file1.c\",
+                  \"command\": \"cmd1 -o file1.c.o -Ifoo -Ibar -std=c++14\"},
+                 {\"file\": \"file2.c\",
+                  \"command\": \"cmd2 -o file2.c.o foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (file-params (cmake-ide--file-params json "file2.c")))
     (should (equal (cmake-ide--params-to-src-flags file-params)
-                   '("foo" "bar" "-g" "-pg" "-Ibaz" "-Iboo" "-Dloo")))))
+                   '("-o" "file2.c.o" "foo" "bar" "-g" "-pg" "-Ibaz" "-Iboo" "-Dloo")))))
 
 
 (ert-deftest test-flags-to-include-paths ()
@@ -119,15 +119,16 @@
 
 (ert-deftest test-commands-to-hdr-flags-3 ()
   (let* ((json (cmake-ide--string-to-json
-                "[{\"file\": \"/dir1/file1.h\",
-                  \"command\": \"cmd1 -Ifoo -Ibar\"},
-                 {\"file\": \"/dir2/file2.h\",
-                  \"command\": \"cmd2 -Iloo -Dboo\"},
-                 {\"file\": \"/dir2/file2.h\",
-                  \"command\": \"cmd2 -Iloo -Dboo\"}]"))
+                "[{\"file\": \"/dir1/file1.c\",
+                  \"command\": \"cmd1 -o file1.c.o otherfile -Ifoo -Ibar -weird\"},
+                 {\"file\": \"/dir2/file2.c\",
+                  \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo\"},
+                 {\"file\": \"/dir2/file2.c\",
+                  \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo\"}]"))
          (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json)))
     (should (equal (cmake-ide--commands-to-hdr-flags commands)
-                   '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
+                   '("otherfile" "-Ifoo" "-Ibar" "-weird" "-Iloo" "-Dboo")))))
+
 
 (defun equal-lists (lst1 lst2)
   "If LST1 is the same as LST2 regardless or ordering."
