@@ -176,18 +176,28 @@ flags."
 (defun cmake-ide--set-flags-for-file (json buffer)
   "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
   (cmake-ide--message "Setting flags for file %s" (buffer-file-name buffer))
-  (let* ((file-params (cmake-ide--file-params json (buffer-file-name buffer)))
-         (commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
-         (src-flags (cmake-ide--params-to-src-flags file-params))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
-         (src-includes (cmake-ide--params-to-src-includes file-params))
-         (hdr-includes (cmake-ide--commands-to-hdr-includes commands))
-         (sys-includes (cmake-ide--params-to-sys-includes file-params))
-         )
+  (let* ((file-name (buffer-file-name buffer))
+         (file-params (cmake-ide--file-params json file-name))
+         (sys-includes (cmake-ide--params-to-sys-includes file-params)))
+    (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
-    (if (cmake-ide--is-src-file (buffer-file-name buffer))
-        (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)
-      (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes))))
+    (if (cmake-ide--is-src-file file-name)
+
+        (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
+      (cmake-ide--set-flags-for-hdr-file json buffer sys-includes))))
+
+(defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
+  "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
+  (let* ((src-flags (cmake-ide--params-to-src-flags file-params))
+         (src-includes (cmake-ide--params-to-src-includes file-params)))
+    (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)))
+
+(defun cmake-ide--set-flags-for-hdr-file (json buffer sys-includes)
+  "Set the compiler flags from JSON for header BUFFER with SYS-INCLUDES."
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
+         (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
+    (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
