@@ -150,7 +150,7 @@ flags."
 
 (defun cmake-ide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
-  (message (apply #'format (concat "cmake-ide: " str) vars)))
+  (message (apply #'format (concat "cmake-ide[%s]: " str) (cons (current-time-string) vars))))
 
 (defun cmake-ide--register-callback ()
   "Register callback for when CMake finishes running."
@@ -161,7 +161,7 @@ flags."
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
-  (let* ((json (json-read-file (cmake-ide--comp-db-file-name)))
+  (let* ((json (cmake-ide--cdb-to-json))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file json x))))
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
@@ -195,12 +195,13 @@ flags."
 
 (defun cmake-ide--set-flags-for-hdr-file (json buffer sys-includes)
   "Set the compiler flags from JSON for header BUFFER with SYS-INCLUDES."
-  (let ((src-file-name (cmake-ide--src-file-for-hdr buffer)))
-    (cond
-     ;; if a source file is found, use its flags
-     (src-file-name (cmake-ide--set-flags-for-hdr-from-src json buffer sys-includes src-file-name))
-     ;; else, use flags from all source files
-     (t (cmake-ide--set-flags-for-hdr-from-all-flags json buffer sys-includes)))))
+  (let* ((other (cmake-ide--src-file-for-hdr buffer))
+         (src-file-name (or other (cmake-ide--first-including-src-file json buffer))))
+    (if src-file-name
+        ;; if a source file is found, use its flags
+        (cmake-ide--set-flags-for-hdr-from-src json buffer sys-includes src-file-name)
+      ;; otherwise use flags from all source files
+      (cmake-ide--set-flags-for-hdr-from-all-flags json buffer sys-includes))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
@@ -209,17 +210,61 @@ flags."
       (let ((other-file-name (ff-other-file-name)))
         (if other-file-name (expand-file-name other-file-name) nil)))))
 
+(defun cmake-ide--set-flags-for-hdr-from-src (json buffer sys-includes src-file-name)
+  "Use JSON to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
+  (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
+  (cmake-ide--set-flags-for-src-file (cmake-ide--file-params json src-file-name) buffer sys-includes))
+
+(defun cmake-ide--first-including-src-file (json buffer)
+  "Use JSON to find first source file that includes the header BUFFER."
+  (when (buffer-file-name buffer)
+    (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
+    (let ((dir (file-name-directory (buffer-file-name buffer)))
+          (base-name (file-name-nondirectory (buffer-file-name buffer))))
+      (defun distance (object)
+        (levenshtein-distance dir (file-name-directory (cmake-ide--get-file-param 'file object))))
+
+      (setq json (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) json))
+
+      (setq json (seq-sort
+                  (lambda (x y) (< (cmake-ide--get-file-param 'distance x)
+                                   (cmake-ide--get-file-param 'distance y)))
+                  json))
+
+      (let ((index 0)
+            (ret-file-name))
+        (while (and (null ret-file-name) (< index (length json)))
+          (let* ((object (elt json index))
+                 (file-name (cmake-ide--get-file-param 'file object)))
+            (when (string-match (concat "# *include +[\"<] *" base-name)
+                                (cmake-ide--get-string-from-file file-name))
+              (setq ret-file-name file-name)
+              )
+            )
+          (incf index)
+          )
+
+        (when ret-file-name
+          (cmake-ide--message "Found a source file including %s" (buffer-file-name buffer)))
+
+        ret-file-name))))
+
+(defun cmake-ide--get-string-from-file (path)
+  "Return PATH's file content."
+  (if (file-exists-p path)
+      (with-temp-buffer
+        (insert-file-contents path)
+        (buffer-string))
+    ""))
+
 (defun cmake-ide--set-flags-for-hdr-from-all-flags (json buffer sys-includes)
   "Use JSON to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
+  (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
   (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
          (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
-(defun cmake-ide--set-flags-for-hdr-from-src (json buffer sys-includes src-file-name)
-  "Use JSON to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
-  (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
-  (cmake-ide--set-flags-for-src-file (cmake-ide--file-params json src-file-name) buffer sys-includes))
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
@@ -477,6 +522,10 @@ flags."
     (if new-dir
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
+
+(defun cmake-ide--cdb-to-json ()
+  "Retrieve a JSON object from the compilation database."
+  (json-read-file (cmake-ide--comp-db-file-name)))
 
 (defun cmake-ide--string-to-json (json-str)
   "Tranform JSON-STR into an opaque json object."
