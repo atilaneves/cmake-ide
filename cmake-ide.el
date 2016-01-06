@@ -41,6 +41,7 @@
 
 (require 'json)
 (require 'find-file)
+(require 'levenshtein)
 
 (declare-function rtags-call-rc "rtags")
 
@@ -195,18 +196,11 @@ flags."
 (defun cmake-ide--set-flags-for-hdr-file (json buffer sys-includes)
   "Set the compiler flags from JSON for header BUFFER with SYS-INCLUDES."
   (let ((src-file-name (cmake-ide--src-file-for-hdr buffer)))
-    (if src-file-name
-        (progn
-          (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
-          ;; if we can find a corresponding source file, use its flags
-          (let ((file-params (cmake-ide--file-params json src-file-name)))
-            (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)))
-      ;; no file? Use all flags from all files
-      (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
-             (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
-             (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
-        (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
-    ))
+    (cond
+     ;; if a source file is found, use its flags
+     (src-file-name (cmake-ide--set-flags-for-hdr-from-src json buffer sys-includes src-file-name))
+     ;; else, use flags from all source files
+     (t (cmake-ide--set-flags-for-hdr-from-all-flags json buffer sys-includes)))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
@@ -214,6 +208,18 @@ flags."
     (with-current-buffer buffer
       (let ((other-file-name (ff-other-file-name)))
         (if other-file-name (expand-file-name other-file-name) nil)))))
+
+(defun cmake-ide--set-flags-for-hdr-from-all-flags (json buffer sys-includes)
+  "Use JSON to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
+  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
+         (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
+    (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
+
+(defun cmake-ide--set-flags-for-hdr-from-src (json buffer sys-includes src-file-name)
+  "Use JSON to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
+  (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
+  (cmake-ide--set-flags-for-src-file (cmake-ide--file-params json src-file-name) buffer sys-includes))
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
