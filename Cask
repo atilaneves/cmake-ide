@@ -1,11 +1,7 @@
 (source gnu)
 (source melpa)
 
-(package "cmake-ide" "0.3" "")
-
-(depends-on "json")
-(depends-on "find-file")
-(depends-on "levenshtein")
+(package-file "cmake-ide.el")
 
 (development
  (depends-on "ert-runner")
