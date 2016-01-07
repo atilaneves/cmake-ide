@@ -68,6 +68,14 @@
   "cmake"
   "The command use to invoke cmake.")
 
+(defvar cmake-ide-header-search-other-file
+  t
+  "Whether or not to search for a corresponding source file for headers when setting flags for them.")
+
+(defvar cmake-ide-header-search-first-including
+  t
+  "Whether or not to search for the first source file to include a header when setting flags for them.")
+
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
 (defvar cmake-ide--hdr-buffers nil)
@@ -208,10 +216,12 @@ flags."
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
-  (when (and buffer (buffer-live-p buffer))
-    (with-current-buffer buffer
-      (let ((other-file-name (ff-other-file-name)))
-        (if other-file-name (expand-file-name other-file-name) nil)))))
+  (if cmake-ide-header-search-other-file
+      (when (and buffer (buffer-live-p buffer))
+        (with-current-buffer buffer
+          (let ((other-file-name (ff-other-file-name)))
+            (if other-file-name (expand-file-name other-file-name) nil))))
+    nil))
 
 (defun cmake-ide--set-flags-for-hdr-from-src (json buffer sys-includes src-file-name)
   "Use JSON to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
@@ -220,7 +230,7 @@ flags."
 
 (defun cmake-ide--first-including-src-file (json buffer)
   "Use JSON to find first source file that includes the header BUFFER."
-  (when (buffer-file-name buffer)
+  (when (and (buffer-file-name buffer) cmake-ide-header-search-first-including)
     (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
     (let ((dir (file-name-directory (buffer-file-name buffer)))
           (base-name (file-name-nondirectory (buffer-file-name buffer))))
