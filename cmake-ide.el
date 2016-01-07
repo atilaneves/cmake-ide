@@ -4,7 +4,7 @@
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
 ;; Version: 0.3
-;; Package-Requires: ((emacs "24.1"))
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "1.11") (levenshtein "0"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
 
@@ -42,6 +42,8 @@
 (require 'json)
 (require 'find-file)
 (require 'levenshtein)
+(require 'cl-lib)
+(require 'seq)
 
 (declare-function rtags-call-rc "rtags")
 
@@ -242,7 +244,7 @@ flags."
               (setq ret-file-name file-name)
               )
             )
-          (incf index)
+          (cl-incf index)
           )
 
         (when ret-file-name
