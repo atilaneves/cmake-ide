@@ -582,10 +582,22 @@ flags."
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (when (featurep 'rtags)
-    (unless (get-process "rdm")
+    (cmake-ide--message "I is doing things")
+    (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (with-current-buffer buf (start-process "rdm" (current-buffer)
                                                 cmake-ide-rdm-executable))))))
+
+(defun cmake-ide--process-running-p (name)
+  "If a process called NAME is running or not."
+  (or (get-process name) (cmake-ide--system-process-running-p name)))
+
+(defun cmake-ide--system-process-running-p (name)
+  "If a process called NAME is running on the system."
+  (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
+         (match-args (cmake-ide--filter (lambda (x) (string-match (concat "\\b" name "\\b") x)) all-args))
+         )
+    (not (null match-args))))
 
 
 (provide 'cmake-ide)
