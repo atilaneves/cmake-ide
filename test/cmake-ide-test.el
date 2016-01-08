@@ -194,7 +194,7 @@
 (ert-deftest test-all-vars-ccache ()
   (let ((json (cmake-ide--string-to-json
                "[{\"file\": \"file1.c\",
-                  \"command\": \"ccache cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
+                  \"command\": \"/usr/bin/ccache clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
     (cmake-ide--set-flags-for-file json (current-buffer))
     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
     (should (equal-lists company-clang-arguments ac-clang-flags))

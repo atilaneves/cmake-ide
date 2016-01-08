@@ -412,7 +412,7 @@ flags."
 (defun cmake-ide--remove-compiler-from-args (str)
   "Remove the compiler command from STR, leaving only arguments."
   (let ((args (split-string str " +")))
-    (if (equal (car args) "ccache")
+    (if (string-match "ccache" (car args))
         (cddr args)
       (cdr args))))
 
