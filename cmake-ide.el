@@ -592,7 +592,6 @@ flags."
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (when (featurep 'rtags)
-    (cmake-ide--message "I is doing things")
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (with-current-buffer buf (start-process "rdm" (current-buffer)
