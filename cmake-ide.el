@@ -307,11 +307,17 @@ flags."
         (setq flycheck-clang-definitions
               (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
 
-        (make-local-variable 'flycheck-clang-args)
-        (setq flycheck-clang-args (cmake-ide--flags-filtered flags))
+        (let ((std-regex "^-std="))
+          (make-local-variable 'flycheck-clang-args)
+          (setq flycheck-clang-args (cmake-ide--filter (lambda (x) (not (string-match std-regex x))) (cmake-ide--flags-filtered flags)))
 
-        (make-local-variable 'flycheck-cppcheck-include-path)
-        (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+          (make-local-variable 'flycheck-clang-language-standard)
+          (let* ((stds (cmake-ide--filter (lambda (x) (string-match std-regex x)) flags))
+                 (repls (mapcar (lambda (x) (replace-regexp-in-string std-regex "" x)) stds)))
+            (when repls (setq flycheck-clang-language-standard (car repls))))
+
+          (make-local-variable 'flycheck-cppcheck-include-path)
+          (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags))))
 
         (setq flycheck-clang-includes includes)
         (flycheck-clear)
