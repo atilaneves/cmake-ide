@@ -235,19 +235,18 @@ flags."
   (when (and (buffer-file-name buffer) cmake-ide-header-search-first-including)
     (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
     (let* ((file-name (buffer-file-name buffer))
-           (base-name (file-name-nondirectory file-name)))
+           ret-obj
+           ret-file-name)
 
       (setq idb (cmake-ide--idb-sorted-by-file-distance idb file-name))
+      (setq ret-obj (cmake-ide--filter-first
+                     (lambda (x) (cmake-ide--idb-obj-depends-on-file x file-name))
+                     idb))
 
-      (let ((index 0)
-            (ret-file-name))
-        (while (and (null ret-file-name) (< index (length idb)))
-          (setq ret-file-name (cmake-ide--idb-obj-depends-on-file (elt idb index) file-name))
-          (cl-incf index))
+      (when ret-obj (setq ret-file-name (cmake-ide--idb-obj-get ret-obj 'file)))
+      (when ret-file-name (cmake-ide--message "Found a source file including %s" file-name))
 
-        (when ret-file-name (cmake-ide--message "Found a source file including %s" file-name))
-
-        ret-file-name))))
+      ret-file-name)))
 
 (defun cmake-ide--get-string-from-file (path)
   "Return PATH's file content."
@@ -365,6 +364,15 @@ flags."
   "Apply PRED to filter SEQ."
   (delq nil
         (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
+
+(defun cmake-ide--filter-first (pred seq)
+  "Return first element to satisfy PRED in SEQ."
+  (let ((index 0) (ret))
+    (while (and (null ret) (< index (length seq)))
+      (when (funcall pred (elt seq index))
+        (setq ret (elt seq index)))
+      (cl-incf index))
+    ret))
 
 
 (defun cmake-ide--filter-params (file-params filter-func)
