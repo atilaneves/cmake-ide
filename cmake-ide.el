@@ -549,7 +549,13 @@ flags."
 
 (defun cmake-ide--cdb-json-string-to-idb (json-str)
   "Tranform JSON-STR into an opaque json object."
-  (json-read-from-string json-str))
+  (let ((idb (make-hash-table :test #'equal))
+        (json (json-read-from-string json-str)))
+    (mapc (lambda (x)
+            (let ((file (cmake-ide--idb-obj-get x 'file)))
+              (puthash file x idb) ))
+          json)
+    idb))
 
 (defun cmake-ide--idb-obj-get (obj key)
   "Get the value in OBJ for KEY."
@@ -557,27 +563,32 @@ flags."
 
 (defmacro cmake-ide--idb-obj-set (obj key value)
   "Take OBJ and set KEY to VALUE."
-  `(push (cons ,key ,value) obj))
+  `(push (cons ,key ,value) ,obj))
 
 (defun cmake-ide--idb-file-to-obj (idb file-name)
   "Get object from IDB for FILE-NAME."
-  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--idb-obj-get x 'file) file-name)) idb))
+  (gethash file-name idb))
 
 (defun cmake-ide--idb-param-all-files (idb parameter)
   "For all files in IDB, return a list of PARAMETER."
-  (mapcar (lambda (x) (cmake-ide--idb-obj-get x parameter)) idb))
+  (let ((ret))
+    (maphash (lambda (_ v) (push (cmake-ide--idb-obj-get v parameter) ret)) idb)
+    ret))
 
 (defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
   "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
-  (let ((dir (file-name-directory file-name)))
+  (let ((dir (file-name-directory file-name))
+        (ret))
     (defun distance (object)
       (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
 
-    (setq idb (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) idb))
+    (maphash (lambda (_ x) (push x ret)) idb)
+    (setq ret (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) ret))
+
     (seq-sort
      (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
                       (cmake-ide--idb-obj-get y 'distance)))
-     idb)))
+     ret)))
 
 (defun cmake-ide--idb-obj-depends-on-file (obj file-name)
   "If OBJ is a source file that depends on FILE-NAME."
@@ -587,19 +598,6 @@ flags."
                       (cmake-ide--get-string-from-file src-file-name))
         src-file-name
       nil)))
-
-(defun cmake-ide--find-in-vector (pred vec)
-  "Find the 1st element satisfying PRED in VEC."
-  (let ((i 0)
-        (max (length vec))
-        (found nil))
-    (while (and (not found) (< i max))
-      (if (funcall pred (elt vec i))
-          (setq found t)
-        (setq i (1+ i)))
-      )
-    (if found (elt vec i) nil)))
-
 
 
 ;;;###autoload
