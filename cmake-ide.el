@@ -96,7 +96,7 @@
 
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
-  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake nil 'local)
+  (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
   (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
     (cmake-ide-maybe-start-rdm)))
 
@@ -117,8 +117,10 @@
   (cmake-ide-run-cmake)
   (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
-(defun cmake-ide--maybe-run-cmake ()
+;;;###autoload
+(defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database json file is not found."
+  (interactive)
   (if (cmake-ide--need-to-run-cmake)
       (cmake-ide-run-cmake)
     (progn
@@ -160,7 +162,7 @@ flags."
 
 (defun cmake-ide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
-  (message (apply #'format (concat "cmake-ide[%s]: " str) (cons (current-time-string) vars))))
+  (message (apply #'format (concat "cmake-ide [%s]: " str) (cons (current-time-string) vars))))
 
 (defun cmake-ide--register-callback ()
   "Register callback for when CMake finishes running."
