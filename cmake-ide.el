@@ -237,20 +237,20 @@ flags."
     (let ((dir (file-name-directory (buffer-file-name buffer)))
           (base-name (file-name-nondirectory (buffer-file-name buffer))))
       (defun distance (object)
-        (levenshtein-distance dir (file-name-directory (cmake-ide--idb-key-to-value 'file object))))
+        (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
 
       (setq idb (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) idb))
 
       (setq idb (seq-sort
-                 (lambda (x y) (< (cmake-ide--idb-key-to-value 'distance x)
-                                  (cmake-ide--idb-key-to-value 'distance y)))
+                 (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
+                                  (cmake-ide--idb-obj-get y 'distance)))
                  idb))
 
       (let ((index 0)
             (ret-file-name))
         (while (and (null ret-file-name) (< index (length idb)))
           (let* ((object (elt idb index))
-                 (file-name (cmake-ide--idb-key-to-value 'file object)))
+                 (file-name (cmake-ide--idb-obj-get object 'file)))
             (when (string-match (concat "# *include +[\"<] *" base-name)
                                 (cmake-ide--get-string-from-file file-name))
               (setq ret-file-name file-name)
@@ -388,7 +388,7 @@ flags."
   ;; Each object is a file with directory, file and command fields
   ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
   ;; An example would be -I include flags
-  (let* ((command (cmake-ide--idb-key-to-value 'command file-params))
+  (let* ((command (cmake-ide--idb-obj-get file-params 'command))
          (args (split-string command " +"))
          (flags (funcall filter-func args)))
     (mapconcat 'identity flags " ")))
@@ -558,17 +558,21 @@ flags."
   "Tranform JSON-STR into an opaque json object."
   (json-read-from-string json-str))
 
-(defun cmake-ide--idb-key-to-value (key obj)
-  "Get the value for KEY in OBJ."
+(defun cmake-ide--idb-obj-get (obj key)
+  "Get the value in OBJ for KEY."
   (cdr (assoc key obj)))
+
+(defmacro cmake-ide--idb-obj-set (obj key value)
+  "Take OBJ and set KEY to VALUE."
+  `(push (cons ,key ,value) obj))
 
 (defun cmake-ide--idb-file-to-obj (idb file-name)
   "Get object from IDB for FILE-NAME."
-  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--idb-key-to-value 'file x) file-name)) idb))
+  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--idb-obj-get x 'file) file-name)) idb))
 
 (defun cmake-ide--idb-param-all-files (idb parameter)
   "For all files in IDB, return a list of PARAMETER."
-  (mapcar (lambda (x) (cmake-ide--idb-key-to-value parameter x)) idb))
+  (mapcar (lambda (x) (cmake-ide--idb-obj-get x parameter)) idb))
 
 (defun cmake-ide--find-in-vector (pred vec)
   "Find the 1st element satisfying PRED in VEC."

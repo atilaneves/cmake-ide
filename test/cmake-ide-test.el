@@ -42,8 +42,8 @@
          (idb (cmake-ide--cdb-json-string-to-idb json-str))
          (real-params (cmake-ide--idb-file-to-obj idb "/foo/bar/dir/foo.cpp"))
          (fake-params (cmake-ide--idb-file-to-obj idb "oops")))
-    (should (equal (cmake-ide--idb-key-to-value 'directory real-params) "/foo/bar/dir"))
-    (should (equal (cmake-ide--idb-key-to-value 'directory fake-params) nil))))
+    (should (equal (cmake-ide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+    (should (equal (cmake-ide--idb-obj-get fake-params 'directory) nil))))
 
 
 (ert-deftest test-params-to-src-flags-1 ()
@@ -101,7 +101,7 @@
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
                "[{\"file\": \"/dir1/file1.h\",
                   \"command\": \"cmd1 -Ifoo -Ibar\"}]"))
-         (commands (mapcar (lambda (x) (cmake-ide--idb-key-to-value 'command x)) idb)))
+         (commands (mapcar (lambda (x) (cmake-ide--idb-obj-get x 'command)) idb)))
 
     (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '("-Ifoo" "-Ibar")))))
@@ -112,7 +112,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar\"},
                  {\"file\": \"/dir2/file2.h\",
                   \"command\": \"cmd2 -Iloo -Dboo\"}]"))
-         (commands (mapcar (lambda (x) (cmake-ide--idb-key-to-value 'command x)) idb)))
+         (commands (mapcar (lambda (x) (cmake-ide--idb-obj-get x 'command)) idb)))
 
     (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
@@ -125,7 +125,7 @@
                   \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo -include foo.h\"},
                  {\"file\": \"/dir2/file2.c\",
                   \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo -include bar.h\"}]"))
-         (commands (mapcar (lambda (x) (cmake-ide--idb-key-to-value 'command x)) idb)))
+         (commands (mapcar (lambda (x) (cmake-ide--idb-obj-get x 'command)) idb)))
     (should (equal (cmake-ide--commands-to-hdr-flags commands)
                    '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
 
@@ -165,7 +165,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (commands (mapcar (lambda (x) (cmake-ide--idb-key-to-value 'command x)) idb)))
+         (commands (mapcar (lambda (x) (cmake-ide--idb-obj-get x 'command)) idb)))
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
@@ -175,7 +175,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (commands (mapcar (lambda (x) (cmake-ide--idb-key-to-value 'command x)) idb)))
+         (commands (mapcar (lambda (x) (cmake-ide--idb-obj-get x 'command)) idb)))
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
@@ -204,6 +204,29 @@
     (should (equal flycheck-clang-language-standard "c++14"))
     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
 
+(ert-deftest test-idb-obj-get ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"}]"))
+         (obj (cmake-ide--idb-file-to-obj idb "file1.c")))
+    (should (equal (cmake-ide--idb-obj-get obj 'foo) "the foo is mighty"))
+    (should (equal (cmake-ide--idb-obj-get obj 'bar) "the bar is weak"))
+    (should (equal (cmake-ide--idb-obj-get obj 'oops) nil))))
+
+(ert-deftest test-idb-param-all-files ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[
+                    {\"file\": \"file1.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"},
+                    {\"file\": \"file2.c\", \"foo\": \"the foo is ugly\",   \"bar\": \"the bar is cool\"}
+                ]")))
+    (should (equal (cmake-ide--idb-param-all-files idb 'foo) '("the foo is mighty" "the foo is ugly")))))
+
+(ert-deftest test-idb-set-value-on-obj ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"}]"))
+         (obj (cmake-ide--idb-file-to-obj idb "file1.c")))
+
+    (cmake-ide--idb-obj-set obj 'extra "extra stuff is nice too")
+    (should (equal (cmake-ide--idb-obj-get obj 'extra) "extra stuff is nice too"))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
