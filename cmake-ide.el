@@ -234,33 +234,18 @@ flags."
   "Use IDB to find first source file that includes the header BUFFER."
   (when (and (buffer-file-name buffer) cmake-ide-header-search-first-including)
     (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
-    (let ((dir (file-name-directory (buffer-file-name buffer)))
-          (base-name (file-name-nondirectory (buffer-file-name buffer))))
-      (defun distance (object)
-        (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
+    (let* ((file-name (buffer-file-name buffer))
+           (base-name (file-name-nondirectory file-name)))
 
-      (setq idb (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) idb))
-
-      (setq idb (seq-sort
-                 (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
-                                  (cmake-ide--idb-obj-get y 'distance)))
-                 idb))
+      (setq idb (cmake-ide--idb-sorted-by-file-distance idb file-name))
 
       (let ((index 0)
             (ret-file-name))
         (while (and (null ret-file-name) (< index (length idb)))
-          (let* ((object (elt idb index))
-                 (file-name (cmake-ide--idb-obj-get object 'file)))
-            (when (string-match (concat "# *include +[\"<] *" base-name)
-                                (cmake-ide--get-string-from-file file-name))
-              (setq ret-file-name file-name)
-              )
-            )
-          (cl-incf index)
-          )
+          (setq ret-file-name (cmake-ide--idb-obj-depends-on-file (elt idb index) file-name))
+          (cl-incf index))
 
-        (when ret-file-name
-          (cmake-ide--message "Found a source file including %s" (buffer-file-name buffer)))
+        (when ret-file-name (cmake-ide--message "Found a source file including %s" file-name))
 
         ret-file-name))))
 
@@ -573,6 +558,27 @@ flags."
 (defun cmake-ide--idb-param-all-files (idb parameter)
   "For all files in IDB, return a list of PARAMETER."
   (mapcar (lambda (x) (cmake-ide--idb-obj-get x parameter)) idb))
+
+(defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
+  "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
+  (let ((dir (file-name-directory file-name)))
+    (defun distance (object)
+      (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
+
+    (setq idb (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) idb))
+    (seq-sort
+     (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
+                      (cmake-ide--idb-obj-get y 'distance)))
+     idb)))
+
+(defun cmake-ide--idb-obj-depends-on-file (obj file-name)
+  "If OBJ is a source file that depends on FILE-NAME."
+  (let* ((base-name (file-name-nondirectory file-name))
+         (src-file-name (cmake-ide--idb-obj-get obj 'file)))
+    (if (string-match (concat "# *include +[\"<] *" base-name)
+                      (cmake-ide--get-string-from-file src-file-name))
+        src-file-name
+      nil)))
 
 (defun cmake-ide--find-in-vector (pred vec)
   "Find the 1st element satisfying PRED in VEC."

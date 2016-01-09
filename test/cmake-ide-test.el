@@ -228,5 +228,16 @@
     (cmake-ide--idb-obj-set obj 'extra "extra stuff is nice too")
     (should (equal (cmake-ide--idb-obj-get obj 'extra) "extra stuff is nice too"))))
 
-(provide 'cmake-ide-test)
+(ert-deftest test-idb-sort-by-file-distance ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[
+                    {\"file\": \"foobar/f.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"},
+                    {\"file\": \"dootrain/f.c\", \"foo\": \"the foo is ugly\",   \"bar\": \"the bar is cool\"},
+                    {\"file\": \"food/f.c\", \"foo\": \"the foo is just a foo\",   \"bar\": \"what bar?\"}
+                ]"))
+         (sorted (cmake-ide--idb-sorted-by-file-distance idb "foo/h.h")))
+    (should (equal (cmake-ide--idb-obj-get (elt sorted 0) 'file) "food/f.c"))
+    (should (equal (cmake-ide--idb-obj-get (elt sorted 0) 'distance) 1))))
+
+  (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
