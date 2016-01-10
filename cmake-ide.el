@@ -100,6 +100,10 @@
   (make-hash-table :test #'equal)
   "The hash of the JSON CDB for each build directory.")
 
+(defvar cmake-ide--irony
+  (make-hash-table :test #'equal)
+  "A hash to remember irony build dirs.")
+
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
 (defun cmake-ide--mode-hook()
@@ -191,10 +195,13 @@ flags."
 
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
-  (when (and (featurep 'rtags) (get-process "rdm"))
+  (when (featurep 'rtags )
     ;; change buffer so as to not insert text into a working file buffer
-    (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-      (rtags-call-rc "-J" (cmake-ide--get-build-dir)))))
+    (if (get-process "rdm")
+        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+          (rtags-call-rc "-J" (cmake-ide--get-build-dir)))
+      (with-temp-buffer
+        (rtags-call-rc "-J" (cmake-ide--get-build-dir))))))
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
@@ -290,8 +297,9 @@ flags."
         (make-local-variable 'company-c-headers-path-user)
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
-      (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--idbs)))
-        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name)))
+      (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
+        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name))
+        (puthash (cmake-ide--get-build-dir) t cmake-ide--irony))
 
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
