@@ -92,6 +92,14 @@
   :group 'rtags
   :type 'file)
 
+(defvar cmake-ide--idbs
+  (make-hash-table :test #'equal)
+  "A cached map of build directories to IDE databases.")
+
+(defvar cmake-ide--cdb-hash
+  (make-hash-table :test #'equal)
+  "The hash of the JSON CDB for each build directory.")
+
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
 (defun cmake-ide--mode-hook()
@@ -545,7 +553,27 @@ flags."
 
 (defun cmake-ide--cdb-json-file-to-idb ()
   "Retrieve a JSON object from the compilation database."
-  (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
+  ;; check the cache first
+  (let ((idb (cmake-ide--cdb-idb-from-cache)))
+    (unless idb
+      (cmake-ide--message "Converting JSON CDB to IDB")
+      (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
+      (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
+      (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash))
+    idb))
+
+(defun cmake-ide--cdb-idb-from-cache ()
+  "Return the IDB from the cache unless the JSON CDB has changed."
+  (let ((idb (gethash (cmake-ide--get-build-dir) cmake-ide--idbs))
+        (cached-hash (gethash (cmake-ide--get-build-dir) cmake-ide--cdb-hash))
+        (current-hash (cmake-ide--hash-file (cmake-ide--comp-db-file-name))))
+    (if (equal cached-hash current-hash)
+        idb
+      nil)))
+
+(defun cmake-ide--hash-file (file-name)
+  "Calculate the hash of FILE-NAME."
+  (secure-hash 'md5 (cmake-ide--get-string-from-file file-name)))
 
 (defun cmake-ide--cdb-json-string-to-idb (json-str)
   "Tranform JSON-STR into an opaque json object."
