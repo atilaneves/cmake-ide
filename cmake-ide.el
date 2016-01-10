@@ -290,7 +290,7 @@ flags."
         (make-local-variable 'company-c-headers-path-user)
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
-      (when (featurep 'irony)
+      (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--idbs)))
         (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name)))
 
       (when (featurep 'flycheck)
