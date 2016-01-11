@@ -610,9 +610,14 @@ flags."
 (defun cmake-ide--system-process-running-p (name)
   "If a process called NAME is running on the system."
   (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
-         (match-args (cmake-ide--filter (lambda (x) (string-match (concat "\\b" name "\\b") x)) all-args))
+         (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args))
          )
     (not (null match-args))))
+
+(defun cmake-ide--string-match (regexp name)
+  "Wrap string-match to make sure we don't pass it a nil string."
+  (when name
+    (string-match regexp name)))
 
 
 (provide 'cmake-ide)
