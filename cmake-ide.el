@@ -352,6 +352,8 @@ flags."
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
+  (if (not (file-accessible-directory-p cmake-ide-dir))
+      (make-directory cmake-ide-dir))
   (file-name-as-directory cmake-ide-dir))
 
 
