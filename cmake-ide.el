@@ -92,11 +92,23 @@
   :group 'rtags
   :type 'file)
 
+(defvar cmake-ide--idbs
+  (make-hash-table :test #'equal)
+  "A cached map of build directories to IDE databases.")
+
+(defvar cmake-ide--cdb-hash
+  (make-hash-table :test #'equal)
+  "The hash of the JSON CDB for each build directory.")
+
+(defvar cmake-ide--irony
+  (make-hash-table :test #'equal)
+  "A hash to remember irony build dirs.")
+
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
-  (add-hook 'find-file-hook #'cmake-ide--maybe-run-cmake nil 'local)
+  (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
   (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
     (cmake-ide-maybe-start-rdm)))
 
@@ -117,8 +129,10 @@
   (cmake-ide-run-cmake)
   (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
 
-(defun cmake-ide--maybe-run-cmake ()
-  "Run CMake if the compilation database json file is not found."
+;;;###autoload
+(defun cmake-ide-maybe-run-cmake ()
+  "Run CMake if the compilation database JSON file is not found."
+  (interactive)
   (if (cmake-ide--need-to-run-cmake)
       (cmake-ide-run-cmake)
     (progn
@@ -143,8 +157,8 @@
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
   "Run CMake and set compiler flags for auto-completion and flycheck.
-This works by calling cmake in a temporary directory
-and parsing the json file deposited there with the compiler
+This works by calling cmake in a temporary directory (or cmake-ide-dir)
+and parsing the JSON file deposited there with the compiler
 flags."
   (interactive)
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
@@ -160,7 +174,7 @@ flags."
 
 (defun cmake-ide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
-  (message (apply #'format (concat "cmake-ide[%s]: " str) (cons (current-time-string) vars))))
+  (message (apply #'format (concat "cmake-ide [%s]: " str) (cons (current-time-string) vars))))
 
 (defun cmake-ide--register-callback ()
   "Register callback for when CMake finishes running."
@@ -171,8 +185,8 @@ flags."
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
-  (let* ((json (cmake-ide--cdb-to-json))
-         (set-flags (lambda (x) (cmake-ide--set-flags-for-file json x))))
+  (let* ((idb (cmake-ide--cdb-json-file-to-idb))
+         (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
@@ -181,22 +195,25 @@ flags."
 
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
-  (when (and (featurep 'rtags) (get-process "rdm"))
+  (when (featurep 'rtags )
     ;; change buffer so as to not insert text into a working file buffer
-    (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-      (rtags-call-rc "-J" (cmake-ide--get-build-dir)))))
+    (if (get-process "rdm")
+        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+          (rtags-call-rc "-J" (cmake-ide--get-build-dir)))
+      (with-temp-buffer
+        (rtags-call-rc "-J" (cmake-ide--get-build-dir))))))
 
-(defun cmake-ide--set-flags-for-file (json buffer)
-  "Set the compiler flags from JSON for BUFFER visiting file FILE-NAME."
+(defun cmake-ide--set-flags-for-file (idb buffer)
+  "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
   (let* ((file-name (buffer-file-name buffer))
-         (file-params (cmake-ide--file-params json file-name))
+         (file-params (cmake-ide--idb-file-to-obj idb file-name))
          (sys-includes (cmake-ide--params-to-sys-includes file-params)))
     (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
 
         (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
-      (cmake-ide--set-flags-for-hdr-file json buffer sys-includes))))
+      (cmake-ide--set-flags-for-hdr-file idb buffer sys-includes))))
 
 (defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
@@ -204,15 +221,15 @@ flags."
          (src-includes (cmake-ide--params-to-src-includes file-params)))
     (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)))
 
-(defun cmake-ide--set-flags-for-hdr-file (json buffer sys-includes)
-  "Set the compiler flags from JSON for header BUFFER with SYS-INCLUDES."
+(defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
+  "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
   (let* ((other (cmake-ide--src-file-for-hdr buffer))
-         (src-file-name (or other (cmake-ide--first-including-src-file json buffer))))
+         (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
     (if src-file-name
         ;; if a source file is found, use its flags
-        (cmake-ide--set-flags-for-hdr-from-src json buffer sys-includes src-file-name)
+        (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
       ;; otherwise use flags from all source files
-      (cmake-ide--set-flags-for-hdr-from-all-flags json buffer sys-includes))))
+      (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
@@ -223,44 +240,28 @@ flags."
             (if other-file-name (expand-file-name other-file-name) nil))))
     nil))
 
-(defun cmake-ide--set-flags-for-hdr-from-src (json buffer sys-includes src-file-name)
-  "Use JSON to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
+(defun cmake-ide--set-flags-for-hdr-from-src (idb buffer sys-includes src-file-name)
+  "Use IDB to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
   (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
-  (cmake-ide--set-flags-for-src-file (cmake-ide--file-params json src-file-name) buffer sys-includes))
+  (cmake-ide--set-flags-for-src-file (cmake-ide--idb-file-to-obj idb src-file-name) buffer sys-includes))
 
-(defun cmake-ide--first-including-src-file (json buffer)
-  "Use JSON to find first source file that includes the header BUFFER."
+(defun cmake-ide--first-including-src-file (idb buffer)
+  "Use IDB to find first source file that includes the header BUFFER."
   (when (and (buffer-file-name buffer) cmake-ide-header-search-first-including)
     (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
-    (let ((dir (file-name-directory (buffer-file-name buffer)))
-          (base-name (file-name-nondirectory (buffer-file-name buffer))))
-      (defun distance (object)
-        (levenshtein-distance dir (file-name-directory (cmake-ide--get-file-param 'file object))))
+    (let* ((file-name (buffer-file-name buffer))
+           ret-obj
+           ret-file-name)
 
-      (setq json (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) json))
+      (setq idb (cmake-ide--idb-sorted-by-file-distance idb file-name))
+      (setq ret-obj (cmake-ide--filter-first
+                     (lambda (x) (cmake-ide--idb-obj-depends-on-file x file-name))
+                     idb))
 
-      (setq json (seq-sort
-                  (lambda (x y) (< (cmake-ide--get-file-param 'distance x)
-                                   (cmake-ide--get-file-param 'distance y)))
-                  json))
+      (when ret-obj (setq ret-file-name (cmake-ide--idb-obj-get ret-obj 'file)))
+      (when ret-file-name (cmake-ide--message "Found a source file including %s" file-name))
 
-      (let ((index 0)
-            (ret-file-name))
-        (while (and (null ret-file-name) (< index (length json)))
-          (let* ((object (elt json index))
-                 (file-name (cmake-ide--get-file-param 'file object)))
-            (when (string-match (concat "# *include +[\"<] *" base-name)
-                                (cmake-ide--get-string-from-file file-name))
-              (setq ret-file-name file-name)
-              )
-            )
-          (cl-incf index)
-          )
-
-        (when ret-file-name
-          (cmake-ide--message "Found a source file including %s" (buffer-file-name buffer)))
-
-        ret-file-name))))
+      ret-file-name)))
 
 (defun cmake-ide--get-string-from-file (path)
   "Return PATH's file content."
@@ -270,10 +271,10 @@ flags."
         (buffer-string))
     ""))
 
-(defun cmake-ide--set-flags-for-hdr-from-all-flags (json buffer sys-includes)
-  "Use JSON to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
+(defun cmake-ide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
+  "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
   (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
-  (let* ((commands (mapcar (lambda (x) (cmake-ide--get-file-param 'command x)) json))
+  (let* ((commands (cmake-ide--idb-param-all-files idb 'command))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
          (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
@@ -296,8 +297,9 @@ flags."
         (make-local-variable 'company-c-headers-path-user)
         (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
 
-      (when (featurep 'irony)
-        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name)))
+      (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
+        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name))
+        (puthash (cmake-ide--get-build-dir) t cmake-ide--irony))
 
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
@@ -379,14 +381,23 @@ flags."
   (delq nil
         (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
 
+(defun cmake-ide--filter-first (pred seq)
+  "Return first element to satisfy PRED in SEQ."
+  (let ((index 0) (ret))
+    (while (and (null ret) (< index (length seq)))
+      (when (funcall pred (elt seq index))
+        (setq ret (elt seq index)))
+      (cl-incf index))
+    ret))
+
 
 (defun cmake-ide--filter-params (file-params filter-func)
   "Filter FILE-PARAMS with FILTER-FUNC."
-  ;; The compilation database is a json array of json objects
+  ;; The compilation database is a JSON array of JSON objects
   ;; Each object is a file with directory, file and command fields
   ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
   ;; An example would be -I include flags
-  (let* ((command (cmake-ide--get-file-param 'command file-params))
+  (let* ((command (cmake-ide--idb-obj-get file-params 'command))
          (args (split-string command " +"))
          (flags (funcall filter-func args)))
     (mapconcat 'identity flags " ")))
@@ -398,7 +409,7 @@ flags."
    (lambda (x) (not (string-match "\\.\\(?:c\\|C\\|cc\\|cxx\\|cpp\\)$" x)))
    args))
 
-(defun cmake-ide--unescape (str)
+(defun cmake-ide--json-unescape (str)
   "Remove JSON-escaped backslashes in STR."
   (let* ((no-double-backslashes (replace-regexp-in-string "\\\\\\\\" "\\\\" str))
          (no-backslash-quote (replace-regexp-in-string "\\\\\"" "\"" no-double-backslashes)))
@@ -414,7 +425,7 @@ flags."
 
 (defun cmake-ide--cleanup-flags-str (str)
   "Clean up and filter STR to yield a list of compiler flags."
-  (let ((unescaped-flags-string (cmake-ide--unescape str)))
+  (let ((unescaped-flags-string (cmake-ide--json-unescape str)))
     (cmake-ide--remove-compiler-from-args unescaped-flags-string)))
 
 (defun cmake-ide--remove-compiler-from-args (str)
@@ -539,7 +550,6 @@ flags."
   "Find the topmost CMakeLists.txt file."
   (cmake-ide--locate-cmakelists-impl default-directory nil))
 
-
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
@@ -547,35 +557,84 @@ flags."
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
-(defun cmake-ide--cdb-to-json ()
+
+
+(defun cmake-ide--cdb-json-file-to-idb ()
   "Retrieve a JSON object from the compilation database."
-  (json-read-file (cmake-ide--comp-db-file-name)))
+  ;; check the cache first
+  (let ((idb (cmake-ide--cdb-idb-from-cache)))
+    (unless idb
+      (cmake-ide--message "Converting JSON CDB to IDB")
+      (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
+      (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
+      (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash))
+    idb))
 
-(defun cmake-ide--string-to-json (json-str)
+(defun cmake-ide--cdb-idb-from-cache ()
+  "Return the IDB from the cache unless the JSON CDB has changed."
+  (let ((idb (gethash (cmake-ide--get-build-dir) cmake-ide--idbs))
+        (cached-hash (gethash (cmake-ide--get-build-dir) cmake-ide--cdb-hash))
+        (current-hash (cmake-ide--hash-file (cmake-ide--comp-db-file-name))))
+    (if (equal cached-hash current-hash)
+        idb
+      nil)))
+
+(defun cmake-ide--hash-file (file-name)
+  "Calculate the hash of FILE-NAME."
+  (secure-hash 'md5 (cmake-ide--get-string-from-file file-name)))
+
+(defun cmake-ide--cdb-json-string-to-idb (json-str)
   "Tranform JSON-STR into an opaque json object."
-  (json-read-from-string json-str))
+  (let ((idb (make-hash-table :test #'equal))
+        (json (json-read-from-string json-str)))
+    (mapc (lambda (x)
+            (let ((file (cmake-ide--idb-obj-get x 'file)))
+              (puthash file x idb) ))
+          json)
+    idb))
 
-
-(defun cmake-ide--file-params (json file-name)
-  "Get parameters from a JSON object for FILE-NAME."
-  (cmake-ide--find-in-vector (lambda (x) (equal (cmake-ide--get-file-param 'file x) file-name)) json))
-
-
-(defun cmake-ide--find-in-vector (pred vec)
-  "Find the 1st element satisfying PRED in VEC."
-  (let ((i 0)
-        (max (length vec))
-        (found nil))
-    (while (and (not found) (< i max))
-      (if (funcall pred (elt vec i))
-          (setq found t)
-        (setq i (1+ i)))
-      )
-    (if found (elt vec i) nil)))
-
-(defun cmake-ide--get-file-param (key obj)
-  "Get the value for KEY in OBJ."
+(defun cmake-ide--idb-obj-get (obj key)
+  "Get the value in OBJ for KEY."
   (cdr (assoc key obj)))
+
+(defmacro cmake-ide--idb-obj-set (obj key value)
+  "Take OBJ and set KEY to VALUE."
+  `(push (cons ,key ,value) ,obj))
+
+(defun cmake-ide--idb-file-to-obj (idb file-name)
+  "Get object from IDB for FILE-NAME."
+  (gethash file-name idb))
+
+(defun cmake-ide--idb-param-all-files (idb parameter)
+  "For all files in IDB, return a list of PARAMETER."
+  (let ((ret))
+    (maphash (lambda (_ v) (push (cmake-ide--idb-obj-get v parameter) ret)) idb)
+    ret))
+
+(defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
+  "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
+  (let ((dir (file-name-directory file-name))
+        (ret))
+    (defun distance (object)
+      (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
+
+    (maphash (lambda (_ x) (push x ret)) idb)
+    (setq ret (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) ret))
+
+    (seq-sort
+     (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
+                      (cmake-ide--idb-obj-get y 'distance)))
+     ret)))
+
+(defun cmake-ide--idb-obj-depends-on-file (obj file-name)
+  "If OBJ is a source file that depends on FILE-NAME."
+  (let* ((base-name (file-name-nondirectory file-name))
+         (src-file-name (cmake-ide--idb-obj-get obj 'file)))
+    (if (string-match (concat "# *include +[\"<] *" base-name)
+                      (cmake-ide--get-string-from-file src-file-name))
+        src-file-name
+      nil)))
+
 
 ;;;###autoload
 (defun cmake-ide-compile ()
