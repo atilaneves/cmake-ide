@@ -92,6 +92,11 @@
   :group 'rtags
   :type 'file)
 
+(defvar cmake-ide-try-unique-compiler-flags-for-headers
+  t
+  "Whether or not to try all unique compiler flags for header files."
+  )
+
 (defvar cmake-ide--idbs
   (make-hash-table :test #'equal)
   "A cached map of build directories to IDE databases.")
@@ -103,6 +108,7 @@
 (defvar cmake-ide--irony
   (make-hash-table :test #'equal)
   "A hash to remember irony build dirs.")
+
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
@@ -223,13 +229,23 @@ flags."
 
 (defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
   "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
-  (let* ((other (cmake-ide--src-file-for-hdr buffer))
-         (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
-    (if src-file-name
-        ;; if a source file is found, use its flags
-        (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
-      ;; otherwise use flags from all source files
-      (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes))))
+  (if cmake-ide-try-unique-compiler-flags-for-headers
+      (let ((hdr-flags) (hdr-includes))
+        (progn
+          (cmake-ide--message "Trying compiler flags for %s" (buffer-file-name buffer))
+          (setq hdr-flags (cmake-ide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
+          (setq hdr-flags (cmake-ide--remove-compiler-from-args hdr-flags))
+          (setq hdr-includes (cmake-ide--flags-to-includes hdr-flags))
+          (cmake-ide--message "Found working compiler flags for %s" (buffer-file-name buffer))
+          (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)
+          ))
+    (let* ((other (cmake-ide--src-file-for-hdr buffer))
+           (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
+      (if src-file-name
+          ;; if a source file is found, use its flags
+          (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
+        ;; otherwise use flags from all source files
+        (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes)))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
@@ -635,6 +651,46 @@ flags."
         src-file-name
       nil)))
 
+(defun cmake-ide--idb-hdr-compiler-args (idb file-name)
+  "Try every unique compiler command in IDB on FILE-NAME and return the first to succeed."
+  (let* ((objects  (cmake-ide--idb-sorted-by-file-distance idb file-name))
+         (commands (cmake-ide--idb-objs-to-unique-commands objects))
+         (index 0)
+         (ret))
+    (while (and (null ret) (< index (length commands)))
+      (let* ((command (concat (elt commands index) " " file-name))
+             (_ (cmake-ide--message "Trying to compile '%s' with '%s'" file-name command))
+             (args (split-string command " +")))
+        (when (eq 0 (apply #'call-process (car args) nil nil nil (cdr args)))
+          (setq ret command)))
+      (cl-incf index))
+    ret))
+
+
+(defun cmake-ide--idb-unique-compiler-commands (idb)
+  "Calculate the list of unique compiler commands in IDB ignoring the source file name."
+  (let ((objects) (ret))
+    (maphash (lambda (_ v) (push v objects)) idb)
+    (setq ret (cmake-ide--idb-objs-to-unique-commands objects))
+    ret))
+
+(defun cmake-ide--idb-objs-to-unique-commands (objects)
+  "Calculate the list of unique compiler commands in OBJECTS ignoring the source file name."
+  (let ((ret (mapcar (lambda (x)
+                       (let* ((file (cmake-ide--idb-obj-get x 'file))
+                              (base-name (file-name-nondirectory file))
+                              (command (cmake-ide--idb-obj-get x 'command))
+                              (args (split-string command " +")))
+                         (setq args (cmake-ide--filter (lambda (x) (not (string-match base-name x))) args))
+                         (setq args (cmake-ide--filter (lambda (x) (not (equal x "-c"))) args))
+                         (setq args (cmake-ide--filter (lambda (x) (not (equal x "-o"))) args))
+                         (mapconcat 'identity args " ")))
+                     objects)))
+    (delete-dups ret)
+    ret))
+
+
+
 
 ;;;###autoload
 (defun cmake-ide-compile ()
@@ -676,7 +732,7 @@ flags."
     (not (null match-args))))
 
 (defun cmake-ide--string-match (regexp name)
-  "Wrap string-match to make sure we don't pass it a nil string."
+  "Wrap 'string-match' of REGEXP and NAME to make sure we don't pass it a nil string."
   (when name
     (string-match regexp name)))
 
