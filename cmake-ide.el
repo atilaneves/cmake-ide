@@ -294,12 +294,15 @@ If all else fails, use all compiler flags in the project."
       (with-temp-buffer
         (call-process "ninja" nil t nil "-C" default-directory "-t" "deps")
         (goto-char (point-min))
-        (search-forward file-name)
-        (search-backward "#deps")
-        (setq beg (move-beginning-of-line nil))
-        (setq end (1- (search-forward ":")))
-        (copy-region-as-kill beg end)
-        (car kill-ring)))))
+        (setq beg (search-forward file-name nil t))
+        (if (null beg)
+            nil
+          (cmake-ide--message "beg not nil")
+          (search-backward "#deps")
+          (setq beg (move-beginning-of-line nil))
+          (setq end (1- (search-forward ":")))
+          (copy-region-as-kill beg end)
+          (car kill-ring))))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
