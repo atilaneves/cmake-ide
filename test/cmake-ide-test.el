@@ -41,6 +41,7 @@
   (and (equal (length lst1) (length lst2))
        (null (set-difference lst1 lst2 :test 'equal))))
 
+
 (ert-deftest test-json-to-file-params ()
   (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
                       \"command\": \"do the twist\", \"file\": \"/foo/bar/dir/foo.cpp\"}]")
@@ -122,41 +123,41 @@
     (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
                          '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
 
-(ert-deftest test-commands-to-hdr-flags-3 ()
-  (let* ((idb (cmake-ide--cdb-json-string-to-idb
-               "[{\"file\": \"/dir1/file1.c\",
+    (ert-deftest test-commands-to-hdr-flags-3 ()
+      (let* ((idb (cmake-ide--cdb-json-string-to-idb
+                   "[{\"file\": \"/dir1/file1.c\",
                   \"command\": \"cmd1 -o file1.c.o otherfile -Ifoo -Ibar -weird\"},
                  {\"file\": \"/dir2/file2.c\",
                   \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo -include foo.h\"},
                  {\"file\": \"/dir2/file3.c\",
                   \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo -include bar.h\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
-    (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
-                         '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
+             (commands (cmake-ide--idb-param-all-files idb 'command)))
+        (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
+                             '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
 
 
-(ert-deftest test-params-to-src-includes-1 ()
-  (let* ((idb (cmake-ide--cdb-json-string-to-idb
-               "[{\"file\": \"file1\",
+    (ert-deftest test-params-to-src-includes-1 ()
+      (let* ((idb (cmake-ide--cdb-json-string-to-idb
+                   "[{\"file\": \"file1\",
                 \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                {\"file\": \"file2\",
                 \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (file-params (cmake-ide--idb-file-to-obj idb "file1")))
+             (file-params (cmake-ide--idb-file-to-obj idb "file1")))
 
-    (should (equal-lists
-             (cmake-ide--params-to-src-includes file-params)
-             '("/foo/bar.h" "a.h")))))
+        (should (equal-lists
+                 (cmake-ide--params-to-src-includes file-params)
+                 '("/foo/bar.h" "a.h")))))
 
-(ert-deftest test-params-to-src-includes-2 ()
-  (let* ((idb (cmake-ide--cdb-json-string-to-idb
-               "[{\"file\": \"file1\",
+    (ert-deftest test-params-to-src-includes-2 ()
+      (let* ((idb (cmake-ide--cdb-json-string-to-idb
+                   "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (file-params (cmake-ide--idb-file-to-obj idb "file2")))
-    (should (equal-lists
-             (cmake-ide--params-to-src-includes file-params)
-             '("h.h")))))
+             (file-params (cmake-ide--idb-file-to-obj idb "file2")))
+        (should (equal-lists
+                 (cmake-ide--params-to-src-includes file-params)
+                 '("h.h")))))
 
 (ert-deftest test-commands-to-hdr-includes-1 ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
@@ -237,6 +238,21 @@
          (sorted (cmake-ide--idb-sorted-by-file-distance idb "foo/h.h")))
     (should (equal (cmake-ide--idb-obj-get (elt sorted 0) 'file) "food/f.c"))
     (should (equal (cmake-ide--idb-obj-get (elt sorted 0) 'distance) 1))))
+
+
+(ert-deftest test-same-file-twice ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[
+                    {\"file\": \"foobar/f.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"},
+                    {\"file\": \"dootrain/f.c\", \"foo\": \"the foo is ugly\",   \"bar\": \"the bar is cool\"},
+                    {\"file\": \"food/f.c\", \"foo\": \"the foo is just a foo\",   \"bar\": \"what bar?\"},
+                    {\"file\": \"foobar/f.c\", \"foo\": \"the foo is really mighty\", \"bar\": \"the bar is really weak\"}
+                ]"))
+         (obj (cmake-ide--idb-file-to-obj idb "foobar/f.c")))
+    (should (equal (cmake-ide--idb-obj-get obj 'foo) "the foo is really mighty"))
+    (should (equal-lists (cmake-ide--idb-param-all-files idb 'foo)
+                         '("the foo is mighty" "the foo is ugly" "the foo is just a foo" "the foo is really mighty")))
+    ))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

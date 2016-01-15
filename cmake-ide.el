@@ -93,7 +93,7 @@
   :type 'file)
 
 (defvar cmake-ide-try-unique-compiler-flags-for-headers
-  t
+  nil
   "Whether or not to try all unique compiler flags for header files."
   )
 
@@ -201,7 +201,8 @@ flags."
 
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
-  (when (featurep 'rtags )
+  (when (featurep 'rtags)
+    (cmake-ide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
     (if (get-process "rdm")
         (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
@@ -229,23 +230,76 @@ flags."
 
 (defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
   "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
-  (if cmake-ide-try-unique-compiler-flags-for-headers
-      (let ((hdr-flags) (hdr-includes))
+  (cond
+   ;; try all unique compiler flags until one successfully compiles the header
+   (cmake-ide-try-unique-compiler-flags-for-headers (cmake-ide--hdr-try-unique-compiler-flags idb buffer sys-includes))
+   ;; ask ninja or make depending on what the user chose for the flags to use on the header
+   ((cmake-ide--hdr-ask-ninja-and-make idb buffer sys-includes) t)
+   ;; the default algorithm used so far
+   (t (cmake-ide--hdr-legacy idb buffer sys-includes))))
+
+(defun cmake-ide--hdr-try-unique-compiler-flags (idb buffer sys-includes)
+  "Try all unique compiler flags in IDB in an attempt to find appropriate flags for header file in BUFFER using SYS-INCLUDES."
+  (let ((hdr-flags) (hdr-includes))
+    (setq hdr-flags (cmake-ide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
+    (setq hdr-flags (cmake-ide--remove-compiler-from-args hdr-flags))
+    (setq hdr-includes (cmake-ide--flags-to-includes hdr-flags))
+    (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)
+    ))
+
+(defun cmake-ide--hdr-ask-ninja-and-make (idb buffer sys-includes)
+  "Try to get compiler flags from IDB from a source file that depends on the header BUFFER using SYS-INCLUDES."
+  (let ((ninja-hdr-command (cmake-ide--ninja-header-command idb (buffer-file-name buffer))))
+    (if ninja-hdr-command
         (progn
-          (cmake-ide--message "Trying compiler flags for %s" (buffer-file-name buffer))
-          (setq hdr-flags (cmake-ide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
-          (setq hdr-flags (cmake-ide--remove-compiler-from-args hdr-flags))
-          (setq hdr-includes (cmake-ide--flags-to-includes hdr-flags))
-          (cmake-ide--message "Found working compiler flags for %s" (buffer-file-name buffer))
-          (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)
-          ))
-    (let* ((other (cmake-ide--src-file-for-hdr buffer))
-           (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
-      (if src-file-name
-          ;; if a source file is found, use its flags
-          (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
-        ;; otherwise use flags from all source files
-        (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes)))))
+          (cmake-ide--set-flags-for-hdr-exact buffer sys-includes ninja-hdr-command)
+          (cmake-ide--message "Setting flags for %s from ninja dependency information" (buffer-file-name buffer))
+          t)
+      nil)))
+
+(defun cmake-ide--hdr-legacy (idb buffer sys-includes)
+  "Try to set compiler flags from IDB for header BUFFER using SYS-INCLUDES.
+
+First, try to find a source file corresponding to the header.
+Then, try to find a source file in IDB that directly includes the header.
+If all else fails, use all compiler flags in the project."
+
+  (let* ((other (cmake-ide--src-file-for-hdr buffer))
+         (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
+    (if src-file-name
+        ;; if a source file is found, use its flags
+        (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
+      ;; otherwise use flags from all source files
+      (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes))))
+
+(defun cmake-ide--set-flags-for-hdr-exact (buffer sys-includes command)
+  "Set flags for BUFFER using SYS-INCLUDES and compiler COMMAND."
+  (let* ((hdr-flags (cmake-ide--remove-compiler-from-args command))
+         (hdr-includes (cmake-ide--flags-to-includes hdr-flags)))
+    (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
+
+(defun cmake-ide--ninja-header-command (idb file-name)
+  "Return the command used by a file in IDB that depends on FILE-NAME."
+  (let ((obj-file-name (cmake-ide--ninja-obj-file-depending-on-hdr file-name)))
+    (if (null obj-file-name) nil
+      (let ((commands (cmake-ide--idb-param-all-files idb 'command)))
+        (cmake-ide--filter-first (lambda (x) (string-match obj-file-name x))
+                                 commands)))))
+
+(defun cmake-ide--ninja-obj-file-depending-on-hdr (file-name)
+  "Find the first object file that depends on the header FILE-NAME."
+  (let ((default-directory (cmake-ide--get-build-dir)) (beg) (end))
+    (if (not (file-exists-p (expand-file-name "build.ninja" default-directory)))
+        nil
+      (with-temp-buffer
+        (call-process "ninja" nil t nil "-C" default-directory "-t" "deps")
+        (goto-char (point-min))
+        (search-forward file-name)
+        (search-backward "#deps")
+        (setq beg (move-beginning-of-line nil))
+        (setq end (1- (search-forward ":")))
+        (copy-region-as-kill beg end)
+        (car kill-ring)))))
 
 (defun cmake-ide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
@@ -339,7 +393,8 @@ flags."
 
         (setq flycheck-clang-includes includes)
         (flycheck-clear)
-        (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
+        (run-at-time "0.5 sec" nil 'flycheck-buffer)
+        ))))
 
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
@@ -603,9 +658,11 @@ flags."
   "Tranform JSON-STR into an opaque json object."
   (let ((idb (make-hash-table :test #'equal))
         (json (json-read-from-string json-str)))
-    (mapc (lambda (x)
-            (let ((file (cmake-ide--idb-obj-get x 'file)))
-              (puthash file x idb) ))
+    (mapc (lambda (obj)
+            (let* ((file (cmake-ide--idb-obj-get obj 'file))
+                   (objs (gethash file idb)))
+              (push obj objs)
+              (puthash file objs idb)))
           json)
     idb))
 
@@ -619,28 +676,33 @@ flags."
 
 (defun cmake-ide--idb-file-to-obj (idb file-name)
   "Get object from IDB for FILE-NAME."
-  (gethash file-name idb))
+  (car (gethash file-name idb)))
 
 (defun cmake-ide--idb-param-all-files (idb parameter)
   "For all files in IDB, return a list of PARAMETER."
-  (let ((ret))
-    (maphash (lambda (_ v) (push (cmake-ide--idb-obj-get v parameter) ret)) idb)
-    ret))
+  (mapcar (lambda (x) (cmake-ide--idb-obj-get x parameter)) (cmake-ide--idb-all-objs idb)))
 
 (defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
   "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
   (let ((dir (file-name-directory file-name))
         (ret))
+
     (defun distance (object)
       (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
 
-    (maphash (lambda (_ x) (push x ret)) idb)
-    (setq ret (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) ret))
+    (setq ret (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) (cmake-ide--idb-all-objs idb)))
 
     (seq-sort
      (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
                       (cmake-ide--idb-obj-get y 'distance)))
      ret)))
+
+(defun cmake-ide--idb-all-objs (idb)
+  "Return a list of IDB entries."
+  (let ((ret))
+    (maphash (lambda (_ objs) (setq ret (append ret objs))) idb)
+    ret))
+
 
 (defun cmake-ide--idb-obj-depends-on-file (obj file-name)
   "If OBJ is a source file that depends on FILE-NAME."
