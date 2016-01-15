@@ -641,7 +641,8 @@ If all else fails, use all compiler flags in the project."
       (cmake-ide--message "Converting JSON CDB to IDB")
       (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
       (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
-      (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash))
+      (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash)
+      (remhash (cmake-ide--get-build-dir) cmake-ide--irony))
     idb))
 
 (defun cmake-ide--cdb-idb-from-cache ()
