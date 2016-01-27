@@ -203,6 +203,13 @@
     (should (equal flycheck-clang-language-standard "c++14"))
     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
 
+(ert-deftest test-all-vars-ccache-alt ()
+  (let ((idb (cmake-ide--cdb-json-string-to-idb
+              "[{\"file\": \"file1.c\",
+                  \"command\": \"/usr/lib/ccache/bin/clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
+    (cmake-ide--set-flags-for-file idb (current-buffer))
+    (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14")))))
+
 (ert-deftest test-idb-obj-get ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
                "[{\"file\": \"file1.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"}]"))
