@@ -218,7 +218,6 @@ flags."
     (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
-
         (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
       (cmake-ide--set-flags-for-hdr-file idb buffer sys-includes))))
 
@@ -230,13 +229,19 @@ flags."
 
 (defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
   "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
-  (cond
-   ;; try all unique compiler flags until one successfully compiles the header
-   (cmake-ide-try-unique-compiler-flags-for-headers (cmake-ide--hdr-try-unique-compiler-flags idb buffer sys-includes))
-   ;; ask ninja or make depending on what the user chose for the flags to use on the header
-   ((cmake-ide--hdr-ask-ninja-and-make idb buffer sys-includes) t)
-   ;; the default algorithm used so far
-   (t (cmake-ide--hdr-legacy idb buffer sys-includes))))
+  (when (not (string-empty-p (cmake-ide--buffer-string buffer)))
+    (cond
+     ;; try all unique compiler flags until one successfully compiles the header
+     (cmake-ide-try-unique-compiler-flags-for-headers (cmake-ide--hdr-try-unique-compiler-flags idb buffer sys-includes))
+     ;; ask ninja or make depending on what the user chose for the flags to use on the header
+     ((cmake-ide--hdr-ask-ninja-and-make idb buffer sys-includes) t)
+     ;; the default algorithm used so far
+     (t (cmake-ide--hdr-legacy idb buffer sys-includes)))))
+
+(defun cmake-ide--buffer-string (buffer)
+  "Return the contents of BUFFER as a string."
+  (with-current-buffer buffer
+    (buffer-string)))
 
 (defun cmake-ide--hdr-try-unique-compiler-flags (idb buffer sys-includes)
   "Try all unique compiler flags in IDB in an attempt to find appropriate flags for header file in BUFFER using SYS-INCLUDES."

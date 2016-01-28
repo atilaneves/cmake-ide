@@ -1,6 +1,6 @@
 ;;; cmake-ide-test.el --- Unit tests for cmake-ide.
 
-;; Copyright (C) 2014
+;; Copyright (C) 2014-2016
 
 ;; Author:  <atila.neves@gmail.com>
 ;; Keywords:
@@ -179,30 +179,39 @@
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
+(defmacro with-non-empty-file (&rest body)
+  "Execute BODY in the context of a non-empty file buffer."
+  `(with-temp-buffer
+     (insert "//text so the file isn't empty")
+     ,@body
+     ))
+
 (ert-deftest test-all-vars ()
   (let ((idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
                   \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
-    (cmake-ide--set-flags-for-file idb (current-buffer))
-    (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
-    (should (equal-lists company-clang-arguments ac-clang-flags))
-    (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
-    (should (equal-lists flycheck-clang-definitions '("foo=bar")))
-    (should (equal-lists flycheck-clang-includes nil))
-    (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
+     (should (equal-lists company-clang-arguments ac-clang-flags))
+     (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
+     (should (equal-lists flycheck-clang-definitions '("foo=bar")))
+     (should (equal-lists flycheck-clang-includes nil))
+     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
 
 (ert-deftest test-all-vars-ccache ()
   (let ((idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
                   \"command\": \"/usr/bin/ccache clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
-    (cmake-ide--set-flags-for-file idb (current-buffer))
-    (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14")))
-    (should (equal-lists company-clang-arguments ac-clang-flags))
-    (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
-    (should (equal-lists flycheck-clang-definitions '("foo=bar")))
-    (should (equal-lists flycheck-clang-includes nil))
-    (should (equal flycheck-clang-language-standard "c++14"))
-    (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14")))
+     (should (equal-lists company-clang-arguments ac-clang-flags))
+     (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
+     (should (equal-lists flycheck-clang-definitions '("foo=bar")))
+     (should (equal-lists flycheck-clang-includes nil))
+     (should (equal flycheck-clang-language-standard "c++14"))
+     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
 
 (ert-deftest test-idb-obj-get ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
