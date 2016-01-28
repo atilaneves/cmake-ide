@@ -259,7 +259,7 @@ flags."
         (progn
           (cmake-ide--set-flags-for-hdr-exact buffer sys-includes ninja-hdr-command)
           (cmake-ide--message "Setting flags for %s from ninja dependency information" (buffer-file-name buffer))
-          t)
+          t) ;; has done something
       nil)))
 
 (defun cmake-ide--hdr-legacy (idb buffer sys-includes)
@@ -284,7 +284,10 @@ If all else fails, use all compiler flags in the project."
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
 (defun cmake-ide--ninja-header-command (idb file-name)
-  "Return the command used by a file in IDB that depends on FILE-NAME."
+  "Return the command used by a file in IDB that depends on FILE-NAME.
+
+Find an object file that lists FILE-NAME as a dependency, then return the first
+compiler command in the project that has that object file in itself."
   (let ((obj-file-name (cmake-ide--ninja-obj-file-depending-on-hdr file-name)))
     (if (null obj-file-name) nil
       (let ((commands (cmake-ide--idb-param-all-files idb 'command)))
@@ -292,8 +295,13 @@ If all else fails, use all compiler flags in the project."
                                  commands)))))
 
 (defun cmake-ide--ninja-obj-file-depending-on-hdr (file-name)
-  "Find the first object file that depends on the header FILE-NAME."
-  (let ((default-directory (cmake-ide--get-build-dir)) (beg) (end))
+  "Find the first object file that depends on the header FILE-NAME.
+
+Ask ninja for all dependencies then find FILE-NAME in the output, returning
+the object file's name just above."
+  (let ((default-directory (cmake-ide--get-build-dir))
+        (beg)
+        (end))
     (if (not (file-exists-p (expand-file-name "build.ninja" default-directory)))
         nil
       (with-temp-buffer
@@ -760,8 +768,6 @@ If all else fails, use all compiler flags in the project."
                      objects)))
     (delete-dups ret)
     ret))
-
-
 
 
 ;;;###autoload
