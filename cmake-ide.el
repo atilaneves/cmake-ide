@@ -566,12 +566,12 @@ the object file's name just above."
 
 (defun cmake-ide--flags-to-include-paths (flags)
   "From FLAGS (a list of flags) to a list of include paths."
-  (cmake-ide--to-simple-flags flags "-I"))
+  (cmake-ide--to-simple-flags flags "^-I"))
 
 
 (defun cmake-ide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines."
-  (cmake-ide--to-simple-flags flags "-D"))
+  (cmake-ide--to-simple-flags flags "^-D"))
 
 
 (defun cmake-ide--flags-to-includes (flags)
@@ -605,7 +605,8 @@ the object file's name just above."
 
 (defun cmake-ide--to-simple-flags (flags flag)
   "A list of either directories or defines from FLAGS depending on FLAG."
-  (let* ((include-flags (cmake-ide--filter
+  (let* ((case-fold-search nil)
+         (include-flags (cmake-ide--filter
                          (lambda (x)
                            (let ((match (string-match flag x)))
                              (and match (zerop match))))

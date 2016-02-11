@@ -271,5 +271,23 @@
                          '("the foo is mighty" "the foo is ugly" "the foo is just a foo" "the foo is really mighty")))
     ))
 
+(ert-deftest test-issue-43 ()
+  (let ((idb (cmake-ide--cdb-json-string-to-idb
+              "[
+ {
+ \"directory\": \"/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/build-clang/dune-evolving-domains/src\",
+ \"command\": \"/home/csunix/scstr/Software/anaconda/bin/clang++   -DENABLE_MPI=1 -DHAVE_CONFIG_H -DMPICH_SKIP_MPICXX -DMPIPP_H -O3 -Wall -Wno-unused-parameter -std=c++11  -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/build-clang/dune-evolving-domains -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-evolving-domains -I/usr/include/openmpi-x86_64 -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-common -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-geometry -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-grid -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-localfunctions -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-istl -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-alugrid -I/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-fem    -o CMakeFiles/dune_evolving_domains.dir/dune_evolving_domains.cc.o -c /home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-evolving-domains/src/dune_evolving_domains.cc\",
+ \"file\": \"/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-evolving-domains/src/dune_evolving_domains.cc\"
+ }
+ ]
+")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists flycheck-clang-include-path
+                          '("/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/build-clang/dune-evolving-domains" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-evolving-domains" "/usr/include/openmpi-x86_64" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-common" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-geometry" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-grid" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-localfunctions" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-istl" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-alugrid" "/home/cserv1_a/soc_staff/scstr/Software/DUNE/dune-2.4/dune-fem")))
+     (should (equal-lists flycheck-clang-includes nil))
+     )))
+
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
