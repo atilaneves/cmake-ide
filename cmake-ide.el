@@ -441,6 +441,9 @@ the object file's name just above."
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
+  (when (not (or (string-prefix-p "/" cmake-ide-dir)
+				 (string-prefix-p "~" cmake-ide-dir)))
+	(setq cmake-ide-dir (concat (cmake-ide--locate-cmakelists) cmake-ide-dir)))
   (if (not (file-accessible-directory-p cmake-ide-dir))
       (make-directory cmake-ide-dir))
   (file-name-as-directory cmake-ide-dir))
