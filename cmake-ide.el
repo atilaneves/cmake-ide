@@ -44,6 +44,7 @@
 (require 'levenshtein)
 (require 'cl-lib)
 (require 'seq)
+(require 'subr-x)
 
 (declare-function rtags-call-rc "rtags")
 
