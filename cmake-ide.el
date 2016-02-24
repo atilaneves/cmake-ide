@@ -453,14 +453,6 @@ the object file's name just above."
   (file-name-as-directory cmake-ide-dir))
 
 
-(defun cmake-ide--ends-with (string suffix)
-  "Return t if STRING ends with SUFFIX."
-  (and (not (null string))
-       (string-match (rx-to-string `(: ,suffix eos) t)
-                     string)
-       t))
-
-
 (defun cmake-ide--is-src-file (name)
   "Test if NAME is a source file or not."
   (some (lambda (x) (string-suffix-p x name)) cmake-ide-src-extensions))
@@ -540,8 +532,8 @@ the object file's name just above."
   (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands)))
          (flags (cmake-ide--args-to-only-flags args)))
     (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (cmake-ide--ends-with x ".o"))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (cmake-ide--ends-with x ".obj"))) flags))
+    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
+    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".obj" x))) flags))
     (cmake-ide--delete-dup-hdr-flags flags)))
 
 (defun cmake-ide--params-to-src-includes (file-params)
