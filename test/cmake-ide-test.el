@@ -297,5 +297,8 @@
     (should (equal (cmake-ide--is-src-file "foo.cu") t))
     (should (equal (cmake-ide--is-src-file "foo.cpp") nil))))
 
+(ert-deftest test-only-flags ()
+  (should (equal (cmake-ide--args-to-only-flags '("foo" "bar" "foo.cxx")) '("foo" "bar"))))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

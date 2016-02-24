@@ -495,9 +495,7 @@ the object file's name just above."
 
 (defun cmake-ide--args-to-only-flags (args)
   "Get compiler flags from ARGS."
-  (cmake-ide--filter
-   (lambda (x) (not (string-match "\\.\\(?:c\\|C\\|cc\\|cxx\\|cpp\\)$" x)))
-   args))
+  (cmake-ide--filter (lambda (x) (not (cmake-ide--is-src-file x))) args))
 
 (defun cmake-ide--json-unescape (str)
   "Remove JSON-escaped backslashes in STR."
