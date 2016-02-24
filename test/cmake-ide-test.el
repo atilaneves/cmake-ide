@@ -289,5 +289,13 @@
      )))
 
 
+(ert-deftest test-issue-45 ()
+  (should (equal (cmake-ide--is-src-file "foo.cpp") t))
+  (should (equal (cmake-ide--is-src-file "foo.yyy") nil))
+  (should (equal (cmake-ide--is-src-file "foo.cu") nil))
+  (let ((cmake-ide-src-extensions '(".cu")))
+    (should (equal (cmake-ide--is-src-file "foo.cu") t))
+    (should (equal (cmake-ide--is-src-file "foo.cpp") nil))))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

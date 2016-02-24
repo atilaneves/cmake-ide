@@ -93,6 +93,12 @@
   :group 'rtags
   :type 'file)
 
+(defcustom cmake-ide-src-extensions
+  '(".c" ".cpp" ".C" ".cxx" ".cc")
+  "A list of file extensions that qualify as source files."
+  :group 'cmake-ide
+  :type '(repeat string))
+
 (defvar cmake-ide-try-unique-compiler-flags-for-headers
   nil
   "Whether or not to try all unique compiler flags for header files."
@@ -455,13 +461,9 @@ the object file's name just above."
        t))
 
 
-(defun cmake-ide--is-src-file (string)
-  "Test if STRING is a source file or not."
-  (or (cmake-ide--ends-with string ".c")
-      (cmake-ide--ends-with string ".cpp")
-      (cmake-ide--ends-with string ".C")
-      (cmake-ide--ends-with string ".cxx")
-      (cmake-ide--ends-with string ".cc")))
+(defun cmake-ide--is-src-file (name)
+  "Test if NAME is a source file or not."
+  (some (lambda (x) (string-suffix-p x name)) cmake-ide-src-extensions))
 
 
 (defun cmake-ide--filter (pred seq)
