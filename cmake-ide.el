@@ -57,6 +57,10 @@
 
 (defvar cmake-ide-dir
   nil
+  "The build directory to run CMake in.  If nil, runs in a temp dir.  DEPRECATED, use cmake-ide-build-dir instead.")
+
+(defvar cmake-ide-build-dir
+  nil
   "The build directory to run CMake in.  If nil, runs in a temp dir.")
 
 (defvar cmake-ide-compile-command
@@ -112,6 +116,10 @@
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
+(defun cmake-ide--build-dir-var ()
+  "Return the value of cmake-ide-build-dir or cmake-ide-dir."
+  (or cmake-ide-build-dir cmake-ide-dir))
+
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
   (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
@@ -163,7 +171,7 @@
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
   "Run CMake and set compiler flags for auto-completion and flycheck.
-This works by calling cmake in a temporary directory (or cmake-ide-dir)
+This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 and parsing the JSON file deposited there with the compiler
 flags."
   (interactive)
@@ -415,7 +423,7 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
-  (if cmake-ide-dir
+  (if (cmake-ide--build-dir-var)
       (let ((filename (buffer-file-name))
             (buffer (current-buffer))
             (name (buffer-name)))
@@ -425,9 +433,9 @@ the object file's name just above."
             (delete-file filename)
             (kill-buffer buffer)
             (let ((project-dir (cmake-ide--locate-cmakelists)))
-              (when project-dir (cmake-ide--run-cmake-impl project-dir cmake-ide-dir))
+              (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--build-dir-var)))
               (cmake-ide--message "File '%s' successfully removed" filename)))))
-    (error "Not possible to delete a file without setting cmake-ide-dir")))
+    (error "Not possible to delete a file without setting cmake-ide-build-dir")))
 
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
@@ -440,12 +448,12 @@ the object file's name just above."
 
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
-  (when (not cmake-ide-dir) (setq cmake-ide-dir (make-temp-file "cmake" t)))
-  (when (not (file-name-absolute-p cmake-ide-dir))
-	(setq cmake-ide-dir (expand-file-name cmake-ide-dir (cmake-ide--locate-cmakelists))))
-  (if (not (file-accessible-directory-p cmake-ide-dir))
-      (make-directory cmake-ide-dir))
-  (file-name-as-directory cmake-ide-dir))
+  (when (not (cmake-ide--build-dir-var)) (setq cmake-ide-build-dir (make-temp-file "cmake" t)))
+  (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
+    (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists))))
+  (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
+      (make-directory (cmake-ide--build-dir-var)))
+  (file-name-as-directory (cmake-ide--build-dir-var)))
 
 
 (defun cmake-ide--is-src-file (name)
@@ -763,8 +771,8 @@ the object file's name just above."
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
-  (if cmake-ide-dir
-      (compile (cmake-ide--get-compile-command cmake-ide-dir))
+  (if (cmake-ide--build-dir-var)
+      (compile (cmake-ide--get-compile-command (cmake-ide--build-dir-var)))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
       (compile command)))
   (cmake-ide--run-rc))

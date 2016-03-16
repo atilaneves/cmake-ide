@@ -32,12 +32,12 @@ Features
   project automagically. Hardly any configuration necessary.
 * Automatically reruns CMake when a file is saved. Great when using
 CMake file globs to pick up newly created files, but needs
-`cmake-ide-dir` to be set.
+`cmake-ide-build-dir` to be set.
 * `cmake-ide-delete-file` allows you to have the same convenience when
 deleting files. I can't figure out a better way to do this. Obviously
 simply deleting the file means having to run CMake again manually for
 it to register the change in the list of files to be compiled.
-* If `cmake-ide-dir` is set, it is considered to be the build
+* If `cmake-ide-build-dir` is set, it is considered to be the build
 directory to run CMake in. Additionally, this will cause
 `cmake-ide-compile` to compile the project there. It automatically
 detects Ninja and Make builds and sets the compile command
@@ -77,7 +77,7 @@ you can get this information by running `gcc -v -xc++ /dev/null
 to work, since that's how clang itself works).
 
 And... that's it. It works by calling cmake and parsing the resulting
-JSON file with compiler flags.  Set `cmake-ide-dir` to your project's
+JSON file with compiler flags.  Set `cmake-ide-build-dir` to your project's
 root directory and you won't have to call CMake manually again (except
 for the first time to specify options). Best done with
 [directory local variables](https://www.gnu.org/software/emacs/manual/html_node/emacs/Directory-Variables.html).
