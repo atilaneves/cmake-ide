@@ -86,12 +86,6 @@
   :group 'rtags
   :type 'file)
 
-(defcustom cmake-ide-rc-executable
-  "rc"
-  "Location of rc executable."
-  :group 'rtags
-  :type 'file)
-
 (defcustom cmake-ide-src-extensions
   '(".c" ".cpp" ".C" ".cxx" ".cc")
   "A list of file extensions that qualify as source files."
