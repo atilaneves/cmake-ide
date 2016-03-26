@@ -113,6 +113,7 @@
   (make-hash-table :test #'equal)
   "A hash to remember irony build dirs.")
 
+(defvar cmake-ide--semantic-system-include)
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
@@ -394,6 +395,13 @@ the object file's name just above."
       (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
         (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name))
         (puthash (cmake-ide--get-build-dir) t cmake-ide--irony))
+
+      (when (featurep 'semantic)
+        (let ((dirs (cmake-ide--flags-to-include-paths flags)))
+          (when (boundp 'cmake-ide--semantic-system-include)
+            (mapc 'semantic-remove-system-include cmake-ide--semantic-system-include))
+          (mapc 'semantic-add-system-include dirs)
+          (setq-local cmake-ide--semantic-system-include dirs)))
 
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
