@@ -390,7 +390,9 @@ the object file's name just above."
 
       (when (featurep 'company-c-headers)
         (make-local-variable 'company-c-headers-path-user)
-        (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags)))
+        (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags))
+        (make-local-variable 'company-c-headers-path-system)
+        (setq company-c-headers-path-system sys-includes))
 
       (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
         (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name))
