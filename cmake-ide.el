@@ -214,10 +214,12 @@ flags."
     (cmake-ide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
     (if (get-process "rdm")
+      (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
         (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-          (rtags-call-rc "-J" (cmake-ide--get-build-dir)))
-      (with-temp-buffer
-        (rtags-call-rc "-J" (cmake-ide--get-build-dir))))))
+          (rtags-call-rc "-J" cmake-ide-local-build-dir))
+        (with-temp-buffer
+          (rtags-call-rc "-J" cmake-ide-local-build-dir))))))
+
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
