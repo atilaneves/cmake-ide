@@ -220,7 +220,7 @@ flags."
         (rtags-call-rc "-J" (cmake-ide--get-build-dir))))))
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
-  "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
+  "Set the compiler flags from IDB for BUFFER."
   (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--idb-file-to-obj idb file-name))
          (sys-includes (cmake-ide--params-to-sys-includes file-params)))
@@ -572,7 +572,14 @@ the object file's name just above."
 
 (defun cmake-ide--flags-to-include-paths (flags)
   "From FLAGS (a list of flags) to a list of include paths."
-  (cmake-ide--to-simple-flags flags "^-I"))
+  (let ((raw-paths (cmake-ide--to-simple-flags flags "^-I")))
+    (mapcar (lambda (x) (expand-file-name x (cmake-ide--get-build-dir))) raw-paths)))
+
+(defun cmake-ide--relativize (path)
+  "Make PATH relative to the build directory, but only if relative path with dots."
+  (if (or (equal path ".") (string-prefix-p ".." path))
+      (expand-file-name path (cmake-ide--get-build-dir))
+    path))
 
 
 (defun cmake-ide--flags-to-defines (flags)
@@ -612,12 +619,12 @@ the object file's name just above."
 (defun cmake-ide--to-simple-flags (flags flag)
   "A list of either directories or defines from FLAGS depending on FLAG."
   (let* ((case-fold-search nil)
-         (include-flags (cmake-ide--filter
-                         (lambda (x)
-                           (let ((match (string-match flag x)))
-                             (and match (zerop match))))
-                         flags)))
-    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) include-flags)))
+         (res-flags (cmake-ide--filter
+                     (lambda (x)
+                       (let ((match (string-match flag x)))
+                         (and match (zerop match))))
+                     flags)))
+    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
 (defun cmake-ide--get-compiler-flags (flags)
