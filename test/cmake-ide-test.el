@@ -304,12 +304,12 @@
   (should (equal (cmake-ide--args-to-only-flags '("foo" "bar" "foo.cxx")) '("foo" "bar"))))
 
 (ert-deftest test-issue-52 ()
-  (let ((cmake-ide-build-dir "/tmp/cmake-ide-test/build")
+  (let ((cmake-ide-build-dir "/usr/bin")
         (idb (cmake-ide--cdb-json-string-to-idb
               "[
  {
  \"directory\": \"/project/build\",
- \"command\": \"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc  -DHAVE_CONFIG_H -DHTTP_PARSER_STRICT -DLUASOCKET_DEBUG -DWITH_COMPAT -DWITH_DOM -DWITH_NOIO -DWITH_OPENSSL -D_REENTRANT -I/usr/local/include -I/usr/local/include/luajit-2.0 -Ijansson-2.7/include -I/usr/local/opt/openssl/include -I/usr/local/include/mysql -I. -I../libs -I../libs/gsoap -I../libs/http-parser -I../libs/uthash -Wall -pedantic -O2 -O3 -DNDEBUG   -o src/ddutil/src/lua/socket/CMakeFiles/LUASOCKET_FILES.dir/options.c.o   -c /Users/user/dev/project/src/ddutil/src/lua/socket/options.c\",
+ \"command\": \"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc  -DHAVE_CONFIG_H -DHTTP_PARSER_STRICT -DLUASOCKET_DEBUG -DWITH_COMPAT -DWITH_DOM -DWITH_NOIO -DWITH_OPENSSL -D_REENTRANT -I/usr/local/include -I/usr/local/include/luajit-2.0 -Ijansson-2.7/include -I/usr/local/opt/openssl/include -I/usr/local/include/mysql -I. -I../lib -I../lib/gsoap -I../lib/http-parser -I../lib/uthash -Wall -pedantic -O2 -O3 -DNDEBUG   -o src/ddutil/src/lua/socket/CMakeFiles/LUASOCKET_FILES.dir/options.c.o   -c /Users/user/dev/project/src/ddutil/src/lua/socket/options.c\",
  \"file\": \"/project/src/ddutil/src/lua/socket/options.c\"
  }
  ]
@@ -317,7 +317,7 @@
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal-lists flycheck-clang-include-path
-                          '("/usr/local/include" "/usr/local/include/luajit-2.0" "/tmp/cmake-ide-test/build/jansson-2.7/include" "/usr/local/opt/openssl/include" "/usr/local/include/mysql" "/tmp/cmake-ide-test/build" "/tmp/cmake-ide-test/libs" "/tmp/cmake-ide-test/libs/gsoap" "/tmp/cmake-ide-test/libs/http-parser" "/tmp/cmake-ide-test/libs/uthash")))
+                          '("/usr/local/include" "/usr/local/include/luajit-2.0" "/usr/bin/jansson-2.7/include" "/usr/local/opt/openssl/include" "/usr/local/include/mysql" "/usr/bin" "/usr/lib" "/usr/lib/gsoap" "/usr/lib/http-parser" "/usr/lib/uthash")))
      )))
 
 (provide 'cmake-ide-test)
