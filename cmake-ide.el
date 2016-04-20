@@ -213,8 +213,8 @@ flags."
   (when (featurep 'rtags)
     (cmake-ide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
+    (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
     (if (get-process "rdm")
-      (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
         (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
           (rtags-call-rc "-J" cmake-ide-local-build-dir))
         (with-temp-buffer
