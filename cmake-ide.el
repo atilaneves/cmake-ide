@@ -223,14 +223,16 @@ flags."
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
-  (let* ((file-name (buffer-file-name buffer))
+      (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--idb-file-to-obj idb file-name))
-         (sys-includes (cmake-ide--params-to-sys-includes file-params)))
-    (cmake-ide--message "Setting flags for file %s" file-name)
+         (sys-includes (cmake-ide--params-to-sys-includes file-params))
+         (commands (cmake-ide--idb-param-all-files idb 'command))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags commands)))
+        (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
         (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
-      (cmake-ide--set-flags-for-hdr-file idb buffer sys-includes))))
+      (cmake-ide--set-flags-for-hdr-file idb buffer (cmake-ide--flags-to-sys-includes hdr-flags)))))
 
 (defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
@@ -592,10 +594,13 @@ the object file's name just above."
 
 (defun cmake-ide--flags-to-sys-includes (flags)
   "From FLAGS (a list of flags) to a list of isystem includes."
-  (let ((sysincludes nil))
+    (let ((sysincludes nil))
     (while (member "-isystem" flags)
       (setq flags (cdr (member "-isystem" flags)))
-      (when flags (setq sysincludes (cons (car flags) sysincludes))))
+      (when flags
+        (if (member (car flags) sysincludes)
+            nil
+        (setq sysincludes (cons (car flags) sysincludes)))))
     sysincludes))
 
 
