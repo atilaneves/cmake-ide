@@ -41,6 +41,13 @@
   (and (equal (length lst1) (length lst2))
        (null (set-difference lst1 lst2 :test 'equal))))
 
+(defmacro with-non-empty-file (&rest body)
+  "Execute BODY in the context of a non-empty file buffer."
+  `(with-temp-buffer
+     (insert "//text so the file isn't empty")
+     ,@body
+     ))
+
 
 (ert-deftest test-json-to-file-params ()
   (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
@@ -74,8 +81,9 @@
 
 
 (ert-deftest test-flags-to-include-paths ()
-  (should (equal (cmake-ide--flags-to-include-paths '("-Ifoo" "-Ibar")) '("foo" "bar")))
-  (should (equal (cmake-ide--flags-to-include-paths '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("boo" "baz" "doo"))))
+  (let ((cmake-ide-build-dir "/tmp"))
+    (should (equal (cmake-ide--flags-to-include-paths '("-Ifoo" "-Ibar")) '("/tmp/foo" "/tmp/bar")))
+    (should (equal (cmake-ide--flags-to-include-paths '("-Iboo" "-Ibaz" "-Dloo" "-Idoo")) '("/tmp/boo" "/tmp/baz" "/tmp/doo")))))
 
 
 (ert-deftest test-flags-to-defines ()
@@ -123,41 +131,41 @@
     (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
                          '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
 
-    (ert-deftest test-commands-to-hdr-flags-3 ()
-      (let* ((idb (cmake-ide--cdb-json-string-to-idb
-                   "[{\"file\": \"/dir1/file1.c\",
+(ert-deftest test-commands-to-hdr-flags-3 ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"/dir1/file1.c\",
                   \"command\": \"cmd1 -o file1.c.o otherfile -Ifoo -Ibar -weird\"},
                  {\"file\": \"/dir2/file2.c\",
                   \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo -include foo.h\"},
                  {\"file\": \"/dir2/file3.c\",
                   \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo -include bar.h\"}]"))
-             (commands (cmake-ide--idb-param-all-files idb 'command)))
-        (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
-                             '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
+         (commands (cmake-ide--idb-param-all-files idb 'command)))
+    (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
+                         '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
 
 
-    (ert-deftest test-params-to-src-includes-1 ()
-      (let* ((idb (cmake-ide--cdb-json-string-to-idb
-                   "[{\"file\": \"file1\",
+(ert-deftest test-params-to-src-includes-1 ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1\",
                 \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                {\"file\": \"file2\",
                 \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-             (file-params (cmake-ide--idb-file-to-obj idb "file1")))
+         (file-params (cmake-ide--idb-file-to-obj idb "file1")))
 
-        (should (equal-lists
-                 (cmake-ide--params-to-src-includes file-params)
-                 '("/foo/bar.h" "a.h")))))
+    (should (equal-lists
+             (cmake-ide--params-to-src-includes file-params)
+             '("/foo/bar.h" "a.h")))))
 
-    (ert-deftest test-params-to-src-includes-2 ()
-      (let* ((idb (cmake-ide--cdb-json-string-to-idb
-                   "[{\"file\": \"file1\",
+(ert-deftest test-params-to-src-includes-2 ()
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1\",
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-             (file-params (cmake-ide--idb-file-to-obj idb "file2")))
-        (should (equal-lists
-                 (cmake-ide--params-to-src-includes file-params)
-                 '("h.h")))))
+         (file-params (cmake-ide--idb-file-to-obj idb "file2")))
+    (should (equal-lists
+             (cmake-ide--params-to-src-includes file-params)
+             '("h.h")))))
 
 (ert-deftest test-commands-to-hdr-includes-1 ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
@@ -179,35 +187,30 @@
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
-(defmacro with-non-empty-file (&rest body)
-  "Execute BODY in the context of a non-empty file buffer."
-  `(with-temp-buffer
-     (insert "//text so the file isn't empty")
-     ,@body
-     ))
-
 (ert-deftest test-all-vars ()
-  (let ((idb (cmake-ide--cdb-json-string-to-idb
+  (let ((cmake-ide-build-dir "/tmp")
+        (idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
                   \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
-     (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
+     (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
      (should (equal-lists flycheck-clang-definitions '("foo=bar")))
      (should (equal-lists flycheck-clang-includes nil))
      (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
 
 (ert-deftest test-all-vars-ccache ()
-  (let ((idb (cmake-ide--cdb-json-string-to-idb
+  (let ((cmake-ide-build-dir "/tmp")
+        (idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
                   \"command\": \"/usr/bin/ccache clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
-     (should (equal-lists flycheck-clang-include-path '("inc1" "inc2")))
+     (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
      (should (equal-lists flycheck-clang-definitions '("foo=bar")))
      (should (equal-lists flycheck-clang-includes nil))
      (should (equal flycheck-clang-language-standard "c++14"))
@@ -299,6 +302,23 @@
 
 (ert-deftest test-only-flags ()
   (should (equal (cmake-ide--args-to-only-flags '("foo" "bar" "foo.cxx")) '("foo" "bar"))))
+
+(ert-deftest test-issue-52 ()
+  (let ((cmake-ide-build-dir "/usr/bin")
+        (idb (cmake-ide--cdb-json-string-to-idb
+              "[
+ {
+ \"directory\": \"/project/build\",
+ \"command\": \"/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc  -DHAVE_CONFIG_H -DHTTP_PARSER_STRICT -DLUASOCKET_DEBUG -DWITH_COMPAT -DWITH_DOM -DWITH_NOIO -DWITH_OPENSSL -D_REENTRANT -I/usr/local/include -I/usr/local/include/luajit-2.0 -Ijansson-2.7/include -I/usr/local/opt/openssl/include -I/usr/local/include/mysql -I. -I../lib -I../lib/gsoap -I../lib/http-parser -I../lib/uthash -Wall -pedantic -O2 -O3 -DNDEBUG   -o src/ddutil/src/lua/socket/CMakeFiles/LUASOCKET_FILES.dir/options.c.o   -c /Users/user/dev/project/src/ddutil/src/lua/socket/options.c\",
+ \"file\": \"/project/src/ddutil/src/lua/socket/options.c\"
+ }
+ ]
+")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists flycheck-clang-include-path
+                          '("/usr/local/include" "/usr/local/include/luajit-2.0" "/usr/bin/jansson-2.7/include" "/usr/local/opt/openssl/include" "/usr/local/include/mysql" "/usr/bin" "/usr/lib" "/usr/lib/gsoap" "/usr/lib/http-parser" "/usr/lib/uthash")))
+     )))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
