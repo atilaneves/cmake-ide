@@ -134,10 +134,13 @@
   (add-hook 'c++-mode-hook #'cmake-ide--mode-hook)
 
   ;; When creating a file in Emacs, run CMake again to pick it up
-  (add-hook 'before-save-hook (lambda ()
-                                (when (and (cmake-ide--is-src-file (buffer-file-name))
-                                           (not (file-readable-p (buffer-file-name))))
-                                  (add-hook 'after-save-hook 'cmake-ide--new-file-saved nil 'local)))))
+  (add-hook 'before-save-hook #'cmake-ide--before-save))
+
+(defun cmake-ide--before-save ()
+  "When creating a file in Emacs, run CMake again to pick it up."
+  (when (and (cmake-ide--is-src-file (buffer-file-name))
+             (not (file-readable-p (buffer-file-name))))
+    (add-hook 'after-save-hook 'cmake-ide--new-file-saved nil 'local)))
 
 (defun cmake-ide--new-file-saved ()
   "Run CMake to pick up newly created files."
