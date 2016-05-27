@@ -47,38 +47,54 @@
 
 (declare-function rtags-call-rc "rtags")
 
-(defvar cmake-ide-flags-c
+(defcustom cmake-ide-flags-c
   nil
-  "The C compiler flags to use.  Should have -I flags for system includes.")
+  "The C compiler flags to use.  Should have -I flags for system includes."
+  :type 'string
+  :safe #'stringp)
 
-(defvar cmake-ide-flags-c++
+(defcustom cmake-ide-flags-c++
   nil
-  "The C++ compiler flags to use.  Should have -I flags for system includes.")
+  "The C++ compiler flags to use.  Should have -I flags for system includes."
+  :type 'string
+  :safe #'stringp
+  )
 
-(defvar cmake-ide-dir
+(defcustom cmake-ide-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temp dir.  DEPRECATED, use cmake-ide-build-dir instead.")
+  "The build directory to run CMake in.  If nil, runs in a temp dir.  DEPRECATED, use cmake-ide-build-dir instead."
+  :type 'directory
+  :safe #'stringp
+  )
 
-(defvar cmake-ide-build-dir
+(defcustom cmake-ide-build-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temp dir.")
+  "The build directory to run CMake in.  If nil, runs in a temp dir."
+  :type 'directory
+  :safe #'stringp
+  )
 
-(defvar cmake-ide-compile-command
+(defcustom cmake-ide-compile-command
   nil
-  "The command to use to compile the project.  Can also include running tests.")
+  "The command to use to compile the project.  Can also include running tests."
+  :safe #'stringp)
 
-
-(defvar cmake-ide-cmake-command
+(defcustom cmake-ide-cmake-command
   "cmake"
-  "The command use to invoke cmake.")
+  "The command use to invoke cmake."
+  :safe #'stringp)
 
-(defvar cmake-ide-header-search-other-file
+(defcustom cmake-ide-header-search-other-file
   t
-  "Whether or not to search for a corresponding source file for headers when setting flags for them.")
+  "Whether or not to search for a corresponding source file for headers when setting flags for them."
+  :type 'booleanp
+  :safe #'booleanp)
 
-(defvar cmake-ide-header-search-first-including
+(defcustom cmake-ide-header-search-first-including
   t
-  "Whether or not to search for the first source file to include a header when setting flags for them.")
+  "Whether or not to search for the first source file to include a header when setting flags for them."
+  :type 'booleanp
+  :safe #'booleanp)
 
 ;;; The buffers to set variables for
 (defvar cmake-ide--src-buffers nil)
