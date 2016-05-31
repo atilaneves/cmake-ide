@@ -50,12 +50,14 @@
 (defcustom cmake-ide-flags-c
   nil
   "The C compiler flags to use.  Should have -I flags for system includes."
+  :group 'cmake-ide
   :type 'string
   :safe #'stringp)
 
 (defcustom cmake-ide-flags-c++
   nil
   "The C++ compiler flags to use.  Should have -I flags for system includes."
+  :group 'cmake-ide
   :type 'string
   :safe #'stringp
   )
@@ -63,6 +65,7 @@
 (defcustom cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temp dir.  DEPRECATED, use cmake-ide-build-dir instead."
+  :group 'cmake-ide
   :type 'directory
   :safe #'stringp
   )
@@ -70,6 +73,7 @@
 (defcustom cmake-ide-build-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temp dir."
+  :group 'cmake-ide
   :type 'directory
   :safe #'stringp
   )
@@ -77,22 +81,26 @@
 (defcustom cmake-ide-compile-command
   nil
   "The command to use to compile the project.  Can also include running tests."
+  :group 'cmake-ide
   :safe #'stringp)
 
 (defcustom cmake-ide-cmake-command
   "cmake"
   "The command use to invoke cmake."
+  :group 'cmake-ide
   :safe #'stringp)
 
 (defcustom cmake-ide-header-search-other-file
   t
   "Whether or not to search for a corresponding source file for headers when setting flags for them."
+  :group 'cmake-ide
   :type 'booleanp
   :safe #'booleanp)
 
 (defcustom cmake-ide-header-search-first-including
   t
   "Whether or not to search for the first source file to include a header when setting flags for them."
+  :group 'cmake-ide
   :type 'booleanp
   :safe #'booleanp)
 
