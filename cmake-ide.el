@@ -120,6 +120,12 @@
   :group 'cmake-ide
   :type '(repeat string))
 
+(defcustom cmake-ide-cmakelists-dir
+  nil
+  "The directory where the main CMakelists.txt is."
+  :group 'cmake-ide
+  :type 'file)
+
 (defvar cmake-ide-try-unique-compiler-flags-for-headers
   nil
   "Whether or not to try all unique compiler flags for header files."
@@ -683,7 +689,9 @@ the object file's name just above."
 
 (defun cmake-ide--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file."
-  (cmake-ide--locate-cmakelists-impl default-directory nil))
+  (if cmake-ide-cmakelists-dir
+      (expand-file-name "CMakeLists.txt" cmake-ide-cmakelists-dir)
+    (cmake-ide--locate-cmakelists-impl default-directory nil)))
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
