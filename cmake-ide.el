@@ -505,7 +505,7 @@ the object file's name just above."
 
 (defun cmake-ide--is-src-file (name)
   "Test if NAME is a source file or not."
-  (some (lambda (x) (string-suffix-p x name)) cmake-ide-src-extensions))
+  (cl-some (lambda (x) (string-suffix-p x name)) cmake-ide-src-extensions))
 
 
 (defun cmake-ide--filter (pred seq)
