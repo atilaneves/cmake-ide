@@ -229,10 +229,9 @@ flags."
   (set-process-sentinel (get-process "cmake")
                         (lambda (_process _event)
                           (cmake-ide--message "Finished running CMake")
-                          (cmake-ide-load-db))))
+                          (cmake-ide--on-cmake-finished))))
 
-;;;###autoload
-(defun cmake-ide-load-db ()
+(defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
   (let* ((idb (cmake-ide--cdb-json-file-to-idb))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
@@ -242,15 +241,26 @@ flags."
     (cmake-ide--run-rc)))
 
 
+;;;###autoload
+(defun cmake-ide-load-db ()
+  "Load compilation DB and set flags for current buffer."
+  (interactive)
+  (let* ((file-name buffer-file-name)
+         (buffers (list (current-buffer)))
+         (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
+         (cmake-ide--hdr-buffers (if (cmake-ide--is-src-file file-name) nil buffers)))
+    (cmake-ide--on-cmake-finished)))
+
+
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
   (when (featurep 'rtags)
     (cmake-ide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
     (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
-    (if (get-process "rdm")
-        (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
-          (rtags-call-rc "-J" cmake-ide-local-build-dir))
+      (if (get-process "rdm")
+          (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
+            (rtags-call-rc "-J" cmake-ide-local-build-dir))
         (with-temp-buffer
           (rtags-call-rc "-J" cmake-ide-local-build-dir))))))
 
