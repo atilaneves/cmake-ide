@@ -229,9 +229,10 @@ flags."
   (set-process-sentinel (get-process "cmake")
                         (lambda (_process _event)
                           (cmake-ide--message "Finished running CMake")
-                          (cmake-ide--on-cmake-finished))))
+                          (cmake-ide-load-db))))
 
-(defun cmake-ide--on-cmake-finished ()
+;;;###autoload
+(defun cmake-ide-load-db ()
   "Set compiler flags for all buffers that requested it."
   (let* ((idb (cmake-ide--cdb-json-file-to-idb))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
