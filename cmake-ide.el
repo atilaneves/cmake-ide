@@ -78,6 +78,13 @@
   :safe #'stringp
   )
 
+(defcustom cmake-ide-project-dir
+  nil
+  "The project directory."
+  :group 'cmake-ide
+  :type 'directory
+  :safe #'stringp)
+
 (defcustom cmake-ide-compile-command
   nil
   "The command to use to compile the project.  Can also include running tests."
@@ -245,6 +252,8 @@ flags."
 (defun cmake-ide-load-db ()
   "Load compilation DB and set flags for current buffer."
   (interactive)
+  (cmake-ide--message "cmake-ide-load-db for file %s" (buffer-file-name))
+  (cmake-ide-maybe-start-rdm)
   (let* ((file-name buffer-file-name)
          (buffers (list (current-buffer)))
          (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
@@ -443,7 +452,7 @@ the object file's name just above."
         (setq company-c-headers-path-system sys-includes))
 
       (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
-        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-cmakelists) (cmake-ide--comp-db-file-name))
+        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-project-dir) (cmake-ide--comp-db-file-name))
         (puthash (cmake-ide--get-build-dir) t cmake-ide--irony))
 
       (when (featurep 'semantic)
@@ -711,6 +720,9 @@ the object file's name just above."
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
+(defun cmake-ide--locate-project-dir ()
+  "Return the path to the project directory."
+  (or cmake-ide-project-dir (file-name-directory (cmake-ide--locate-cmakelists))))
 
 
 (defun cmake-ide--cdb-json-file-to-idb ()
@@ -718,11 +730,14 @@ the object file's name just above."
   ;; check the cache first
   (let ((idb (cmake-ide--cdb-idb-from-cache)))
     (unless idb
-      (cmake-ide--message "Converting JSON CDB to IDB")
-      (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
-      (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
-      (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash)
-      (remhash (cmake-ide--get-build-dir) cmake-ide--irony))
+      (if (not (file-exists-p (cmake-ide--comp-db-file-name)))
+          (cmake-ide--message "Non-existent compilation DB file %s" (cmake-ide--comp-db-file-name))
+        (progn
+          (cmake-ide--message "Converting JSON CDB %s to IDB" (cmake-ide--comp-db-file-name))
+          (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
+          (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
+          (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash)
+          (remhash (cmake-ide--get-build-dir) cmake-ide--irony))))
     idb))
 
 (defun cmake-ide--cdb-idb-from-cache ()
@@ -862,6 +877,7 @@ the object file's name just above."
   (when (featurep 'rtags)
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
+        (cmake-ide--message "Starting rdm server")
         (with-current-buffer buf (start-process "rdm" (current-buffer)
                                                 cmake-ide-rdm-executable))))))
 
