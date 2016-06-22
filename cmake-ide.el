@@ -874,6 +874,7 @@ the object file's name just above."
 ;;;###autoload
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
+  (interactive)
   (when (featurep 'rtags)
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
