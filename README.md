@@ -6,10 +6,13 @@ cmake-ide
 [CppCon 2015 Lighning talk on cmake-ide](https://www.youtube.com/watch?v=5FQwQ0QWBTU).
 
 `cmake-ide` is a package to enable IDE-like features on Emacs for
-[CMake](http://www.cmake.org/) projects. This includes autocompletion
-and on-the-fly syntax checking in Emacs for CMake projects with
-minimal configuration. It uses other packages to do its heavy lifting,
-in a combination of:
+[CMake](http://www.cmake.org/) projects. It also supports non-CMake
+projects as long as a
+[compilation database](http://clang.llvm.org/docs/JSONCompilationDatabase.html)
+is generated out-of-band.This includes autocompletion and on-the-fly
+syntax checking in Emacs for CMake projects with minimal
+configuration. It uses other packages to do its heavy lifting, in a
+combination of:
 
 * [rtags](https://github.com/Andersbakken/rtags)
 * [flycheck](https://github.com/flycheck/flycheck)
@@ -21,7 +24,7 @@ in a combination of:
 dependent packages.
 
 It works by running CMake in Emacs in order to obtain the necessary
-`-I` and `-D` compiler flags to pass to the other tools. Since all
+compiler flags to pass to the other tools. Since all
 the dependencies are specified in the CMake scripts, there is no
 need to maintain a parallel dependency tracking system for Emacs.
 Just ask CMake.
@@ -51,6 +54,14 @@ and call `rc -J` to index the project files for 0-config "jump to
 definition" and everything else rtags offers.  This only works if both
 `rdm` and `rc` and in the system path or if `cmake-ide-rdm-executable`
 and `cmake-ide-rc-executable` are customized correctly.
+
+Non-CMake projects
+------------------
+
+Use `.dir-locals.el` to set the `cmake-ide-project-dir` and `cmake-ide-build-dir` variables
+(use absolute paths). If a file called `compile_commands.json` exists in `cmake-ide-build-dir`,
+it will work just as well as for CMake projects.
+
 
 Installation
 ------------

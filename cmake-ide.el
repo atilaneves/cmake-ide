@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014 Atila Neves
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
-;; Version: 0.4
+;; Version: 0.5
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "1.11") (levenshtein "0"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
@@ -161,8 +161,7 @@
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
   (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
-  (when (and (featurep 'rtags) (cmake-ide--locate-cmakelists))
-    (cmake-ide-maybe-start-rdm)))
+  (cmake-ide-maybe-start-rdm))
 
 ;;;###autoload
 (defun cmake-ide-setup ()
@@ -188,6 +187,7 @@
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
+  (cmake-ide-maybe-start-rdm)
   (if (cmake-ide--need-to-run-cmake)
       (cmake-ide-run-cmake)
     (progn
@@ -376,7 +376,6 @@ the object file's name just above."
         (setq beg (search-forward file-name nil t))
         (if (null beg)
             nil
-          (cmake-ide--message "beg not nil")
           (search-backward "#deps")
           (setq beg (move-beginning-of-line nil))
           (setq end (1- (search-forward ":")))
@@ -722,7 +721,9 @@ the object file's name just above."
 
 (defun cmake-ide--locate-project-dir ()
   "Return the path to the project directory."
-  (or cmake-ide-project-dir (file-name-directory (cmake-ide--locate-cmakelists))))
+  (let ((cmakelists (cmake-ide--locate-cmakelists)))
+    (or (and cmake-ide-project-dir (expand-file-name cmake-ide-project-dir))
+        (and cmakelists (file-name-directory cmakelists)))))
 
 
 (defun cmake-ide--cdb-json-file-to-idb ()
@@ -875,7 +876,10 @@ the object file's name just above."
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (interactive)
-  (when (featurep 'rtags)
+  (when (and (featurep 'rtags)
+             (or (file-exists-p (cmake-ide--comp-db-file-name))
+                 (cmake-ide--locate-cmakelists)))
+
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (cmake-ide--message "Starting rdm server")
