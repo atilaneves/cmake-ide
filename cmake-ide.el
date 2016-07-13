@@ -461,6 +461,13 @@ the object file's name just above."
           (mapc 'semantic-add-system-include dirs)
           (setq-local cmake-ide--semantic-system-include dirs)))
 
+
+      (let ((macro-regex "\\(^-std=\\|\\.o$\\|^-o$\\)"))
+        (make-local-variable 'c-macro-cppflags)
+        (setq c-macro-cppflags
+              (mapconcat 'identity (cmake-ide--filter (lambda (x) (not (string-match macro-regex x)))
+                                                      (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))) " ")))
+
       (when (featurep 'flycheck)
         (make-local-variable 'flycheck-clang-include-path)
         (setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
