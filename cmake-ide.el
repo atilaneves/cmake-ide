@@ -91,6 +91,12 @@
   :group 'cmake-ide
   :safe #'stringp)
 
+(defcustom cmake-ide-ninja-command
+  "ninja"
+  "The command used to execute ninja type builds."
+  :group 'cmake-ide
+  :safe #'stringp)
+
 (defcustom cmake-ide-cmake-command
   "cmake"
   "The command use to invoke cmake."
@@ -371,7 +377,7 @@ the object file's name just above."
     (if (not (file-exists-p (expand-file-name "build.ninja" default-directory)))
         nil
       (with-temp-buffer
-        (call-process "ninja" nil t nil "-C" default-directory "-t" "deps")
+        (call-process cmake-ide-ninja-command nil t nil "-C" default-directory "-t" "deps")
         (goto-char (point-min))
         (setq beg (search-forward file-name nil t))
         (if (null beg)
@@ -874,7 +880,7 @@ the object file's name just above."
 (defun cmake-ide--get-compile-command (dir)
   "Return the compile command to use for DIR."
   (cond (cmake-ide-compile-command cmake-ide-compile-command)
-        ((file-exists-p (expand-file-name "build.ninja" dir)) (concat "ninja -C " dir))
+        ((file-exists-p (expand-file-name "build.ninja" dir)) (concat cmake-ide-ninja-command " -C " dir))
         ((file-exists-p (expand-file-name "Makefile" dir)) (concat "make -C " dir))
         (t nil)))
 
