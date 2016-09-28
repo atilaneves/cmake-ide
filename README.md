@@ -55,6 +55,21 @@ definition" and everything else rtags offers.  This only works if both
 `rdm` and `rc` and in the system path or if `cmake-ide-rdm-executable`
 and `cmake-ide-rc-executable` are customized correctly.
 
+Build Pool Directories and Persistent Naming of Automatic Build Directories
+-----------------------------------------------------------------------------------
+
+`cmake-ide` can automatically create build directories for you -- either in the system's
+tmp-directory or under `cmake-ide-build-pool-dir` (if set). By default, all automatically
+created build directories (no matter where created) will have temporary and unique names,
+that will change with each new session and are thus not reusable. You can, however, by
+setting `cmake-ide-build-pool-use-persistent-naming` use a reproducible naming scheme that
+is based on the project's path and will not change as long as the project's path is the
+same. This way, you can reuse the build directory.
+
+By using both `cmake-ide-build-pool-dir` and `cmake-ide-build-pool-use-persistent-naming`,
+you can fully do away with the need to configure a build directory per project with directory
+local variables (for example).
+
 Non-CMake projects
 ------------------
 
