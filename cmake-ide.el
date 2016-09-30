@@ -64,7 +64,7 @@
 
 (defcustom cmake-ide-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temp dir.  DEPRECATED, use cmake-ide-build-dir instead."
+  "The build directory to run CMake in.  If nil, runs in a temporary directory under cmake-ide-build-pool-dir.  DEPRECATED, use cmake-ide-build-dir instead."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -72,11 +72,26 @@
 
 (defcustom cmake-ide-build-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temp dir."
+  "The build directory to run CMake in.  If nil, runs in a temporary directory under cmake-ide-build-pool-dir."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
   )
+
+(defcustom cmake-ide-build-pool-dir
+  nil
+  "The parent directory for all automatically created build directories. If nil, the system tmp-directory is used."
+  :group 'cmake-ide
+  :type 'directory
+  :safe #'stringp
+  )
+
+(defcustom cmake-ide-build-pool-use-persistent-naming
+  nil
+  "Whether or not to use a persistent naming scheme for all automatically created build directories."
+  :group 'cmake-ide
+  :type 'booleanp
+  :safe #'booleanp)
 
 (defcustom cmake-ide-project-dir
   nil
@@ -527,9 +542,16 @@ the object file's name just above."
 
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
-  (when (not (cmake-ide--build-dir-var)) (setq cmake-ide-build-dir (make-temp-file "cmake" t)))
-  (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
-    (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists))))
+  (if (not (cmake-ide--build-dir-var))
+      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+            build-directory-name)
+        (setq build-directory-name
+              (if cmake-ide-build-pool-use-persistent-naming
+                  (replace-regexp-in-string "/" "_" (expand-file-name (cmake-ide--locate-cmakelists)))
+                (make-temp-name "cmake")))
+        (setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory)))
+    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
+      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))
   (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
       (make-directory (cmake-ide--build-dir-var)))
   (file-name-as-directory (cmake-ide--build-dir-var)))
