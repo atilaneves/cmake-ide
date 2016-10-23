@@ -106,6 +106,12 @@
   :group 'cmake-ide
   :safe #'stringp)
 
+(defcustom cmake-ide-make-command
+  "make"
+  "The command used to execute Makefile builds."
+  :group 'cmake-ide
+  :safe #'stringp)
+
 (defcustom cmake-ide-ninja-command
   "ninja"
   "The command used to execute ninja type builds."
@@ -903,7 +909,7 @@ the object file's name just above."
   "Return the compile command to use for DIR."
   (cond (cmake-ide-compile-command cmake-ide-compile-command)
         ((file-exists-p (expand-file-name "build.ninja" dir)) (concat cmake-ide-ninja-command " -C " dir))
-        ((file-exists-p (expand-file-name "Makefile" dir)) (concat "make -C " dir))
+        ((file-exists-p (expand-file-name "Makefile" dir)) (concat cmake-ide-make-command " -C " dir))
         (t nil)))
 
 
