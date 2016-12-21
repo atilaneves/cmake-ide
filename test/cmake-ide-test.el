@@ -320,5 +320,57 @@
                           '("/usr/local/include" "/usr/local/include/luajit-2.0" "/usr/bin/jansson-2.7/include" "/usr/local/opt/openssl/include" "/usr/local/include/mysql" "/usr/bin" "/usr/lib" "/usr/lib/gsoap" "/usr/lib/http-parser" "/usr/lib/uthash")))
      )))
 
+(ert-deftest test-json-to-file-params-reldir-issue ()
+  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"./foo.cpp\"}]")
+         (idb (cmake-ide--cdb-json-string-to-idb json-str))
+         (real-params (cmake-ide--idb-file-to-obj idb "./foo.cpp"))
+         (fake-params (cmake-ide--idb-file-to-obj idb "oops")))
+    (should (equal (cmake-ide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+    (should (equal (cmake-ide--idb-obj-get fake-params 'directory) nil))))
+
+(ert-deftest test-json-to-file-params-reldir-issue-2 ()
+  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"foo.cpp\"}]")
+         (idb (cmake-ide--cdb-json-string-to-idb json-str))
+         (real-params (cmake-ide--idb-file-to-obj idb "foo.cpp"))
+         (fake-params (cmake-ide--idb-file-to-obj idb "oops")))
+    (should (equal (cmake-ide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+    (should (equal (cmake-ide--idb-obj-get fake-params 'directory) nil))))
+
+(ert-deftest test-issue-79 ()
+  (let ((cmake-ide-build-dir "/usr/bin")
+        (idb (cmake-ide--cdb-json-string-to-idb
+              "[
+ {
+ \"directory\": \"/usr/bin\",
+ \"command\": \" g++-6    -I../include   -g -std=c++14 -Wall -Wextra -Werror   -o CMakeFiles/soln.dir/src/Source.cpp.o -c ../src/Source.cpp\",
+ \"file\": \"../src/Source.cpp\"
+ }
+ ]
+")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists flycheck-cppcheck-include-path
+                          '("/usr/include")))
+     )))
+
+(ert-deftest test-issue-79-2 ()
+  (let ((cmake-ide-build-dir "/usr")
+        (idb (cmake-ide--cdb-json-string-to-idb
+              "[
+ {
+ \"directory\": \"/usr\",
+ \"command\": \" g++-6    -Iinclude   -g -std=c++14 -Wall -Wextra -Werror   -o CMakeFiles/soln.dir/src/Source.cpp.o -c src/Source.cpp\",
+ \"file\": \"src/Source.cpp\"
+ }
+ ]
+")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists flycheck-cppcheck-include-path
+                          '("/usr/include")))
+     )))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

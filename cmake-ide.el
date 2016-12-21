@@ -800,7 +800,7 @@ the object file's name just above."
   (let ((idb (make-hash-table :test #'equal))
         (json (json-read-from-string json-str)))
     (mapc (lambda (obj)
-            (let* ((file (cmake-ide--idb-obj-get obj 'file))
+            (let* ((file (cmake-ide--relativize (cmake-ide--idb-obj-get obj 'file)))
                    (objs (gethash file idb)))
               (push obj objs)
               (puthash file objs idb)))
