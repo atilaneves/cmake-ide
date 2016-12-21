@@ -320,5 +320,14 @@
                           '("/usr/local/include" "/usr/local/include/luajit-2.0" "/usr/bin/jansson-2.7/include" "/usr/local/opt/openssl/include" "/usr/local/include/mysql" "/usr/bin" "/usr/lib" "/usr/lib/gsoap" "/usr/lib/http-parser" "/usr/lib/uthash")))
      )))
 
+(ert-deftest test-json-to-file-params-reldir-issue ()
+  (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"./foo.cpp\"}]")
+         (idb (cmake-ide--cdb-json-string-to-idb json-str))
+         (real-params (cmake-ide--idb-file-to-obj idb "./foo.cpp"))
+         (fake-params (cmake-ide--idb-file-to-obj idb "oops")))
+    (should (equal (cmake-ide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+    (should (equal (cmake-ide--idb-obj-get fake-params 'directory) nil))))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

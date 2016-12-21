@@ -303,15 +303,18 @@ flags."
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
+  "Proposed Fix for handling relative dirs: By checking if file-params is nil and trying with relative"
       (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--idb-file-to-obj idb file-name))
-         (sys-includes (cmake-ide--params-to-sys-includes file-params))
+	     (rel-file-name (if file-name (file-relative-name file-name (cmake-ide--get-build-dir) nil)))
+	     (cor-file-params (if file-params file-params (cmake-ide--idb-file-to-obj idb rel-file-name)))
+         (sys-includes (cmake-ide--params-to-sys-includes cor-file-params))
          (commands (cmake-ide--idb-param-all-files idb 'command))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands)))
         (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
-        (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
+        (cmake-ide--set-flags-for-src-file cor-file-params buffer sys-includes)
       (cmake-ide--set-flags-for-hdr-file idb buffer (cmake-ide--flags-to-sys-includes hdr-flags)))))
 
 (defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
