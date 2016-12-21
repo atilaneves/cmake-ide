@@ -329,5 +329,22 @@
     (should (equal (cmake-ide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
     (should (equal (cmake-ide--idb-obj-get fake-params 'directory) nil))))
 
+(ert-deftest test-issue-79 ()
+  (let ((cmake-ide-build-dir "/usr/bin")
+        (idb (cmake-ide--cdb-json-string-to-idb
+              "[
+ {
+ \"directory\": \"/usr/bin\",
+ \"command\": \" g++-6    -I../include   -g -std=c++14 -Wall -Wextra -Werror   -o CMakeFiles/soln.dir/src/Source.cpp.o -c ../src/Source.cpp\",
+ \"file\": \"../src/Source.cpp\"
+ }
+ ]
+")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists flycheck-cppcheck-include-path
+                          '("/usr/include")))
+     )))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
