@@ -114,6 +114,13 @@
   :group 'rtags
   :type 'file)
 
+(defcustom cmake-ide-rdm-rc-path
+  ""
+  "Location of a custom rdm run control file."
+  :group 'cmake-ide
+  :type 'string
+  :safe #'stringp)
+
 (defcustom cmake-ide-src-extensions
   '(".c" ".cpp" ".C" ".cxx" ".cc")
   "A list of file extensions that qualify as source files."
@@ -852,7 +859,8 @@ the object file's name just above."
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (with-current-buffer buf (start-process "rdm" (current-buffer)
-                                                cmake-ide-rdm-executable))))))
+                                                cmake-ide-rdm-executable
+                                                "-c" cmake-ide-rdm-rc-path))))))
 
 (defun cmake-ide--process-running-p (name)
   "If a process called NAME is running or not."
