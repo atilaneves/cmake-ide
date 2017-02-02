@@ -644,7 +644,9 @@ the object file's name just above."
 (defun cmake-ide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
   (cmake-ide--filter
-   (lambda (x) (not (or (string-match "^-m32$" x) (string-match "^-Werror$" x) (string-match "^-c$" x))))
+   (lambda (x)
+     (cl-loop for flag in '("-m32" "-Werror" "-c" "-fPIC" "-pipe" "-g" "-ggdb")
+              never (string-match (format "^%s$" flag) x)))
    flags))
 
 (defun cmake-ide--delete-dup-hdr-flags (flags)
