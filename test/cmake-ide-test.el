@@ -194,7 +194,7 @@
                   \"command\": \"cmd1 -Iinc1 -Iinc2 -Dfoo=bar -S -F -g\"}]")))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
-     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g")))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
      (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
      (should (equal-lists flycheck-clang-definitions '("foo=bar")))
@@ -208,7 +208,7 @@
                   \"command\": \"/usr/bin/ccache clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
-     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14")))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-std=c++14")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
      (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
      (should (equal-lists flycheck-clang-definitions '("foo=bar")))
@@ -222,7 +222,7 @@
                   \"command\": \"/usr/lib/ccache/bin/clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
-     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-g" "-std=c++14"))))))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-std=c++14"))))))
 
 (ert-deftest test-idb-obj-get ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
