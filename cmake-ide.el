@@ -126,7 +126,11 @@
 
 (defcustom cmake-ide-cmake-command-flags
   nil
+<<<<<<< HEAD
   "List of misc flags passed to the cmake invocation."
+=======
+  "List of flags passed to cmake invocation."
+>>>>>>> origin/nidish
   :group 'cmake-ide
   :safe #'stringp)
 
