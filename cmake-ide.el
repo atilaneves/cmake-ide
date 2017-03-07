@@ -952,6 +952,7 @@ the object file's name just above."
         (cmake-ide--message "Starting rdm server")
         (with-current-buffer buf (start-process "rdm" (current-buffer)
                                                 cmake-ide-rdm-executable
+						"-j 2" "-i 40" "-a 10"
                                                 "-c" cmake-ide-rdm-rc-path))))))
 
 (defun cmake-ide--process-running-p (name)
