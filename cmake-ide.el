@@ -107,7 +107,7 @@
   :safe #'stringp)
 
 (defcustom cmake-ide-make-command
-  "make"
+  "make --no-print-directory"
   "The command used to execute Makefile builds."
   :group 'cmake-ide
   :safe #'stringp)
