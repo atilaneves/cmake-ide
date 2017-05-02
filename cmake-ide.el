@@ -438,13 +438,14 @@ the object file's name just above."
            ret-obj
            ret-file-name)
 
-      (setq ret-file-name
-            (with-temp-buffer
-              (rtags-call-rc "--dependencies" file-name "included-by" :noerror t)
-              (cmake-ide--filter-first
-               (lambda (a)
-                 (gethash a idb))
-               (split-string (buffer-string) "\n" t split-string-default-separators))))
+      (when (featurep 'rtags)
+        (setq ret-file-name
+              (with-temp-buffer
+                (rtags-call-rc "--dependencies" file-name "included-by" :noerror t)
+                (cmake-ide--filter-first
+                 (lambda (a)
+                   (gethash a idb))
+                 (split-string (buffer-string) "\n" t split-string-default-separators)))))
 
       (unless ret-file-name
         (setq idb (cmake-ide--idb-sorted-by-file-distance idb file-name))
