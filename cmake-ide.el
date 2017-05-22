@@ -919,9 +919,9 @@ the object file's name just above."
   (interactive)
   (if (cmake-ide--build-dir-var)
       (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--build-dir-var))))
-        (compile (cond
-                  ((functionp command-for-compile) (funcall command-for-compile))
-                  (t command-for-compile))))
+        (if (functionp command-for-compile)
+            (funcall command-for-compile)
+          (compile command-for-compile)))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
       (compile command)))
   (cmake-ide--run-rc))
