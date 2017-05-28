@@ -1004,6 +1004,7 @@ returned unchanged."
      ;; Convert "close-enough" matches.
      ((equal gnu-replaced "c90") "c89")
      ((equal gnu-replaced "c++98") "c++03")
+     ((equal gnu-replaced "c++0x") "c++03")
      ((equal gnu-replaced "c++14") "c++11")
      ((equal gnu-replaced "c++1y") "c++11")
      ((equal gnu-replaced "c++17") "c++11")
