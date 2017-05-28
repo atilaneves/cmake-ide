@@ -34,6 +34,7 @@
 (require 'cl)
 (require 'auto-complete-clang)
 (require 'company)
+(require 'company-c-headers)
 (require 'flycheck)
 
 (defun equal-lists (lst1 lst2)
@@ -371,6 +372,20 @@
      (should (equal-lists flycheck-cppcheck-include-path
                           '("/usr/include")))
      )))
+
+(ert-deftest test-issue-108 ()
+  "Check that company-c-headers is set correctly by cmake-ide-set-compiler-flags.
+This is a regression test for Issue #108 on github. Previously,
+after a call to cmake-ide-set-compiler-flags, the
+company-c-headers-path-system variable would have the provided
+list of sys-includes consed on the front, causing
+company-c-headers to break."
+  (with-non-empty-file
+   (let ((old-company-c-headers-path-system company-c-headers-path-system))
+     (cmake-ide-set-compiler-flags (current-buffer) () () '("/foo" "/bar"))
+     (should (equal
+              (append '("/foo" "/bar") old-company-c-headers-path-system)
+              company-c-headers-path-system)))))
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
