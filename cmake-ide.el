@@ -987,13 +987,7 @@ the object file's name just above."
 
 (defun cmake-ide--valid-cppcheck-standard-p (standard)
   "If STANDARD is supported by cppcheck."
-  (cond
-   ((equal standard "posix"))
-   ((equal standard "c89"))
-   ((equal standard "c99"))
-   ((equal standard "c11"))
-   ((equal standard "c++03"))
-   ((equal standard "c++11"))))
+  (member standard '("posix" "c89" "c99" "c11" "c++03" "c++11")))
 
 (defun cmake-ide--cmake-standard-to-cppcheck-standard (standard)
   "Convert a CMake language STANDARD to the closest supported by cppcheck.
