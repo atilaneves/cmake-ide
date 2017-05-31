@@ -637,10 +637,11 @@ the object file's name just above."
 
 (defun cmake-ide--remove-compiler-from-args (str)
   "Remove the compiler command from STR, leaving only arguments."
-  (let ((args (split-string str " +")))
-    (if (string-suffix-p "ccache" (car args))
-        (cddr args)
-      (cdr args))))
+  (when str
+    (let ((args (split-string str " +")))
+      (if (string-suffix-p "ccache" (car args))
+          (cddr args)
+        (cdr args)))))
 
 (defun cmake-ide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
