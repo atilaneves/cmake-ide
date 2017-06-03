@@ -387,5 +387,76 @@ company-c-headers to break."
               (append '("/foo" "/bar") old-company-c-headers-path-system)
               company-c-headers-path-system)))))
 
+(ert-deftest test-cmake-ide--valid-cppcheck-standard-p ()
+  "Check that cmake-ide--valid-cppcheck-standard-p behaves as expected."
+  (let ((valid-standards '("posix" "c89" "c99" "c11" "c++03" "c++11"))
+        (invalid-standards '("c90" "c94" "c++98"
+                             "c++0x" "c++1y" "c++1z"
+                             "c++14" "c++17"
+                             "foo" "bar" "baz" "")))
+    ;; Check that valid standards satisfy the predicate.
+    (mapc
+     (lambda (candidate) (should (cmake-ide--valid-cppcheck-standard-p candidate)))
+     valid-standards)
+    ;; Check that invalid standards don't.
+    (mapc
+     (lambda (candidate) (should-not (cmake-ide--valid-cppcheck-standard-p candidate)))
+     invalid-standards)))
+
+(ert-deftest test-cmake-ide--cmake-standard-to-cppcheck-standard ()
+  "Check that cmake-ide--cmake-standard-to-cppcheck-standard behaves as expected."
+  (let ((valid-standards '("posix" "c89" "c99" "c11" "c++03" "c++11"))
+        (convertible-standards '("c90" "c++98" "c++0x" "c++1y" "c++1z" "c++14" "c++17"
+                                 "gnu90" "gnu99" "gnu11"
+                                 "gnu++98" "gnu++03" "gnu++11" "gnu++14" "gnu++17"
+                                 "gnu++0x" "gnu++1y" "gnu++1z"))
+        (expected-conversions '("c89" "c++03" "c++03" "c++11" "c++11" "c++11" "c++11"
+                                "c89" "c99" "c11"
+                                "c++03" "c++03" "c++11" "c++11" "c++11"
+                                "c++03" "c++11" "c++11"))
+        (inconvertible-standards '("foo" "bar" "baz" "iso199009")))
+    ;; Valid standards should be left unchanged.
+    (mapc
+     (lambda (candidate) (should (equal (cmake-ide--cmake-standard-to-cppcheck-standard candidate) candidate)))
+     valid-standards)
+    ;; Invalid but convertible standards should become valid, and be
+    ;; converted to an expected cppcheck-compatible standard.
+    (let ((conversions (mapcar 'cmake-ide--cmake-standard-to-cppcheck-standard convertible-standards)))
+      (mapc (lambda (conversion) (should (cmake-ide--valid-cppcheck-standard-p conversion))) conversions)
+      (should (equal expected-conversions conversions)))
+    ;; Invalid and unconvertible standards should be left unchanged.
+    (let ((bad-conversions (mapcar 'cmake-ide--cmake-standard-to-cppcheck-standard inconvertible-standards)))
+      (should (equal inconvertible-standards bad-conversions)))))
+
+(ert-deftest test-cmake-ide-set-compiler-flags-sets-flycheck-cppcheck-standards ()
+  "Check that cmake-ide-set-compiler-flags sets flycheck-cppcheck-standards as expected."
+  (let ((saved-strict-standards cmake-ide-flycheck-cppcheck-strict-standards))
+    (unwind-protect
+        (with-non-empty-file
+         ;; If strict-standards is on, then passing a set of compiler
+         ;; flags with a cppcheck-invalid -std=* entry should leave
+         ;; the flycheck-cppcheck-standards variable untouched.
+         (setq cmake-ide-flycheck-cppcheck-strict-standards t)
+         (let ((original-standards flycheck-cppcheck-standards))
+           (cmake-ide-set-compiler-flags (current-buffer) '("-std=gnu++98") () ())
+           (should (equal flycheck-cppcheck-standards original-standards)))
+
+         ;; Passing a flag representing a cppcheck-valid standard
+         ;; should produce a change, though.
+         (cmake-ide-set-compiler-flags (current-buffer) '("-std=c++03") () ())
+         (should (equal flycheck-cppcheck-standards '("c++03")))
+
+         ;; If strict standards are turned off, then passing a
+         ;; convertible standard in the flags should produce a change
+         ;; as well.
+         (setq cmake-ide-flycheck-cppcheck-strict-standards nil)
+         (cmake-ide-set-compiler-flags (current-buffer) '("-std=gnu++98") () ())
+         (should (equal flycheck-cppcheck-standards '("c++03")))
+         (cmake-ide-set-compiler-flags (current-buffer) '("-std=c89") () ())
+         (should (equal flycheck-cppcheck-standards '("c89")))))
+
+      ;; Restore pre-test state.
+      (setq cmake-ide-flycheck-cppcheck-strict-standards saved-strict-standards)))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
