@@ -7,4 +7,5 @@
  (depends-on "ert-runner")
  (depends-on "auto-complete-clang")
  (depends-on "company")
+ (depends-on "company-c-headers")
  (depends-on "flycheck"))
