@@ -125,6 +125,12 @@
   :group 'cmake-ide
   :safe #'stringp)
 
+(defcustom cmake-ide-cmake-opts
+  "-DCMAKE_BUILD_TYPE=Debug"
+  "The options passed to cmake invocation."
+  :group 'cmake-ide
+  :safe #'stringp)
+
 (defcustom cmake-ide-header-search-other-file
   t
   "Whether or not to search for a corresponding source file for headers when setting flags for them."
@@ -269,7 +275,7 @@ flags."
         ;; register this buffer to be either a header or source file
         ;; waiting for results
         (cmake-ide--add-file-to-buffer-list)
-
+	
         (let ((default-directory (cmake-ide--get-build-dir)))
           (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir))
           (cmake-ide--register-callback))))))
@@ -595,7 +601,7 @@ the object file's name just above."
   (when project-dir
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
-      (start-process "cmake" "*cmake*" cmake-ide-cmake-command "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (start-process "cmake" "*cmake*" cmake-ide-cmake-command cmake-ide-cmake-opts "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-build-dir ()
@@ -605,13 +611,15 @@ the object file's name just above."
             build-directory-name)
         (setq build-directory-name
               (if cmake-ide-build-pool-use-persistent-naming
-                  (replace-regexp-in-string "/" "_" (expand-file-name (cmake-ide--locate-cmakelists)))
+                  (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-cmakelists)) cmake-ide-cmake-opts))
                 (make-temp-name "cmake")))
         (setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory)))
+
     (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
       (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))
   (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
       (make-directory (cmake-ide--build-dir-var)))
+  (cmake-ide--message "Get build dir result is : %s" cmake-ide-build-dir)
   (file-name-as-directory (cmake-ide--build-dir-var)))
 
 
