@@ -124,6 +124,12 @@
   :group 'cmake-ide
   :safe #'stringp)
 
+(defcustom cmake-ide-cmake-command-flags
+  nil
+  "List of misc flags passed to the cmake invocation."
+  :group 'cmake-ide
+  :safe #'stringp)
+
 (defcustom cmake-ide-header-search-other-file
   t
   "Whether or not to search for a corresponding source file for headers when setting flags for them."
@@ -580,7 +586,9 @@ the object file's name just above."
   (when project-dir
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
-      (start-process "cmake" "*cmake*" cmake-ide-cmake-command "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (apply #'start-process "cmake" "*cmake*" cmake-ide-cmake-command project-dir
+	     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" cmake-ide-cmake-command-flags)
+      )))
 
 
 (defun cmake-ide--get-build-dir ()
@@ -983,6 +991,7 @@ the object file's name just above."
         (cmake-ide--message "Starting rdm server")
         (with-current-buffer buf (start-process "rdm" (current-buffer)
                                                 cmake-ide-rdm-executable
+						"-j 2" "-i 40" "-a 10"
                                                 "-c" cmake-ide-rdm-rc-path))))))
 
 (defun cmake-ide--process-running-p (name)
