@@ -116,7 +116,7 @@
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
                "[{\"file\": \"/dir1/file1.h\",
                   \"command\": \"cmd1 -Ifoo -Ibar\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
+         (commands (cmake-ide--idb-all-commands idb)))
 
     (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
                          '("-Ifoo" "-Ibar")))))
@@ -127,7 +127,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar\"},
                  {\"file\": \"/dir2/file2.h\",
                   \"command\": \"cmd2 -Iloo -Dboo\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
+         (commands (cmake-ide--idb-all-commands idb)))
 
     (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
                          '("-Ifoo" "-Ibar" "-Iloo" "-Dboo")))))
@@ -140,7 +140,7 @@
                   \"command\": \"cmd2 -o file2.c.o -Iloo -Dboo -include foo.h\"},
                  {\"file\": \"/dir2/file3.c\",
                   \"command\": \"cmd2 -o file3.c.o -Iloo -Dboo -include bar.h\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
+         (commands (cmake-ide--idb-all-commands idb)))
     (should (equal-lists (cmake-ide--commands-to-hdr-flags commands)
                          '( "-Ifoo" "-Ibar" "-Iloo" "-Dboo" "otherfile" "-weird" "-include" "foo.h" "-include" "bar.h")))))
 
@@ -174,7 +174,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
+         (commands (cmake-ide--idb-all-commands idb)))
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
@@ -184,7 +184,7 @@
                   \"command\": \"cmd1 -Ifoo -Ibar -include /foo/bar.h -include a.h\"},
                   {\"file\": \"file2\",
                    \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo -include h.h\"}]"))
-         (commands (cmake-ide--idb-param-all-files idb 'command)))
+         (commands (cmake-ide--idb-all-commands idb)))
     (should (equal-lists (cmake-ide--commands-to-hdr-includes commands)
                          '("/foo/bar.h" "a.h" "h.h")))))
 
@@ -233,13 +233,6 @@
     (should (equal (cmake-ide--idb-obj-get obj 'bar) "the bar is weak"))
     (should (equal (cmake-ide--idb-obj-get obj 'oops) nil))))
 
-(ert-deftest test-idb-param-all-files ()
-  (let* ((idb (cmake-ide--cdb-json-string-to-idb
-               "[
-                    {\"file\": \"file1.c\", \"foo\": \"the foo is mighty\", \"bar\": \"the bar is weak\"},
-                    {\"file\": \"file2.c\", \"foo\": \"the foo is ugly\",   \"bar\": \"the bar is cool\"}
-                ]")))
-    (should (equal-lists (cmake-ide--idb-param-all-files idb 'foo) '("the foo is mighty" "the foo is ugly")))))
 
 (ert-deftest test-idb-set-value-on-obj ()
   (let* ((idb (cmake-ide--cdb-json-string-to-idb
@@ -271,8 +264,6 @@
                 ]"))
          (obj (cmake-ide--idb-file-to-obj idb "foobar/f.c")))
     (should (equal (cmake-ide--idb-obj-get obj 'foo) "the foo is really mighty"))
-    (should (equal-lists (cmake-ide--idb-param-all-files idb 'foo)
-                         '("the foo is mighty" "the foo is ugly" "the foo is just a foo" "the foo is really mighty")))
     ))
 
 (ert-deftest test-issue-43 ()
@@ -455,8 +446,60 @@ company-c-headers to break."
          (cmake-ide-set-compiler-flags (current-buffer) '("-std=c89") () ())
          (should (equal flycheck-cppcheck-standards '("c89")))))
 
-      ;; Restore pre-test state.
-      (setq cmake-ide-flycheck-cppcheck-strict-standards saved-strict-standards)))
+    ;; Restore pre-test state.
+    (setq cmake-ide-flycheck-cppcheck-strict-standards saved-strict-standards)))
+
+
+(ert-deftest test-get-command-args-with-command ()
+  "Check getting command arguments from file-params."
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 -Ifoo -Ibar -std=c++14 --foo --bar\"},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (file-params (cmake-ide--idb-file-to-obj idb "file1"))
+         (args (cmake-ide--file-params-to-args file-params)))
+    (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
+  )
+
+(ert-deftest test-get-command-args-with-arguments ()
+  "Check getting command arguments from file-params."
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1\",
+                  \"arguments\": [\"cmd1\", \"-Ifoo\", \"-Ibar\", \"-std=c++14\", \"--foo\", \"--bar\"]},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (file-params (cmake-ide--idb-file-to-obj idb "file1"))
+         (args (cmake-ide--file-params-to-args file-params)))
+    (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
+  )
+
+(ert-deftest test-all-commands ()
+  "Check getting command arguments from file-params."
+  (let* ((idb (cmake-ide--cdb-json-string-to-idb
+               "[{\"file\": \"file1\",
+                  \"arguments\": [\"cmd1\", \"-Ifoo\", \"-Ibar\", \"-std=c++14\", \"--foo\", \"--bar\"]},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]"))
+         (commands (cmake-ide--idb-all-commands idb)))
+    (should (equal commands '("cmd1 -Ifoo -Ibar -std=c++14 --foo --bar" "cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo"))))
+  )
+
+
+(ert-deftest test-all-vars-arguments ()
+  (let ((cmake-ide-build-dir "/tmp")
+        (idb (cmake-ide--cdb-json-string-to-idb
+              "[{\"file\": \"file1.c\",
+                  \"arguments\": [\"cmd1\", \"-Iinc1\", \"-Iinc2\", \"-Dfoo=bar\", \"-S\", \"-F\", \"-g\"]}]")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F")))
+     (should (equal-lists company-clang-arguments ac-clang-flags))
+     (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
+     (should (equal-lists flycheck-clang-definitions '("foo=bar")))
+     (should (equal-lists flycheck-clang-includes nil))
+     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

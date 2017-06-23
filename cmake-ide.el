@@ -322,12 +322,12 @@ flags."
 
 (defun cmake-ide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
-      (let* ((file-name (buffer-file-name buffer))
+  (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--idb-file-to-obj idb file-name))
          (sys-includes (cmake-ide--params-to-sys-includes file-params))
-         (commands (cmake-ide--idb-param-all-files idb 'command))
+         (commands (cmake-ide--idb-all-commands idb))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands)))
-        (cmake-ide--message "Setting flags for file %s" file-name)
+    (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
         (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
@@ -359,7 +359,7 @@ flags."
   "Try all unique compiler flags in IDB in an attempt to find appropriate flags for header file in BUFFER using SYS-INCLUDES."
   (let ((hdr-flags) (hdr-includes))
     (setq hdr-flags (cmake-ide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
-    (setq hdr-flags (cmake-ide--remove-compiler-from-args hdr-flags))
+    (setq hdr-flags (cmake-ide--remove-compiler-from-args-string hdr-flags))
     (setq hdr-includes (cmake-ide--flags-to-includes hdr-flags))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)
     ))
@@ -391,7 +391,7 @@ If all else fails, use all compiler flags in the project."
 
 (defun cmake-ide--set-flags-for-hdr-exact (buffer sys-includes command)
   "Set flags for BUFFER using SYS-INCLUDES and compiler COMMAND."
-  (let* ((hdr-flags (cmake-ide--remove-compiler-from-args command))
+  (let* ((hdr-flags (cmake-ide--remove-compiler-from-args-string command))
          (hdr-includes (cmake-ide--flags-to-includes hdr-flags)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
@@ -402,7 +402,7 @@ Find an object file that lists FILE-NAME as a dependency, then return the first
 compiler command in the project that has that object file in itself."
   (let ((obj-file-name (cmake-ide--ninja-obj-file-depending-on-hdr file-name)))
     (if (null obj-file-name) nil
-      (let ((commands (cmake-ide--idb-param-all-files idb 'command)))
+      (let ((commands (cmake-ide--idb-all-commands idb)))
         (cmake-ide--filter-first (lambda (x) (string-match obj-file-name x))
                                  commands)))))
 
@@ -481,7 +481,7 @@ the object file's name just above."
 (defun cmake-ide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
   (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
-  (let* ((commands (cmake-ide--idb-param-all-files idb 'command))
+  (let* ((commands (cmake-ide--idb-all-commands idb))
          (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
          (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
@@ -626,11 +626,21 @@ the object file's name just above."
   ;; Each object is a file with directory, file and command fields
   ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
   ;; An example would be -I include flags
-  (let* ((command (cmake-ide--idb-obj-get file-params 'command))
-         (args (split-string command " +"))
+  (let* ((args (cmake-ide--file-params-to-args file-params))
          (flags (funcall filter-func args)))
     (mapconcat 'identity flags " ")))
 
+(defun cmake-ide--file-params-to-args (file-params)
+  "Get the compiler command arguments from FILE-PARAMS."
+  (let ((command (cmake-ide--idb-obj-get file-params 'command))
+        (arguments (cmake-ide--idb-obj-get file-params 'arguments)))
+    (if command
+        (split-string command " +")
+      (cmake-ide--vector-to-list arguments))))
+
+(defun cmake-ide--vector-to-list (vector)
+  "Convert VECTOR to a list."
+  (append vector nil))
 
 (defun cmake-ide--args-to-only-flags (args)
   "Get compiler flags from ARGS."
@@ -653,14 +663,19 @@ the object file's name just above."
 (defun cmake-ide--cleanup-flags-str (str)
   "Clean up and filter STR to yield a list of compiler flags."
   (let ((unescaped-flags-string (cmake-ide--json-unescape str)))
-    (cmake-ide--remove-compiler-from-args unescaped-flags-string)))
+    (cmake-ide--remove-compiler-from-args-string unescaped-flags-string)))
 
-(defun cmake-ide--remove-compiler-from-args (str)
+(defun cmake-ide--remove-compiler-from-args-string (str)
   "Remove the compiler command from STR, leaving only arguments."
   (let ((args (split-string str " +")))
-    (if (string-suffix-p "ccache" (car args))
-        (cddr args)
-      (cdr args))))
+    (cmake-ide--remove-compiler-from-args args)))
+
+(defun cmake-ide--remove-compiler-from-args (args)
+  "Remove the compiler command from ARGS, leaving only arguments."
+  (if (string-suffix-p "ccache" (car args))
+      (cddr args)
+    (cdr args)))
+
 
 (defun cmake-ide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
@@ -678,7 +693,7 @@ the object file's name just above."
 
 (defun cmake-ide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
-  (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands)))
+  (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args-string commands)))
          (flags (cmake-ide--args-to-only-flags args)))
     (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
     (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
@@ -697,7 +712,7 @@ the object file's name just above."
 
 (defun cmake-ide--commands-to-hdr-includes (commands)
   "Header `-include` flags from COMMANDS."
-  (let ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args commands))))
+  (let ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args-string commands))))
     (delete-dups (cmake-ide--flags-to-includes args))))
 
 
@@ -858,9 +873,9 @@ the object file's name just above."
   "Get object from IDB for FILE-NAME."
   (car (gethash file-name idb)))
 
-(defun cmake-ide--idb-param-all-files (idb parameter)
-  "For all files in IDB, return a list of PARAMETER."
-  (mapcar (lambda (x) (cmake-ide--idb-obj-get x parameter)) (cmake-ide--idb-all-objs idb)))
+(defun cmake-ide--idb-all-commands (idb)
+  "A list of all commands in IDB."
+  (mapcar (lambda (x) (s-join " " (cmake-ide--file-params-to-args x))) (cmake-ide--idb-all-objs idb)))
 
 (defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
   "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
