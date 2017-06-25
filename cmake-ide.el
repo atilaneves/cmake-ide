@@ -4,7 +4,7 @@
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
 ;; Version: 0.6
-;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "1.11") (levenshtein "0"))
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "1.11") (levenshtein "0") (s "1.11.0"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
 
@@ -44,6 +44,7 @@
 (require 'levenshtein)
 (require 'cl-lib)
 (require 'seq)
+(require 's)
 
 (declare-function rtags-call-rc "rtags")
 
