@@ -4,7 +4,7 @@
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
 ;; Version: 0.6
-;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "1.11") (levenshtein "0") (s "1.11.0"))
+;; Package-Requires: ((emacs "24.4") (cl-lib "0.5") (seq "1.11") (levenshtein "0") (s "1.11.0"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
 
@@ -306,6 +306,20 @@ flags."
          (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
          (cmake-ide--hdr-buffers (if (cmake-ide--is-src-file file-name) nil buffers)))
     (cmake-ide--on-cmake-finished)))
+
+(defvar cmake-ide--rdm-executable nil
+  "Rdm executable location path.")
+
+(defun cmake-ide-rdm-executable ()
+  "Return rdm executable location path."
+  (cond (cmake-ide--rdm-executable cmake-ide--rdm-executable)
+        ((file-exists-p cmake-ide-rdm-executable)
+         (setq cmake-ide--rdm-executable cmake-ide-rdm-executable)
+         cmake-ide--rdm-executable)
+        ((featurep 'rtags)
+         (setq cmake-ide--rdm-executable (rtags-executable-find "rdm"))
+         cmake-ide--rdm-executable)
+        (t "rdm")))
 
 
 (defun cmake-ide--run-rc ()
@@ -983,7 +997,7 @@ the object file's name just above."
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (cmake-ide--message "Starting rdm server")
         (with-current-buffer buf (start-process "rdm" (current-buffer)
-                                                cmake-ide-rdm-executable
+                                                (cmake-ide-rdm-executable)
                                                 "-c" cmake-ide-rdm-rc-path))))))
 
 (defun cmake-ide--process-running-p (name)
