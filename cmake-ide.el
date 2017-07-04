@@ -126,7 +126,7 @@
   :safe #'stringp)
 
 (defcustom cmake-ide-cmake-opts
-  "-DCMAKE_BUILD_TYPE=Debug"
+  "-DCMAKE_BUILD_TYPE=Release"
   "The options passed to cmake invocation."
   :group 'cmake-ide
   :safe #'stringp)
