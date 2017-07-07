@@ -612,25 +612,26 @@ the object file's name just above."
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
-  (let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-cmakelists)) cmake-ide-cmake-opts))))
-    (setq cmake-ide-build-dir (gethash project-dir-key cmake-ide--cmake-hash nil))
-    (if (not (cmake-ide--build-dir-var))
-	(let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-	      build-directory-name)
-	  (setq build-directory-name
-		(if cmake-ide-build-pool-use-persistent-naming
-		    project-dir-key
-		  (make-temp-name "cmake")))
-	  (setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory))
-	  (puthash project-dir-key cmake-ide-build-dir cmake-ide--cmake-hash)
-	  (cmake-ide--message "add key %s %s" project-dir-key cmake-ide-build-dir)
-	  )
-      (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
-	(setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))
+  (let ((cmakelists-dir (if (cmake-ide--locate-cmakelists) (cmake-ide--locate-cmakelists) "")))  
+    (if (not (and (string= cmakelists-dir "") (cmake-ide--build-dir-var)))	
+	(let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name cmakelists-dir)) cmake-ide-cmake-opts)))
+	  (setq cmake-ide-build-dir (gethash project-dir-key cmake-ide--cmake-hash nil))
+	  (if (not (cmake-ide--build-dir-var))
+	      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+		    build-directory-name)
+		(setq build-directory-name
+		      (if cmake-ide-build-pool-use-persistent-naming
+			  project-dir-key
+			(make-temp-name "cmake")))
+		(setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory))
+		(puthash project-dir-key cmake-ide-build-dir cmake-ide--cmake-hash)
+		(cmake-ide--message "add key %s %s" project-dir-key cmake-ide-build-dir)
+		)
+	    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
+	      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))))    
     (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
 	(make-directory (cmake-ide--build-dir-var)))
-    (file-name-as-directory (cmake-ide--build-dir-var)))
-  )
+    (file-name-as-directory (cmake-ide--build-dir-var))))
 
 
 (defun cmake-ide--is-src-file (name)
