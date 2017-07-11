@@ -125,6 +125,12 @@
   :group 'cmake-ide
   :safe #'stringp)
 
+(defcustom cmake-ide-cmake-opts
+  "-DCMAKE_BUILD_TYPE=Release"
+  "The options passed to cmake invocation."
+  :group 'cmake-ide
+  :safe #'stringp)
+
 (defcustom cmake-ide-header-search-other-file
   t
   "Whether or not to search for a corresponding source file for headers when setting flags for them."
@@ -193,6 +199,10 @@ the closest possible matches available in cppcheck."
   (make-hash-table :test #'equal)
   "The hash of the JSON CDB for each build directory.")
 
+(defvar cmake-ide--cmake-hash
+  (make-hash-table :test #'equal)
+  "A hash to remember cmake build dirs.")
+
 (defvar cmake-ide--irony
   (make-hash-table :test #'equal)
   "A hash to remember irony build dirs.")
@@ -257,22 +267,23 @@ the closest possible matches available in cppcheck."
        (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
-(defun cmake-ide-run-cmake ()
-  "Run CMake and set compiler flags for auto-completion and flycheck.
-This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
-and parsing the JSON file deposited there with the compiler
-flags."
-  (interactive)
-  (when (file-readable-p (buffer-file-name)) ; new files need not apply
-    (let ((project-dir (cmake-ide--locate-cmakelists)))
-      (when project-dir ; no point if it's not a CMake project
-        ;; register this buffer to be either a header or source file
-        ;; waiting for results
-        (cmake-ide--add-file-to-buffer-list)
+ (defun cmake-ide-run-cmake ()
+   "Run CMake and set compiler flags for auto-completion and flycheck.
+ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
+ and parsing the JSON file deposited there with the compiler
+ flags."
+   (interactive)
+   (when (file-readable-p (buffer-file-name)) ; new files need not apply
+     (let ((project-dir (cmake-ide--locate-cmakelists)))
+       (when project-dir ; no point if it's not a CMake project
+         ;; register this buffer to be either a header or source file
+         ;; waiting for results
+         (cmake-ide--add-file-to-buffer-list)
+	 (let ((cmake-dir (cmake-ide--get-build-dir)))
+	   (let ((default-directory cmake-dir))
+	     (cmake-ide--run-cmake-impl project-dir cmake-dir)
+	     (cmake-ide--register-callback)))))))
 
-        (let ((default-directory (cmake-ide--get-build-dir)))
-          (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir))
-          (cmake-ide--register-callback))))))
 
 (defun cmake-ide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
@@ -592,27 +603,35 @@ the object file's name just above."
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
-  (when project-dir
+  (when project-dir  
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
-      (start-process "cmake" "*cmake*" cmake-ide-cmake-command "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (start-process "cmake" "*cmake*" cmake-ide-cmake-command cmake-ide-cmake-opts "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
-  (if (not (cmake-ide--build-dir-var))
-      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-            build-directory-name)
-        (setq build-directory-name
-              (if cmake-ide-build-pool-use-persistent-naming
-                  (replace-regexp-in-string "/" "_" (expand-file-name (cmake-ide--locate-cmakelists)))
-                (make-temp-name "cmake")))
-        (setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory)))
-    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
-      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))
-  (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
-      (make-directory (cmake-ide--build-dir-var)))
-  (file-name-as-directory (cmake-ide--build-dir-var)))
+  ;; build the directory key for the project
+  (let ((cmakelists-dir (if (cmake-ide--locate-cmakelists) (cmake-ide--locate-cmakelists) "")))  
+    (if (not (and (string= cmakelists-dir "") (cmake-ide--build-dir-var)))	
+	(let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name cmakelists-dir)) cmake-ide-cmake-opts)))
+	  (setq cmake-ide-build-dir (gethash project-dir-key cmake-ide--cmake-hash nil))
+	  (if (not (cmake-ide--build-dir-var))
+	      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+		    build-directory-name)
+		(setq build-directory-name
+		      (if cmake-ide-build-pool-use-persistent-naming
+			  project-dir-key
+			(make-temp-name "cmake")))
+		(setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory))
+		(puthash project-dir-key cmake-ide-build-dir cmake-ide--cmake-hash)
+		(cmake-ide--message "add key %s %s" project-dir-key cmake-ide-build-dir)
+		)
+	    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
+	      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))))    
+    (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
+	(make-directory (cmake-ide--build-dir-var)))
+    (file-name-as-directory (cmake-ide--build-dir-var))))
 
 
 (defun cmake-ide--is-src-file (name)
@@ -820,7 +839,7 @@ the object file's name just above."
   "Find the topmost CMakeLists.txt file."
   (if cmake-ide-cmakelists-dir
       (expand-file-name "CMakeLists.txt" cmake-ide-cmakelists-dir)
-    (cmake-ide--locate-cmakelists-impl default-directory nil)))
+	   (cmake-ide--locate-cmakelists-impl default-directory nil)))
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
