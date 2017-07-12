@@ -614,7 +614,7 @@ the object file's name just above."
   ;; build the directory key for the project
   (let ((cmakelists-dir (if (cmake-ide--locate-cmakelists) (cmake-ide--locate-cmakelists) "")))  
     (if (not (and (string= cmakelists-dir "") (cmake-ide--build-dir-var)))	
-	(let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name cmakelists-dir)) cmake-ide-cmake-opts)))
+	(let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name cmakelists-dir) cmake-ide-cmake-opts))))
 	  (setq cmake-ide-build-dir (gethash project-dir-key cmake-ide--cmake-hash nil))
 	  (if (not (cmake-ide--build-dir-var))
 	      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
@@ -625,7 +625,6 @@ the object file's name just above."
 			(make-temp-name "cmake")))
 		(setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory))
 		(puthash project-dir-key cmake-ide-build-dir cmake-ide--cmake-hash)
-		(cmake-ide--message "add key %s %s" project-dir-key cmake-ide-build-dir)
 		)
 	    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
 	      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))))    
