@@ -615,7 +615,7 @@ the object file's name just above."
 	build-directory-name)
     (setq build-directory-name
 	  (if cmake-ide-build-pool-use-persistent-naming
-	      (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-cmakelists)) cmake-ide-cmake-opts))
+	      (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
 	    (make-temp-name "cmake")))
     (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
       (file-name-as-directory build-dir))))
