@@ -586,7 +586,7 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
-  (if (cmake-ide--build-dir-var)
+  (if (cmake-ide--get-build-dir)
       (let ((filename (buffer-file-name))
             (buffer (current-buffer))
             (name (buffer-name)))
@@ -596,41 +596,57 @@ the object file's name just above."
             (delete-file filename)
             (kill-buffer buffer)
             (let ((project-dir (cmake-ide--locate-cmakelists)))
-              (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--build-dir-var)))
+          (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
               (cmake-ide--message "File '%s' successfully removed" filename)))))
     (error "Not possible to delete a file without setting cmake-ide-build-dir")))
 
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
-  (when project-dir  
+  (when project-dir
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
       (start-process "cmake" "*cmake*" cmake-ide-cmake-command cmake-ide-cmake-opts "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
 
 
+(defun cmake-ide--get-project-key ()
+  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map."
+  (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+	build-directory-name)
+    (setq build-directory-name
+	  (if cmake-ide-build-pool-use-persistent-naming
+	      (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
+	    (make-temp-name "cmake")))
+    (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
+      (file-name-as-directory build-dir))))
+  
+(defun cmake-ide--get-build-dir-from-hash ()
+  "Get dir form hash table, if not present compute a build dir and insert it in the table."
+  (let ((project-key (cmake-ide--get-project-key)))
+    (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
+      (if (not build-dir)
+	  (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+		build-directory-name)
+	    (setq build-directory-name
+		  (if cmake-ide-build-pool-use-persistent-naming
+		      project-key
+		    (make-temp-name "cmake")))
+	    (setq build-dir (expand-file-name build-directory-name build-parent-directory)
+		  )
+	    (puthash project-key build-dir cmake-ide--cmake-hash)
+	    build-dir)
+	build-dir))))
+
+  
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
-  (let ((cmakelists-dir (if (cmake-ide--locate-cmakelists) (cmake-ide--locate-cmakelists) "")))  
-    (if (not (and (string= cmakelists-dir "") (cmake-ide--build-dir-var)))	
-	(let ((project-dir-key (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name cmakelists-dir) cmake-ide-cmake-opts))))
-	  (setq cmake-ide-build-dir (gethash project-dir-key cmake-ide--cmake-hash nil))
-	  (if (not (cmake-ide--build-dir-var))
-	      (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-		    build-directory-name)
-		(setq build-directory-name
-		      (if cmake-ide-build-pool-use-persistent-naming
-			  project-dir-key
-			(make-temp-name "cmake")))
-		(setq cmake-ide-build-dir (expand-file-name build-directory-name build-parent-directory))
-		(puthash project-dir-key cmake-ide-build-dir cmake-ide--cmake-hash)
-		)
-	    (when (not (file-name-absolute-p (cmake-ide--build-dir-var)))
-	      (setq cmake-ide-build-dir (expand-file-name (cmake-ide--build-dir-var) (cmake-ide--locate-cmakelists)))))))    
-    (if (not (file-accessible-directory-p (cmake-ide--build-dir-var)))
-	(make-directory (cmake-ide--build-dir-var)))
-    (file-name-as-directory (cmake-ide--build-dir-var))))
+  (let ((build-dir (cmake-ide--build-dir-var)))
+    (if (not build-dir)
+	(setq build-dir (cmake-ide--get-build-dir-from-hash)))
+    (if (not (file-accessible-directory-p build-dir))
+	(make-directory build-dir))
+    (file-name-as-directory build-dir)))
 
 
 (defun cmake-ide--is-src-file (name)
@@ -985,8 +1001,8 @@ the object file's name just above."
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
-  (if (cmake-ide--build-dir-var)
-      (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--build-dir-var))))
+  (if (cmake-ide--get-build-dir)
+      (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
         (if (functionp command-for-compile)
             (funcall command-for-compile)
           (compile command-for-compile)))
