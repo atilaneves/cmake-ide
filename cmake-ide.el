@@ -269,7 +269,7 @@ the closest possible matches available in cppcheck."
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
   "Run CMake and set compiler flags for auto-completion and flycheck.
- This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
+This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
