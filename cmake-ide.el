@@ -267,22 +267,22 @@ the closest possible matches available in cppcheck."
        (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
- (defun cmake-ide-run-cmake ()
-   "Run CMake and set compiler flags for auto-completion and flycheck.
+(defun cmake-ide-run-cmake ()
+  "Run CMake and set compiler flags for auto-completion and flycheck.
  This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  and parsing the JSON file deposited there with the compiler
  flags."
-   (interactive)
-   (when (file-readable-p (buffer-file-name)) ; new files need not apply
-     (let ((project-dir (cmake-ide--locate-cmakelists)))
-       (when project-dir ; no point if it's not a CMake project
-         ;; register this buffer to be either a header or source file
-         ;; waiting for results
-         (cmake-ide--add-file-to-buffer-list)
-	 (let ((cmake-dir (cmake-ide--get-build-dir)))
-	   (let ((default-directory cmake-dir))
-	     (cmake-ide--run-cmake-impl project-dir cmake-dir)
-	     (cmake-ide--register-callback)))))))
+  (interactive)
+  (when (file-readable-p (buffer-file-name)) ; new files need not apply
+    (let ((project-dir (cmake-ide--locate-cmakelists)))
+      (when project-dir ; no point if it's not a CMake project
+        ;; register this buffer to be either a header or source file
+        ;; waiting for results
+        (cmake-ide--add-file-to-buffer-list)
+        (let ((cmake-dir (cmake-ide--get-build-dir)))
+          (let ((default-directory cmake-dir))
+            (cmake-ide--run-cmake-impl project-dir cmake-dir)
+            (cmake-ide--register-callback)))))))
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -596,7 +596,7 @@ the object file's name just above."
             (delete-file filename)
             (kill-buffer buffer)
             (let ((project-dir (cmake-ide--locate-cmakelists)))
-          (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
+              (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
               (cmake-ide--message "File '%s' successfully removed" filename)))))
     (error "Not possible to delete a file without setting cmake-ide-build-dir")))
 
@@ -612,11 +612,11 @@ the object file's name just above."
 (defun cmake-ide--get-project-key ()
   "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map."
   (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-	build-directory-name)
+        build-directory-name)
     (setq build-directory-name
-	  (if cmake-ide-build-pool-use-persistent-naming
-	      (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
-	    (make-temp-name "cmake")))
+          (if cmake-ide-build-pool-use-persistent-naming
+              (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
+            (make-temp-name "cmake")))
     (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
       (file-name-as-directory build-dir))))
 
@@ -625,17 +625,17 @@ the object file's name just above."
   (let ((project-key (cmake-ide--get-project-key)))
     (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
       (if (not build-dir)
-	  (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-		build-directory-name)
-	    (setq build-directory-name
-		  (if cmake-ide-build-pool-use-persistent-naming
-		      project-key
-		    (make-temp-name "cmake")))
-	    (setq build-dir (expand-file-name build-directory-name build-parent-directory)
-		  )
-	    (puthash project-key build-dir cmake-ide--cmake-hash)
-	    build-dir)
-	build-dir))))
+          (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+                build-directory-name)
+            (setq build-directory-name
+                  (if cmake-ide-build-pool-use-persistent-naming
+                      project-key
+                    (make-temp-name "cmake")))
+            (setq build-dir (expand-file-name build-directory-name build-parent-directory)
+                  )
+            (puthash project-key build-dir cmake-ide--cmake-hash)
+            build-dir)
+        build-dir))))
 
 
 (defun cmake-ide--get-build-dir ()
@@ -643,9 +643,9 @@ the object file's name just above."
   ;; build the directory key for the project
   (let ((build-dir (cmake-ide--build-dir-var)))
     (if (not build-dir)
-	(setq build-dir (cmake-ide--get-build-dir-from-hash)))
+        (setq build-dir (cmake-ide--get-build-dir-from-hash)))
     (if (not (file-accessible-directory-p build-dir))
-	(make-directory build-dir))
+        (make-directory build-dir))
     (file-name-as-directory build-dir)))
 
 
@@ -797,13 +797,13 @@ the object file's name just above."
 
 (defun cmake-ide--flags-to-sys-includes (flags)
   "From FLAGS (a list of flags) to a list of isystem includes."
-    (let ((sysincludes nil))
+  (let ((sysincludes nil))
     (while (member "-isystem" flags)
       (setq flags (cdr (member "-isystem" flags)))
       (when flags
         (if (member (car flags) sysincludes)
             nil
-        (setq sysincludes (cons (car flags) sysincludes)))))
+          (setq sysincludes (cons (car flags) sysincludes)))))
     sysincludes))
 
 
@@ -854,7 +854,7 @@ the object file's name just above."
   "Find the topmost CMakeLists.txt file."
   (if cmake-ide-cmakelists-dir
       (expand-file-name "CMakeLists.txt" cmake-ide-cmakelists-dir)
-	   (cmake-ide--locate-cmakelists-impl default-directory nil)))
+    (cmake-ide--locate-cmakelists-impl default-directory nil)))
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
