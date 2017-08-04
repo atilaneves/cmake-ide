@@ -500,6 +500,13 @@ company-c-headers to break."
      (should (equal-lists flycheck-clang-includes nil))
      (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
 
+(ert-deftest test-issue-125 ()
+  (setq cmake-ide-build-dir nil cmake-ide-dir nil)
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (let ((dir1 (cmake-ide--get-build-dir))
+        (dir2 (cmake-ide--get-build-dir)))
+    (should (equal dir1 dir2))))
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

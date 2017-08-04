@@ -638,7 +638,7 @@ the object file's name just above."
         build-dir))))
 
 
-(defun cmake-ide--get-build-dir ()
+(defun cmake-ide--get-build-dir-old ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
   (let ((build-dir (cmake-ide--build-dir-var)))
@@ -646,6 +646,17 @@ the object file's name just above."
         (setq build-dir (cmake-ide--get-build-dir-from-hash)))
     (if (not (file-accessible-directory-p build-dir))
         (make-directory build-dir))
+    (file-name-as-directory build-dir)))
+
+(defun cmake-ide--get-build-dir ()
+  "Return the directory name to run CMake in."
+  ;; build the directory key for the project
+  (let ((build-dir (cmake-ide--build-dir-var)))
+    (when (not build-dir)
+      (setq build-dir (cmake-ide--get-build-dir-from-hash)))
+    (when (not (file-accessible-directory-p build-dir))
+      (make-directory build-dir))
+    (setq cmake-ide-build-dir build-dir)
     (file-name-as-directory build-dir)))
 
 
