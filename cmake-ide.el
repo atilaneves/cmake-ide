@@ -81,7 +81,7 @@
 
 (defcustom cmake-ide-build-pool-dir
   nil
-  "The parent directory for all automatically created build directories. If nil, the system tmp-directory is used."
+  "The parent directory for all automatically created build directories.  If nil, the system tmp-directory is used."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -619,7 +619,7 @@ the object file's name just above."
 	    (make-temp-name "cmake")))
     (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
       (file-name-as-directory build-dir))))
-  
+
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table."
   (let ((project-key (cmake-ide--get-project-key)))
@@ -637,7 +637,7 @@ the object file's name just above."
 	    build-dir)
 	build-dir))))
 
-  
+
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
