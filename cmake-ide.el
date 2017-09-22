@@ -606,7 +606,9 @@ the object file's name just above."
   (when project-dir
     (let ((default-directory cmake-dir))
       (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
-      (start-process "cmake" "*cmake*" cmake-ide-cmake-command cmake-ide-cmake-opts "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))
+      (apply 'start-process (append (list "cmake" "*cmake*" cmake-ide-cmake-command)
+                                    (split-string cmake-ide-cmake-opts)
+                                    (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))))
 
 
 (defun cmake-ide--get-project-key ()
