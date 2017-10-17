@@ -145,6 +145,13 @@
   :type 'booleanp
   :safe #'booleanp)
 
+(defcustom cmake-ide-header-no-flags
+  nil
+  "Whether to apply compiler flags to header files.  In some projects this takes too long."
+  :group 'cmake-ide
+  :type 'booleanp
+  :safe #'booleanp)
+
 (defcustom cmake-ide-flycheck-cppcheck-strict-standards
   nil
   "Whether or not to be strict when setting cppcheck standards for flycheck.
@@ -367,7 +374,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 
 (defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
   "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
-  (when (not (string-empty-p (cmake-ide--buffer-string buffer)))
+  (when (and (not (string-empty-p (cmake-ide--buffer-string buffer))) (not cmake-ide-header-no-flags))
     (cond
      ;; try all unique compiler flags until one successfully compiles the header
      (cmake-ide-try-unique-compiler-flags-for-headers (cmake-ide--hdr-try-unique-compiler-flags idb buffer sys-includes))
