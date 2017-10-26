@@ -103,8 +103,8 @@ system with gcc, you can get this information by running `gcc -v -xc++
 `auto-complete-clang` to work, since that's how clang itself works).
 
 And... that's it. It works by calling cmake and parsing the resulting
-JSON file with compiler flags.  Set `cmake-ide-build-dir` to your project's
-root directory and you won't have to call CMake manually again (except
+JSON file with compiler flags.  Set `cmake-ide-build-dir` to where your
+project is being built and you won't have to call CMake manually again (except
 for the first time to specify options). Best done with
 [directory local variables](https://www.gnu.org/software/emacs/manual/html_node/emacs/Directory-Variables.html).
 
