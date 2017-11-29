@@ -620,15 +620,9 @@ the object file's name just above."
 
 
 (defun cmake-ide--get-project-key ()
-  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map."
-  (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-        build-directory-name)
-    (setq build-directory-name
-          (if cmake-ide-build-pool-use-persistent-naming
-              (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
-            (make-temp-name "cmake")))
-    (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
-      (file-name-as-directory build-dir))))
+  "Return the Project Key to store this directory in the hash map.  It is build from the concatenation of project-dir and cmake-opts."
+  (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name (cmake-ide--locate-project-dir))
+						  cmake-ide-cmake-opts)))
 
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table."
@@ -643,7 +637,10 @@ the object file's name just above."
                     (make-temp-name "cmake")))
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
-            (puthash project-key build-dir cmake-ide--cmake-hash)
+	    (progn
+	      (cmake-ide--message "puthash for %s %s" project-key build-dir)
+	      (puthash project-key build-dir cmake-ide--cmake-hash)
+	      )
             build-dir)
         build-dir))))
 
@@ -658,7 +655,7 @@ the object file's name just above."
     (when (not (file-accessible-directory-p build-dir))
       (cmake-ide--message "Making directory %s" build-dir)
       (make-directory build-dir))
-    (setq cmake-ide-build-dir build-dir)
+;;    (setq cmake-ide-build-dir build-dir)
     (file-name-as-directory build-dir)))
 
 
@@ -899,8 +896,9 @@ the object file's name just above."
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
     (or (and cmake-ide-project-dir (expand-file-name cmake-ide-project-dir))
-        (and cmakelists (file-name-directory cmakelists)))))
-
+        (and cmakelists (file-name-directory cmakelists))
+	(expand-file-name ".") ; if no CMakeLists.txt nor project-dir set, use current dir as project dir
+	    )))
 
 (defun cmake-ide--cdb-json-file-to-idb ()
   "Retrieve a JSON object from the compilation database."
