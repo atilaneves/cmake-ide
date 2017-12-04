@@ -189,7 +189,7 @@ the closest possible matches available in cppcheck."
 
 (defcustom cmake-ide-cmakelists-dir
   nil
-  "The directory where the main CMakelists.txt is."
+  "The directory where the main CMakelists.txt is.  DEPRACATED use cmake-ide-projet-dir instead."
   :group 'cmake-ide
   :type 'file)
 
@@ -221,6 +221,10 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide--build-dir-var ()
   "Return the value of cmake-ide-build-dir or cmake-ide-dir."
   (or cmake-ide-build-dir cmake-ide-dir))
+
+(defun cmake-ide--project-dir-var ()
+  "Return the value of cmake-ide-project-dir or cmake-ide-cmakelists-dir."
+  (or cmake-ide-project-dir cmake-ide-cmakelists-dir))
 
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
@@ -280,7 +284,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
-  (when (buffer-file-name)
+  (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-project-dir)))
       (when project-dir ; no point if it's not a CMake project
@@ -622,12 +626,18 @@ the object file's name just above."
 
 (defun cmake-ide--get-project-key ()
   "Return the Project Key to store this directory in the hash map.  It is build from the concatenation of project-dir and cmake-opts."
-  (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name (cmake-ide--locate-project-dir))
-						  cmake-ide-cmake-opts)))
+  (let ((project-dir (cmake-ide--locate-project-dir)))
+    (if project-dir
+	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
+							cmake-ide-cmake-opts))
+      (cmake-ide--message "Not a cmake project")
+      ))
+    )
 
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table."
   (let ((project-key (cmake-ide--get-project-key)))
+    (when project-key
     (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
       (if (not build-dir)
           (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
@@ -643,7 +653,7 @@ the object file's name just above."
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
-        build-dir))))
+        build-dir)))))
 
 
 (defun cmake-ide--get-build-dir ()
@@ -877,14 +887,12 @@ the object file's name just above."
   "Return the value of SYM if bound, nil if not."
   (if (boundp sym) (symbol-value sym) nil))
 
-
 (defun cmake-ide--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file."
   (expand-file-name
    "CMakeLists.txt"
-   (or cmake-ide-cmakelists-dir
+   (or (cmake-ide--project-dir-var)
        (cmake-ide--locate-cmakelists-impl default-directory nil))))
-
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
@@ -896,9 +904,9 @@ the object file's name just above."
 (defun cmake-ide--locate-project-dir ()
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
-    (or (and cmake-ide-project-dir (expand-file-name cmake-ide-project-dir))
+    (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
         (and cmakelists (file-name-directory cmakelists))
-	(expand-file-name ".") ; if no CMakeLists.txt nor project-dir set, use current dir as project dir
+	nil ; if no CMakeLists.txt nor project-dir set,return nil and prevent cmake-ide to do anything else
 	    )))
 
 (defun cmake-ide--cdb-json-file-to-idb ()
@@ -1038,7 +1046,7 @@ the object file's name just above."
   (interactive)
   (if (cmake-ide--get-build-dir)
       (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
-	;; command-for-compile could be nil, if so prompt for compile command
+	;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
         (if command-for-compile
 	    (if (functionp command-for-compile)
 		(funcall command-for-compile)
