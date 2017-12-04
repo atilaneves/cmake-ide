@@ -281,7 +281,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  flags."
   (interactive)
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
-    (let ((project-dir (cmake-ide--locate-cmakelists)))
+    (let ((project-dir (cmake-ide--locate-project-dir)))
       (when project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
@@ -602,7 +602,7 @@ the object file's name just above."
           (when (yes-or-no-p "Are you sure you want to remove this file? ")
             (delete-file filename)
             (kill-buffer buffer)
-            (let ((project-dir (cmake-ide--locate-cmakelists)))
+            (let ((project-dir (cmake-ide--locate-project-dir)))
               (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
               (cmake-ide--message "File '%s' successfully removed" filename)))))
     (error "Not possible to delete a file without setting cmake-ide-build-dir")))
@@ -864,9 +864,11 @@ the object file's name just above."
 
 (defun cmake-ide--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file."
-  (if cmake-ide-cmakelists-dir
-      (expand-file-name "CMakeLists.txt" cmake-ide-cmakelists-dir)
-    (cmake-ide--locate-cmakelists-impl default-directory nil)))
+  (expand-file-name
+   "CMakeLists.txt"
+   (or cmake-ide-cmakelists-dir
+       (cmake-ide--locate-cmakelists-impl default-directory nil))))
+
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
