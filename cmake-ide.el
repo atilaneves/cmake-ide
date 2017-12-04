@@ -280,6 +280,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
+  (when (buffer-file-name)
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-project-dir)))
       (when project-dir ; no point if it's not a CMake project
@@ -289,7 +290,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
         (let ((cmake-dir (cmake-ide--get-build-dir)))
           (let ((default-directory cmake-dir))
             (cmake-ide--run-cmake-impl project-dir cmake-dir)
-            (cmake-ide--register-callback)))))))
+            (cmake-ide--register-callback))))))))
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -1037,9 +1038,13 @@ the object file's name just above."
   (interactive)
   (if (cmake-ide--get-build-dir)
       (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
-        (if (functionp command-for-compile)
-            (funcall command-for-compile)
-          (compile command-for-compile)))
+	;; command-for-compile could be nil, if so prompt for compile command
+        (if command-for-compile
+	    (if (functionp command-for-compile)
+		(funcall command-for-compile)
+	      (compile command-for-compile))
+	  (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
+	    (compile command))))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
       (compile command)))
   (cmake-ide--run-rc))
