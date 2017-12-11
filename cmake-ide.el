@@ -358,8 +358,8 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
   (let* ((file-name (buffer-file-name buffer))
          (file-params (cmake-ide--idb-file-to-obj idb file-name))
          (sys-includes (cmake-ide--params-to-sys-includes file-params))
-         (commands (cmake-ide--idb-all-commands idb))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags commands)))
+         (all-commands (cmake-ide--idb-all-commands idb))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands)))
     (cmake-ide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
     (if (cmake-ide--is-src-file file-name)
@@ -435,9 +435,9 @@ Find an object file that lists FILE-NAME as a dependency, then return the first
 compiler command in the project that has that object file in itself."
   (let ((obj-file-name (cmake-ide--ninja-obj-file-depending-on-hdr file-name)))
     (if (null obj-file-name) nil
-      (let ((commands (cmake-ide--idb-all-commands idb)))
+      (let ((all-commands (cmake-ide--idb-all-commands idb)))
         (cmake-ide--filter-first (lambda (x) (string-match obj-file-name x))
-                                 commands)))))
+                                 all-commands)))))
 
 (defun cmake-ide--ninja-obj-file-depending-on-hdr (file-name)
   "Find the first object file that depends on the header FILE-NAME.
@@ -514,9 +514,10 @@ the object file's name just above."
 (defun cmake-ide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
   (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
-  (let* ((commands (cmake-ide--idb-all-commands idb))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags commands))
-         (hdr-includes (cmake-ide--commands-to-hdr-includes commands)))
+  (let* ((all-commands (cmake-ide--idb-all-commands idb))
+         (command (elt all-commands 0))
+         (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands))
+         (hdr-includes (cmake-ide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
 
@@ -696,8 +697,14 @@ the object file's name just above."
   (let ((command (cmake-ide--idb-obj-get file-params 'command))
         (arguments (cmake-ide--idb-obj-get file-params 'arguments)))
     (if command
-        (split-string command " +")
+        (mapcar #'cmake-ide--quote-if-spaces (cmake-ide--split-command command))
       (cmake-ide--vector-to-list arguments))))
+
+(defun cmake-ide--quote-if-spaces (str)
+  "Add quotes to STR if it contains spaces."
+  (if (string-match-p " " str)
+      (concat "\"" str "\"")
+    str))
 
 (defun cmake-ide--vector-to-list (vector)
   "Convert VECTOR to a list."
@@ -705,7 +712,16 @@ the object file's name just above."
 
 (defun cmake-ide--args-to-only-flags (args)
   "Get compiler flags from ARGS."
-  (cmake-ide--filter (lambda (x) (not (cmake-ide--is-src-file x))) args))
+  (cmake-ide--filter (lambda (x) (not (cmake-ide--is-src-file (cmake-ide--unquote x)))) args))
+
+(defun cmake-ide--unquote (x)
+  "Possibly unquote a string X."
+  (if (and (stringp x) (> (length x) 2))
+      (if (and (equal (elt x 0) ?") (equal (elt x (1- (length x))) ?"))
+          (subseq x 1 (1- (length x)))
+        x)
+    x
+    ))
 
 (defun cmake-ide--json-unescape (str)
   "Remove JSON-escaped backslashes in STR."
@@ -727,8 +743,8 @@ the object file's name just above."
     (cmake-ide--remove-compiler-from-args-string unescaped-flags-string)))
 
 (defun cmake-ide--remove-compiler-from-args-string (str)
-  "Remove the compiler command from STR, leaving only arguments."
-  (let ((args (split-string str " +")))
+  "Remove the compiler command from STR, leaving only arguments.  Return a list of strings."
+  (let ((args (cmake-ide--split-command str)))
     (cmake-ide--remove-compiler-from-args args)))
 
 (defun cmake-ide--remove-compiler-from-args (args)
@@ -779,7 +795,9 @@ the object file's name just above."
 
 (defun cmake-ide--flatten (lst)
   "Flatten LST."
-  (apply 'append lst))
+  (if (equal (length lst) 1)
+      (elt lst 0)
+    (apply #'append lst)))
 
 
 (defun cmake-ide--flags-to-include-paths (flags)
@@ -940,6 +958,7 @@ the object file's name just above."
   "A list of all commands in IDB."
   (mapcar (lambda (x) (s-join " " (cmake-ide--file-params-to-args x))) (cmake-ide--idb-all-objs idb)))
 
+
 (defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
   "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
   (let ((dir (file-name-directory file-name))
@@ -981,7 +1000,7 @@ the object file's name just above."
       (let* ((tmp-file-name (expand-file-name "tmp.o" (make-temp-file "tryheader" t)))
              (command (concat (elt commands index) " " file-name " " "-o" " " tmp-file-name))
              (_ (cmake-ide--message "Trying to compile '%s' with '%s'" file-name command))
-             (args (split-string command " +")))
+             (args (cmake-ide--split-command command)))
         (when (eq 0 (apply #'call-process (car args) nil nil nil (cdr args)))
           (setq ret command)))
       (cl-incf index))
@@ -1001,7 +1020,7 @@ the object file's name just above."
                        (let* ((file (cmake-ide--idb-obj-get x 'file))
                               (base-name (file-name-nondirectory file))
                               (command (cmake-ide--idb-obj-get x 'command))
-                              (args (split-string command " +")))
+                              (args (cmake-ide--split-command command)))
                          (setq args (cmake-ide--filter (lambda (x) (not (string-match base-name x))) args))
                          (setq args (cmake-ide--filter (lambda (x) (not (equal x "-c"))) args))
                          (setq args (cmake-ide--filter (lambda (x) (not (equal x "-o"))) args))
@@ -1010,6 +1029,9 @@ the object file's name just above."
     (delete-dups ret)
     ret))
 
+(defun cmake-ide--split-command (command-string)
+  "Split COMMAND-STRING and return a list of strings."
+  (split-string-and-unquote command-string))
 
 ;;;###autoload
 (defun cmake-ide-compile ()

@@ -507,6 +507,36 @@ company-c-headers to break."
         (dir2 (cmake-ide--get-build-dir)))
     (should (equal dir1 dir2))))
 
+(ert-deftest test-flycheck-clang-args ()
+  (let ((idb (cmake-ide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"\",
+  \"command\": \"clang++ -Wall -Wextra -std=c++14 -c foo.cpp\",
+  \"file\": \"foo.cpp\"
+}
+]")))
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
+
+(ert-deftest test-split-command ()
+  (should (equal (cmake-ide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
+
+(ert-deftest test-issue-142 ()
+  (let ((idb (cmake-ide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"/tmp/name - with hyphen\",
+  \"command\": \"/usr/lib/ccache/bin/c++ -Wall -Wextra -pedantic -std=c++14 -o CMakeFiles/hello.dir/main.cpp.o -c \\\"/tmp/name - with hyphen/main.cpp\\\"\",
+  \"file\": \"/tmp/name - with hyphen/main.cpp\"
+}
+]")))
+    (cmake-ide--message "idb: %s" idb)
+    (with-non-empty-file
+     (cmake-ide--set-flags-for-file idb (current-buffer))
+     (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-pedantic" "-c"))))))
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
