@@ -1066,9 +1066,12 @@ the object file's name just above."
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
         (cmake-ide--message "Starting rdm server")
-        (with-current-buffer buf (start-process "rdm" (current-buffer)
-                                                (cmake-ide-rdm-executable)
-                                                "-c" cmake-ide-rdm-rc-path))))))
+        (with-current-buffer buf
+          (let ((rdm-process (start-process "rdm" (current-buffer)
+                                            (cmake-ide-rdm-executable)
+                                            "-c" cmake-ide-rdm-rc-path)))
+            (set-process-query-on-exit-flag rdm-process nil)))))))
+
 
 (defun cmake-ide--process-running-p (name)
   "If a process called NAME is running or not."
