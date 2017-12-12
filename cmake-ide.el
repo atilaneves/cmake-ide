@@ -46,6 +46,15 @@
 (require 'seq)
 (require 's)
 
+(defsubst cmake-ide--string-empty-p (string)
+  "Check whether STRING is empty."
+  (string= string ""))
+
+(when (not (require 'subr-x nil t))
+  (message "`subr-x' not found")
+  (fset 'string-empty-p 'cmake-ide--string-empty-p)
+  )
+
 (declare-function rtags-call-rc "rtags")
 
 (defcustom cmake-ide-flags-c
@@ -313,6 +322,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
   "Set compiler flags for all buffers that requested it."
   (let* ((idb (cmake-ide--cdb-json-file-to-idb))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
+    (cmake-ide--message "on-cmake-finished [%s]" idb)
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
@@ -904,7 +914,7 @@ the object file's name just above."
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
-    (cmake-ide--message "locate cmakelists new-dir [%s]" new-dir)
+;    (cmake-ide--message "locate cmakelists new-dir [%s]" new-dir)
     (if new-dir
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
