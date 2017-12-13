@@ -299,7 +299,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
       (when project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-	(cmake-ide--message "Found project dir %s" project-dir)
+;	(cmake-ide--message "Found project dir %s" project-dir)
         (cmake-ide--add-file-to-buffer-list)
         (let ((cmake-dir (cmake-ide--get-build-dir)))
           (let ((default-directory cmake-dir))
@@ -322,7 +322,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
   "Set compiler flags for all buffers that requested it."
   (let* ((idb (cmake-ide--cdb-json-file-to-idb))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
-    (cmake-ide--message "on-cmake-finished [%s]" idb)
+;    (cmake-ide--message "on-cmake-finished [%s]" idb)
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
@@ -636,12 +636,12 @@ the object file's name just above."
 
 
 (defun cmake-ide--get-project-key ()
-  "Return the Project Key to store this directory in the hash map.  It is build from the concatenation of project-dir and cmake-opts."
+  "Return the Project Key to store this directory in the hash map.  It corresponds to the concatenation of project-dir and cmake-opts."
   (let ((project-dir (cmake-ide--locate-project-dir)))
     (if project-dir
 	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
 							cmake-ide-cmake-opts))
-      (cmake-ide--message "Not a cmake project")
+      (cmake-ide--message "Could not get project key, this is not a cmake project")
       ))
     )
 
@@ -660,7 +660,7 @@ the object file's name just above."
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
 	    (progn
-	      (cmake-ide--message "puthash for %s %s" project-key build-dir)
+;	      (cmake-ide--message "puthash for %s %s" project-key build-dir)
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
@@ -677,7 +677,6 @@ the object file's name just above."
     (when (not (file-accessible-directory-p build-dir))
       (cmake-ide--message "Making directory %s" build-dir)
       (make-directory build-dir))
-;;    (setq cmake-ide-build-dir build-dir)
     (file-name-as-directory build-dir)))
 
 
@@ -899,7 +898,6 @@ the object file's name just above."
   (if (boundp sym) (symbol-value sym) nil))
 
 
-;bug here ? since (expand-file-name "test" nil) eval to default-directory/test
 (defun cmake-ide--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file."
   (if (cmake-ide--project-dir-var)
