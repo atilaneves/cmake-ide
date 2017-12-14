@@ -296,14 +296,17 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
   (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-project-dir)))
-      (when project-dir ; no point if it's not a CMake project
+      (if project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-        (cmake-ide--add-file-to-buffer-list)
-        (let ((cmake-dir (cmake-ide--get-build-dir)))
-          (let ((default-directory cmake-dir))
-            (cmake-ide--run-cmake-impl project-dir cmake-dir)
-            (cmake-ide--register-callback))))))))
+	  (progn
+	    (cmake-ide--add-file-to-buffer-list)
+	    (let ((cmake-dir (cmake-ide--get-build-dir)))
+	      (let ((default-directory cmake-dir))
+		(cmake-ide--run-cmake-impl project-dir cmake-dir)
+		(cmake-ide--register-callback))))
+	(cmake-ide-message "try to run cmake on a non cmake project [%s]" default-directory)
+	)))))
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -636,11 +639,11 @@ the object file's name just above."
 (defun cmake-ide--get-project-key ()
   "Return the Project Key to store this directory in the hash map.  It corresponds to the concatenation of project-dir and cmake-opts."
   (let ((project-dir (cmake-ide--locate-project-dir)))
-    (if project-dir
-	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
-							cmake-ide-cmake-opts))
-      (cmake-ide--message "Could not get project key, this is not a cmake project")
-      ))
+    (when project-dir
+      (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
+						      cmake-ide-cmake-opts))
+      ; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
+      )
     )
 
 (defun cmake-ide--get-build-dir-from-hash ()
@@ -918,7 +921,7 @@ the object file's name just above."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
     (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
         (and cmakelists (file-name-directory cmakelists))
-	(and (cmake-ide--message "Current project is not a cmake project") nil) ; if no CMakeLists.txt nor project-dir set,return nil and prevent cmake-ide to do anything else
+	nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
 	    )))
 
 (defun cmake-ide--cdb-json-file-to-idb ()
