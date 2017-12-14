@@ -299,7 +299,6 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
       (when project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-;	(cmake-ide--message "Found project dir %s" project-dir)
         (cmake-ide--add-file-to-buffer-list)
         (let ((cmake-dir (cmake-ide--get-build-dir)))
           (let ((default-directory cmake-dir))
@@ -322,7 +321,6 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
   "Set compiler flags for all buffers that requested it."
   (let* ((idb (cmake-ide--cdb-json-file-to-idb))
          (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
-;    (cmake-ide--message "on-cmake-finished [%s]" idb)
     (mapc set-flags cmake-ide--src-buffers)
     (mapc set-flags cmake-ide--hdr-buffers)
     (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
@@ -660,7 +658,6 @@ the object file's name just above."
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
 	    (progn
-;	      (cmake-ide--message "puthash for %s %s" project-key build-dir)
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
@@ -912,7 +909,6 @@ the object file's name just above."
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
-;    (cmake-ide--message "locate cmakelists new-dir [%s]" new-dir)
     (if new-dir
         (cmake-ide--locate-cmakelists-impl (expand-file-name ".." new-dir) new-dir)
       last-found)))
@@ -920,7 +916,6 @@ the object file's name just above."
 (defun cmake-ide--locate-project-dir ()
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
-    (cmake-ide--message "locate-project-dir : [%s][%s]" (cmake-ide--project-dir-var) cmakelists)
     (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
         (and cmakelists (file-name-directory cmakelists))
 	(and (cmake-ide--message "Current project is not a cmake project") nil) ; if no CMakeLists.txt nor project-dir set,return nil and prevent cmake-ide to do anything else
