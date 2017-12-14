@@ -642,9 +642,9 @@ the object file's name just above."
     (when project-dir
       (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
 						      cmake-ide-cmake-opts))
-      ; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
+					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       )
-    )
+    ))
 
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table."
