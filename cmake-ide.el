@@ -305,7 +305,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 	      (let ((default-directory cmake-dir))
 		(cmake-ide--run-cmake-impl project-dir cmake-dir)
 		(cmake-ide--register-callback))))
-	(cmake-ide-message "try to run cmake on a non cmake project [%s]" default-directory)
+	(cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)
 	)))))
 
 
