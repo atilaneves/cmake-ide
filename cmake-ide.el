@@ -637,19 +637,19 @@ the object file's name just above."
 
 
 (defun cmake-ide--get-project-key ()
-  "Return the Project Key to store this directory in the hash map.  It corresponds to the concatenation of project-dir and cmake-opts."
+  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
   (let ((project-dir (cmake-ide--locate-project-dir)))
     (when project-dir
       (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
 						      cmake-ide-cmake-opts))
-      ; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
+					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       )
-    )
+    ))
 
 (defun cmake-ide--get-build-dir-from-hash ()
-  "Get dir form hash table, if not present compute a build dir and insert it in the table."
+  "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
   (let ((project-key (cmake-ide--get-project-key)))
-    (when project-key
+;    (when project-key
     (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
       (if (not build-dir)
           (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
@@ -661,10 +661,12 @@ the object file's name just above."
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
 	    (progn
+;	      (cmake-ide--message "Key [%s] Add dir %s" project-key build-dir)
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
-        build-dir)))))
+        build-dir))))
+;)
 
 
 (defun cmake-ide--get-build-dir ()
