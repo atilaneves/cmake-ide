@@ -198,7 +198,7 @@ the closest possible matches available in cppcheck."
 
 (defcustom cmake-ide-cmakelists-dir
   nil
-  "The directory where the main CMakelists.txt is.  DEPRACATED use cmake-ide-projet-dir instead."
+  "The directory where the main CMakelists.txt is.  DEPRECATED use cmake-ide-projet-dir instead."
   :group 'cmake-ide
   :type 'file)
 
