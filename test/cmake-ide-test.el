@@ -583,5 +583,8 @@ company-c-headers to break."
     (cmake-ide--message "dir 1 %s" dir1))
 )
 
+(ert-deftest test-unquote ()
+  (should (equal (cmake-ide--unquote "\"foo\"") "foo")))
+
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
