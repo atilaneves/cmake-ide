@@ -649,7 +649,6 @@ the object file's name just above."
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
   (let ((project-key (cmake-ide--get-project-key)))
-;    (when project-key
     (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
       (if (not build-dir)
           (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
@@ -661,7 +660,6 @@ the object file's name just above."
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
 	    (progn
-;	      (cmake-ide--message "Key [%s] Add dir %s" project-key build-dir)
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
