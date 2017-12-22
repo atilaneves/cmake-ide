@@ -264,12 +264,14 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
-  (cmake-ide-maybe-start-rdm)
-  (if (cmake-ide--need-to-run-cmake)
-      (cmake-ide-run-cmake)
-    (progn
-      (cmake-ide--add-file-to-buffer-list)
-      (cmake-ide--on-cmake-finished))))
+  (when (cmake-ide--get-project-key)
+    (cmake-ide-maybe-start-rdm)
+    (if (cmake-ide--need-to-run-cmake)
+	(cmake-ide-run-cmake)
+      (progn
+	(cmake-ide--add-file-to-buffer-list)
+	(cmake-ide--on-cmake-finished))))
+  )
 
 (defun cmake-ide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
@@ -283,7 +285,7 @@ the closest possible matches available in cppcheck."
 
 (defun cmake-ide--need-to-run-cmake ()
   "If CMake needs to be run or not."
-  (and (not (get-process "cmake")) ; don't run if already running
+  (and (cmake-ide--get-project-key) (not (get-process "cmake")) ; don't run if already running
        (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
@@ -654,17 +656,16 @@ the object file's name just above."
           (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
                 build-directory-name)
             (setq build-directory-name
-                  (if cmake-ide-build-pool-use-persistent-naming
-                      project-key
-                    (make-temp-name "cmake")))
-            (setq build-dir (expand-file-name build-directory-name build-parent-directory)
-                  )
+                  (if (and cmake-ide-build-pool-use-persistent-naming project-key)
+		      project-key
+		    (make-temp-name "cmake")))
+		  (setq build-dir (expand-file-name build-directory-name build-parent-directory)
+			)
 	    (progn
 	      (puthash project-key build-dir cmake-ide--cmake-hash)
 	      )
             build-dir)
         build-dir))))
-;)
 
 
 (defun cmake-ide--get-build-dir ()
