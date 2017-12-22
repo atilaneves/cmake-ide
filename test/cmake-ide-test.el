@@ -537,6 +537,26 @@ company-c-headers to break."
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-pedantic" "-c"))))))
 
+(ert-deftest test-project-key-basic ()
+  (setq cmake-ide-build-dir nil cmake-ide-dir nil)
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+					; two run of get-project-key have to return the same result
+  (let ((dir1 (cmake-ide--get-project-key))
+        (dir2 (cmake-ide--get-project-key)))
+    (should (equal dir1 dir2)))
+  (let ((dir1 (cmake-ide--get-project-key)))
+    (setq cmake-ide-project-dir "./test2")
+					; since project-key depend on project-dir, two different dir must have different value
+    (let ((dir2 (cmake-ide--get-project-key)))
+      (should (not (equal dir1 dir2)))))
+  (let ((dir1 (cmake-ide--get-project-key)))
+    (setq cmake-ide-cmake-opts "-DTest")
+    					; since project-key depend on cmake-opts, two different dir must have different value
+    (let ((dir2 (cmake-ide--get-project-key)))
+      (should (not (equal dir1 dir2)))))
+  )
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here

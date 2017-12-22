@@ -46,6 +46,15 @@
 (require 'seq)
 (require 's)
 
+(defsubst cmake-ide--string-empty-p (string)
+  "Check whether STRING is empty."
+  (string= string ""))
+
+(when (not (require 'subr-x nil t))
+  (message "`subr-x' not found")
+  (fset 'string-empty-p 'cmake-ide--string-empty-p)
+  )
+
 (declare-function rtags-call-rc "rtags")
 
 (defcustom cmake-ide-flags-c
@@ -189,7 +198,7 @@ the closest possible matches available in cppcheck."
 
 (defcustom cmake-ide-cmakelists-dir
   nil
-  "The directory where the main CMakelists.txt is."
+  "The directory where the main CMakelists.txt is.  DEPRECATED use cmake-ide-projet-dir instead."
   :group 'cmake-ide
   :type 'file)
 
@@ -221,6 +230,10 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide--build-dir-var ()
   "Return the value of cmake-ide-build-dir or cmake-ide-dir."
   (or cmake-ide-build-dir cmake-ide-dir))
+
+(defun cmake-ide--project-dir-var ()
+  "Return the value of cmake-ide-project-dir or cmake-ide-cmakelists-dir."
+  (or cmake-ide-project-dir cmake-ide-cmakelists-dir))
 
 (defun cmake-ide--mode-hook()
   "Function to add to a major mode hook"
@@ -280,16 +293,20 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
+  (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
   (when (file-readable-p (buffer-file-name)) ; new files need not apply
     (let ((project-dir (cmake-ide--locate-project-dir)))
-      (when project-dir ; no point if it's not a CMake project
+      (if project-dir ; no point if it's not a CMake project
         ;; register this buffer to be either a header or source file
         ;; waiting for results
-        (cmake-ide--add-file-to-buffer-list)
-        (let ((cmake-dir (cmake-ide--get-build-dir)))
-          (let ((default-directory cmake-dir))
-            (cmake-ide--run-cmake-impl project-dir cmake-dir)
-            (cmake-ide--register-callback)))))))
+	  (progn
+	    (cmake-ide--add-file-to-buffer-list)
+	    (let ((cmake-dir (cmake-ide--get-build-dir)))
+	      (let ((default-directory cmake-dir))
+		(cmake-ide--run-cmake-impl project-dir cmake-dir)
+		(cmake-ide--register-callback))))
+	(cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)
+	)))))
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -620,18 +637,17 @@ the object file's name just above."
 
 
 (defun cmake-ide--get-project-key ()
-  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map."
-  (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-        build-directory-name)
-    (setq build-directory-name
-          (if cmake-ide-build-pool-use-persistent-naming
-              (replace-regexp-in-string "[-/= ]" "_" (concat (expand-file-name (cmake-ide--locate-project-dir)) cmake-ide-cmake-opts))
-            (make-temp-name "cmake")))
-    (let ((build-dir (expand-file-name build-directory-name build-parent-directory)))
-      (file-name-as-directory build-dir))))
+  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
+  (let ((project-dir (cmake-ide--locate-project-dir)))
+    (when project-dir
+      (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
+						      cmake-ide-cmake-opts))
+					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
+      )
+    ))
 
 (defun cmake-ide--get-build-dir-from-hash ()
-  "Get dir form hash table, if not present compute a build dir and insert it in the table."
+  "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
   (let ((project-key (cmake-ide--get-project-key)))
     (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
       (if (not build-dir)
@@ -643,9 +659,12 @@ the object file's name just above."
                     (make-temp-name "cmake")))
             (setq build-dir (expand-file-name build-directory-name build-parent-directory)
                   )
-            (puthash project-key build-dir cmake-ide--cmake-hash)
+	    (progn
+	      (puthash project-key build-dir cmake-ide--cmake-hash)
+	      )
             build-dir)
         build-dir))))
+;)
 
 
 (defun cmake-ide--get-build-dir ()
@@ -658,7 +677,6 @@ the object file's name just above."
     (when (not (file-accessible-directory-p build-dir))
       (cmake-ide--message "Making directory %s" build-dir)
       (make-directory build-dir))
-    (setq cmake-ide-build-dir build-dir)
     (file-name-as-directory build-dir)))
 
 
@@ -882,11 +900,14 @@ the object file's name just above."
 
 (defun cmake-ide--locate-cmakelists ()
   "Find the topmost CMakeLists.txt file."
-  (expand-file-name
-   "CMakeLists.txt"
-   (or cmake-ide-cmakelists-dir
-       (cmake-ide--locate-cmakelists-impl default-directory nil))))
-
+  (if (cmake-ide--project-dir-var)
+      (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))
+    (let ((cmakelist-dir (cmake-ide--locate-cmakelists-impl default-directory nil)))
+      (if cmakelist-dir
+	  (expand-file-name "CMakeLists.txt" cmakelist-dir)
+	nil
+	)
+      )))
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
@@ -898,9 +919,10 @@ the object file's name just above."
 (defun cmake-ide--locate-project-dir ()
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
-    (or (and cmake-ide-project-dir (expand-file-name cmake-ide-project-dir))
-        (and cmakelists (file-name-directory cmakelists)))))
-
+    (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
+        (and cmakelists (file-name-directory cmakelists))
+	nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
+	    )))
 
 (defun cmake-ide--cdb-json-file-to-idb ()
   "Retrieve a JSON object from the compilation database."
@@ -1039,9 +1061,13 @@ the object file's name just above."
   (interactive)
   (if (cmake-ide--get-build-dir)
       (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
-        (if (functionp command-for-compile)
-            (funcall command-for-compile)
-          (compile command-for-compile)))
+	;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
+        (if command-for-compile
+	    (if (functionp command-for-compile)
+		(funcall command-for-compile)
+	      (compile command-for-compile))
+	  (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
+	    (compile command))))
     (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
       (compile command)))
   (cmake-ide--run-rc))
