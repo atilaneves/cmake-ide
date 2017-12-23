@@ -281,7 +281,9 @@ the closest possible matches available in cppcheck."
 
 (defun cmake-ide--comp-db-file-name ()
   "The name of the compilation database file."
-  (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir)))
+  (when (cmake-ide--locate-project-dir)
+	 (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir)))
+    )
 
 (defun cmake-ide--need-to-run-cmake ()
   "If CMake needs to be run or not."
@@ -642,8 +644,11 @@ the object file's name just above."
   "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
   (let ((project-dir (cmake-ide--locate-project-dir)))
     (when project-dir
-      (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
-						      cmake-ide-cmake-opts))
+      (progn
+	(cmake-ide--message "get-project-key [%s]" project-dir)
+	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
+							cmake-ide-cmake-opts))
+	)
 					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       )
     ))
@@ -651,22 +656,23 @@ the object file's name just above."
 (defun cmake-ide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
   (let ((project-key (cmake-ide--get-project-key)))
-    (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
-      (if (not build-dir)
-          (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-                build-directory-name)
-            (setq build-directory-name
-                  (if (and cmake-ide-build-pool-use-persistent-naming project-key)
-		      project-key
-		    (make-temp-name "cmake")))
-		  (setq build-dir (expand-file-name build-directory-name build-parent-directory)
-			)
-	    (progn
-	      (puthash project-key build-dir cmake-ide--cmake-hash)
-	      )
-            build-dir)
-        build-dir))))
-
+    (when project-key
+      (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
+	(if (not build-dir)
+	    (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+		  build-directory-name)
+	      (setq build-directory-name
+		    (if (and cmake-ide-build-pool-use-persistent-naming project-key)
+			project-key
+		      (make-temp-name "cmake")))
+	      (setq build-dir (expand-file-name build-directory-name build-parent-directory)
+		    )
+	      (progn
+		(puthash project-key build-dir cmake-ide--cmake-hash)
+		)
+	      build-dir)
+	  build-dir))))
+  )
 
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
@@ -1067,9 +1073,9 @@ the object file's name just above."
 	    (if (functionp command-for-compile)
 		(funcall command-for-compile)
 	      (compile command-for-compile))
-	  (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
+	  (let ((command (read-from-minibuffer "No compile command. Compiler command: " compile-command)))
 	    (compile command))))
-    (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
+    (let ((command (read-from-minibuffer "No build dir. Compiler command: " compile-command)))
       (compile command)))
   (cmake-ide--run-rc))
 
@@ -1087,8 +1093,9 @@ the object file's name just above."
   "Start the rdm (rtags) server."
   (interactive)
   (when (and (featurep 'rtags)
+	     (cmake-ide--locate-project-dir)
              (or (file-exists-p (cmake-ide--comp-db-file-name))
-                 (cmake-ide--locate-cmakelists)))
+                 cmake-ide-project-dir))
 
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
