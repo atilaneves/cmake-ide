@@ -264,7 +264,7 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
-  (when (cmake-ide--get-project-key)
+  (when (cmake-ide--locate-project-dir)
     (cmake-ide-maybe-start-rdm)
     (if (cmake-ide--need-to-run-cmake)
 	(cmake-ide-run-cmake)
@@ -338,13 +338,14 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 (defun cmake-ide-load-db ()
   "Load compilation DB and set flags for current buffer."
   (interactive)
-  (cmake-ide--message "cmake-ide-load-db for file %s" (buffer-file-name))
-  (cmake-ide-maybe-start-rdm)
-  (let* ((file-name buffer-file-name)
-         (buffers (list (current-buffer)))
-         (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
-         (cmake-ide--hdr-buffers (if (cmake-ide--is-src-file file-name) nil buffers)))
-    (cmake-ide--on-cmake-finished)))
+  (when (cmake-ide--locate-project-dir)
+    (cmake-ide--message "cmake-ide-load-db for file %s" (buffer-file-name))
+    (cmake-ide-maybe-start-rdm)
+    (let* ((file-name buffer-file-name)
+	   (buffers (list (current-buffer)))
+	   (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
+	   (cmake-ide--hdr-buffers (if (cmake-ide--is-src-file file-name) nil buffers)))
+      (cmake-ide--on-cmake-finished))))
 
 (defvar cmake-ide--rdm-executable nil
   "Rdm executable location path.")
@@ -615,6 +616,7 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
+  (when (cmake-ide--locate-project-dir)
   (if (cmake-ide--get-build-dir)
       (let ((filename (buffer-file-name))
             (buffer (current-buffer))
@@ -627,7 +629,7 @@ the object file's name just above."
             (let ((project-dir (cmake-ide--locate-project-dir)))
               (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
               (cmake-ide--message "File '%s' successfully removed" filename)))))
-    (error "Not possible to delete a file without setting cmake-ide-build-dir")))
+    (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
 
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
@@ -1066,6 +1068,7 @@ the object file's name just above."
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
+  (when (cmake-ide--locate-project-dir)
   (if (cmake-ide--get-build-dir)
       (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
 	;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
@@ -1077,7 +1080,7 @@ the object file's name just above."
 	    (compile command))))
     (let ((command (read-from-minibuffer "No build dir. Compiler command: " compile-command)))
       (compile command)))
-  (cmake-ide--run-rc))
+  (cmake-ide--run-rc)))
 
 
 (defun cmake-ide--get-compile-command (dir)
