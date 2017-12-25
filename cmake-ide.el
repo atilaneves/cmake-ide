@@ -281,7 +281,7 @@ the closest possible matches available in cppcheck."
 
 (defun cmake-ide--comp-db-file-name ()
   "The name of the compilation database file."
-  (when (cmake-ide--locate-project-dir)
+  (when (cmake-ide--get-build-dir)
 	 (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir)))
     )
 
