@@ -680,12 +680,12 @@ the object file's name just above."
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
   (let ((build-dir
-         (expand-file-name (or (cmake-ide--build-dir-var)
-                               (cmake-ide--get-build-dir-from-hash))
-                           (cmake-ide--locate-project-dir))))
+         (expand-file-name (or (cmake-ide--build-dir-var) ; if use set, use this value
+                               (cmake-ide--get-build-dir-from-hash)) ; else get from project-key
+                           (cmake-ide--locate-project-dir)))) ; if relative, use project-dir as base directory
     (when (not (file-accessible-directory-p build-dir))
       (cmake-ide--message "Making directory %s" build-dir)
-      (make-directory build-dir))
+      (make-directory build-dir 't))
     (file-name-as-directory build-dir)))
 
 
@@ -928,8 +928,8 @@ the object file's name just above."
 (defun cmake-ide--locate-project-dir ()
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
-    (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
-        (and cmakelists (file-name-directory cmakelists))
+    (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))     ; if project dir is set by the user, use this value.
+        (and cmakelists (file-name-directory cmakelists)) ; else try to use cmakelists
 	nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
 	    )))
 

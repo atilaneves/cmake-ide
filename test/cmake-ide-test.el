@@ -560,6 +560,28 @@ company-c-headers to break."
       (should (not (equal dir1 dir2)))))
   )
 
+(ert-deftest test-build-dir-behavior ()
+  (setq cmake-ide-build-dir nil cmake-ide-dir nil)
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (setq cmake-ide-build-pool-dir nil)
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+
+
+  (setq cmake-ide-build-dir "test-build")
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (setq cmake-ide-build-pool-dir nil)
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+  
+  (setq cmake-ide-build-dir "/tmp/test-build")
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+)
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
