@@ -270,8 +270,7 @@ the closest possible matches available in cppcheck."
 	(cmake-ide-run-cmake)
       (progn
 	(cmake-ide--add-file-to-buffer-list)
-	(cmake-ide--on-cmake-finished))))
-  )
+	(cmake-ide--on-cmake-finished)))))
 
 (defun cmake-ide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
@@ -282,8 +281,7 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide--comp-db-file-name ()
   "The name of the compilation database file."
   (when (cmake-ide--get-build-dir)
-	 (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir)))
-    )
+    (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir))))
 
 (defun cmake-ide--need-to-run-cmake ()
   "If CMake needs to be run or not."
@@ -298,19 +296,19 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
  flags."
   (interactive)
   (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
-  (when (file-readable-p (buffer-file-name)) ; new files need not apply
-    (let ((project-dir (cmake-ide--locate-project-dir)))
-      (if project-dir ; no point if it's not a CMake project
-        ;; register this buffer to be either a header or source file
-        ;; waiting for results
-	  (progn
-	    (cmake-ide--add-file-to-buffer-list)
-	    (let ((cmake-dir (cmake-ide--get-build-dir)))
-	      (let ((default-directory cmake-dir))
-		(cmake-ide--run-cmake-impl project-dir cmake-dir)
-		(cmake-ide--register-callback))))
-	(cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)
-	)))))
+    (when (file-readable-p (buffer-file-name)) ; new files need not apply
+      (let ((project-dir (cmake-ide--locate-project-dir)))
+	(if project-dir ; no point if it's not a CMake project
+	    ;; register this buffer to be either a header or source file
+	    ;; waiting for results
+	    (progn
+	      (cmake-ide--add-file-to-buffer-list)
+	      (let ((cmake-dir (cmake-ide--get-build-dir)))
+		(let ((default-directory cmake-dir))
+		  (cmake-ide--run-cmake-impl project-dir cmake-dir)
+		  (cmake-ide--register-callback))))
+	  (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)
+	  )))))
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -365,6 +363,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 (defun cmake-ide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
   (when (featurep 'rtags)
+    (cmake-ide-maybe-start-rdm)
     (cmake-ide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
     (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
@@ -617,19 +616,19 @@ the object file's name just above."
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
   (when (cmake-ide--locate-project-dir)
-  (if (cmake-ide--get-build-dir)
-      (let ((filename (buffer-file-name))
-            (buffer (current-buffer))
-            (name (buffer-name)))
-        (if (not (and filename (file-exists-p filename)))
-            (error "Buffer '%s' is not visiting a file!" name)
-          (when (yes-or-no-p "Are you sure you want to remove this file? ")
-            (delete-file filename)
-            (kill-buffer buffer)
-            (let ((project-dir (cmake-ide--locate-project-dir)))
-              (when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
-              (cmake-ide--message "File '%s' successfully removed" filename)))))
-    (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
+    (if (cmake-ide--get-build-dir)
+	(let ((filename (buffer-file-name))
+	      (buffer (current-buffer))
+	      (name (buffer-name)))
+	  (if (not (and filename (file-exists-p filename)))
+	      (error "Buffer '%s' is not visiting a file!" name)
+	    (when (yes-or-no-p "Are you sure you want to remove this file? ")
+	      (delete-file filename)
+	      (kill-buffer buffer)
+	      (let ((project-dir (cmake-ide--locate-project-dir)))
+		(when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
+		(cmake-ide--message "File '%s' successfully removed" filename)))))
+      (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
 
 
 (defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
@@ -649,8 +648,7 @@ the object file's name just above."
       (progn
 	(cmake-ide--message "get-project-key [%s]" project-dir)
 	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
-							cmake-ide-cmake-opts))
-	)
+							cmake-ide-cmake-opts)))
 					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       )
     ))
@@ -673,15 +671,14 @@ the object file's name just above."
 		(puthash project-key build-dir cmake-ide--cmake-hash)
 		)
 	      build-dir)
-	  build-dir))))
-  )
+	  build-dir)))))
 
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
   (let ((build-dir
-         (expand-file-name (or (cmake-ide--build-dir-var) ; if use set, use this value
-                               (cmake-ide--get-build-dir-from-hash)) ; else get from project-key
+         (expand-file-name (or (cmake-ide--build-dir-var) ; if use set, use this value (may be relative)
+                               (cmake-ide--get-build-dir-from-hash)) ; else get from project-key (return an absolute path)
                            (cmake-ide--locate-project-dir)))) ; if relative, use project-dir as base directory
     (when (not (file-accessible-directory-p build-dir))
       (cmake-ide--message "Making directory %s" build-dir)
@@ -929,9 +926,9 @@ the object file's name just above."
   "Return the path to the project directory."
   (let ((cmakelists (cmake-ide--locate-cmakelists)))
     (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))     ; if project dir is set by the user, use this value.
-        (and cmakelists (file-name-directory cmakelists)) ; else try to use cmakelists
+        (and cmakelists (file-name-directory cmakelists)) ; else try to use cmakelists dir
 	nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
-	    )))
+	)))
 
 (defun cmake-ide--cdb-json-file-to-idb ()
   "Retrieve a JSON object from the compilation database."
@@ -1069,18 +1066,18 @@ the object file's name just above."
   "Compile the project."
   (interactive)
   (when (cmake-ide--locate-project-dir)
-  (if (cmake-ide--get-build-dir)
-      (let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
-	;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
-        (if command-for-compile
-	    (if (functionp command-for-compile)
-		(funcall command-for-compile)
-	      (compile command-for-compile))
-	  (let ((command (read-from-minibuffer "No compile command. Compiler command: " compile-command)))
-	    (compile command))))
-    (let ((command (read-from-minibuffer "No build dir. Compiler command: " compile-command)))
-      (compile command)))
-  (cmake-ide--run-rc)))
+    (if (cmake-ide--get-build-dir)
+	(let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
+	  ;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
+	  (if command-for-compile
+	      (if (functionp command-for-compile)
+		  (funcall command-for-compile)
+		(compile command-for-compile))
+	    (let ((command (read-from-minibuffer "No compile command. Compiler command: " compile-command)))
+	      (compile command))))
+      (let ((command (read-from-minibuffer "No build dir. Compiler command: " compile-command)))
+	(compile command)))
+    (cmake-ide--run-rc)))
 
 
 (defun cmake-ide--get-compile-command (dir)
@@ -1096,18 +1093,17 @@ the object file's name just above."
   "Start the rdm (rtags) server."
   (interactive)
   (when (and (featurep 'rtags)
-	     (cmake-ide--locate-project-dir)
              (or (file-exists-p (cmake-ide--comp-db-file-name))
-                 cmake-ide-project-dir))
+                 (cmake-ide--locate-project-dir)))
 
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-        (cmake-ide--message "Starting rdm server")
-        (with-current-buffer buf
-          (let ((rdm-process (start-process "rdm" (current-buffer)
-                                            (cmake-ide-rdm-executable)
-                                            "-c" cmake-ide-rdm-rc-path)))
-            (set-process-query-on-exit-flag rdm-process nil)))))))
+	(cmake-ide--message "Starting rdm server")
+	(with-current-buffer buf
+	  (let ((rdm-process (start-process "rdm" (current-buffer)
+					    (cmake-ide-rdm-executable)
+					    "-c" cmake-ide-rdm-rc-path)))
+	    (set-process-query-on-exit-flag rdm-process nil)))))))
 
 
 (defun cmake-ide--process-running-p (name)
@@ -1117,8 +1113,8 @@ the object file's name just above."
 (defun cmake-ide--system-process-running-p (name)
   "If a process called NAME is running on the system."
   (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
-         (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args))
-         )
+	 (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args))
+	 )
     (not (null match-args))))
 
 (defun cmake-ide--string-match (regexp name)
