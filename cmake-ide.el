@@ -318,9 +318,11 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 (defun cmake-ide--register-callback ()
   "Register callback for when CMake finishes running."
   (set-process-sentinel (get-process "cmake")
-                        (lambda (_process _event)
+                        (lambda (process _event)
                           (cmake-ide--message "Finished running CMake")
-                          (cmake-ide--on-cmake-finished))))
+                          (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
+			      (cmake-ide--on-cmake-finished)
+			    (cmake-ide--message "CMake failed, see *cmake* for details.")))))
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
@@ -645,10 +647,8 @@ the object file's name just above."
   "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
   (let ((project-dir (cmake-ide--locate-project-dir)))
     (when project-dir
-      (progn
-	(cmake-ide--message "get-project-key [%s]" project-dir)
 	(replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
-							cmake-ide-cmake-opts)))
+							cmake-ide-cmake-opts))
 					; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       )
     ))
@@ -676,15 +676,16 @@ the object file's name just above."
 (defun cmake-ide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
-  (let ((build-dir
-         (expand-file-name (or (cmake-ide--build-dir-var) ; if use set, use this value (may be relative)
-                               (cmake-ide--get-build-dir-from-hash)) ; else get from project-key (return an absolute path)
-                           (cmake-ide--locate-project-dir)))) ; if relative, use project-dir as base directory
-    (when (not (file-accessible-directory-p build-dir))
-      (cmake-ide--message "Making directory %s" build-dir)
-      (make-directory build-dir 't))
-    (file-name-as-directory build-dir)))
-
+  (let ((build-dir-base
+         (or (cmake-ide--build-dir-var) ; if use set, use this value (may be relative)
+	     (cmake-ide--get-build-dir-from-hash)))) ; else get from project-key (return an absolute path)
+    (when build-dir-base
+      (let ((build-dir (expand-file-name  build-dir-base
+					  (cmake-ide--locate-project-dir)))) ; if relative, use project-dir as base directory
+	(when (not (file-accessible-directory-p build-dir))
+	  (cmake-ide--message "Making directory %s" build-dir)
+	  (make-directory build-dir 't))
+	(file-name-as-directory build-dir)))))
 
 (defun cmake-ide--is-src-file (name)
   "Test if NAME is a source file or not."
@@ -1093,7 +1094,7 @@ the object file's name just above."
   "Start the rdm (rtags) server."
   (interactive)
   (when (and (featurep 'rtags)
-             (or (file-exists-p (cmake-ide--comp-db-file-name))
+             (or (and (cmake-ide--comp-db-file-name) (file-exists-p (cmake-ide--comp-db-file-name)))
                  (cmake-ide--locate-project-dir)))
 
     (unless (cmake-ide--process-running-p "rdm")
