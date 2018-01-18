@@ -630,7 +630,8 @@ the object file's name just above."
 	      (delete-file filename)
 	      (kill-buffer buffer)
 	      (let ((project-dir (cmake-ide--locate-project-dir)))
-		(when project-dir (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
+		(when (and project-dir  (file-exists-p (expand-file-name "CMakeList.txt" project-dir)))
+		  (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
 		(cmake-ide--message "File '%s' successfully removed" filename)))))
       (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
 
