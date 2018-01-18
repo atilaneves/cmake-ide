@@ -303,12 +303,14 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 	    ;; waiting for results
 	    (progn
 	      (cmake-ide--add-file-to-buffer-list)
-	      (let ((cmake-dir (cmake-ide--get-build-dir)))
-		(let ((default-directory cmake-dir))
-		  (cmake-ide--run-cmake-impl project-dir cmake-dir)
-		  (cmake-ide--register-callback))))
-	  (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)
-	  )))))
+					; run cmake only if project dir contains a CMakeLists.txt file.
+	      (when (file-exists-p (expand-file-name "CMakeList.txt" project-dir))
+		(let ((cmake-dir (cmake-ide--get-build-dir)))
+		  (let ((default-directory cmake-dir))
+		    (cmake-ide--run-cmake-impl project-dir cmake-dir)
+		    (cmake-ide--register-callback)))))
+	  (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)))))
+)
 
 
 (defun cmake-ide--message (str &rest vars)
@@ -1074,9 +1076,9 @@ the object file's name just above."
 	      (if (functionp command-for-compile)
 		  (funcall command-for-compile)
 		(compile command-for-compile))
-	    (let ((command (read-from-minibuffer "No compile command. Compiler command: " compile-command)))
+	    (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
 	      (compile command))))
-      (let ((command (read-from-minibuffer "No build dir. Compiler command: " compile-command)))
+      (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
 	(compile command)))
     (cmake-ide--run-rc)))
 
@@ -1104,6 +1106,8 @@ the object file's name just above."
 	  (let ((rdm-process (start-process "rdm" (current-buffer)
 					    (cmake-ide-rdm-executable)
 					    "-c" cmake-ide-rdm-rc-path)))
+	    ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
+	    (sleep-for 0.2)
 	    (set-process-query-on-exit-flag rdm-process nil)))))))
 
 
