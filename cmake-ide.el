@@ -304,11 +304,15 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 	    (progn
 	      (cmake-ide--add-file-to-buffer-list)
 					; run cmake only if project dir contains a CMakeLists.txt file.
-	      (when (file-exists-p (expand-file-name "CMakeList.txt" project-dir))
+	      (if (file-exists-p (expand-file-name "CMakeLists.txt" project-dir))
 		(let ((cmake-dir (cmake-ide--get-build-dir)))
 		  (let ((default-directory cmake-dir))
 		    (cmake-ide--run-cmake-impl project-dir cmake-dir)
-		    (cmake-ide--register-callback)))))
+		    (cmake-ide--register-callback)))
+		(cmake-ide--message "No CMakeLists.txt found in project dir")
+		)
+	      
+	      )
 	  (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)))))
 )
 
@@ -630,7 +634,7 @@ the object file's name just above."
 	      (delete-file filename)
 	      (kill-buffer buffer)
 	      (let ((project-dir (cmake-ide--locate-project-dir)))
-		(when (and project-dir  (file-exists-p (expand-file-name "CMakeList.txt" project-dir)))
+		(when (and project-dir  (file-exists-p (expand-file-name "CMakeLists.txt" project-dir)))
 		  (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
 		(cmake-ide--message "File '%s' successfully removed" filename)))))
       (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
@@ -1108,7 +1112,7 @@ the object file's name just above."
 					    (cmake-ide-rdm-executable)
 					    "-c" cmake-ide-rdm-rc-path)))
 	    ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
-	    (sleep-for 0.2)
+	    (sleep-for 0.5)
 	    (set-process-query-on-exit-flag rdm-process nil)))))))
 
 
