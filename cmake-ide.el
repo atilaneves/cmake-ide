@@ -544,7 +544,7 @@ the object file's name just above."
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
   (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
   (let* ((all-commands (cmake-ide--idb-all-commands idb))
-         (command (elt all-commands 0))
+					;         (command (elt all-commands 0))
          (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands))
          (hdr-includes (cmake-ide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
