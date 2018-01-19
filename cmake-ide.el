@@ -309,7 +309,7 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 		  (let ((default-directory cmake-dir))
 		    (cmake-ide--run-cmake-impl project-dir cmake-dir)
 		    (cmake-ide--register-callback)))
-		(cmake-ide--message "No CMakeLists.txt found in project dir")
+		(cmake-ide--message "No CMakeLists.txt found in project dir, skip cmake run.")
 		)
 	      
 	      )
