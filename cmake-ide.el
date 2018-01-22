@@ -544,7 +544,6 @@ the object file's name just above."
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
   (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
   (let* ((all-commands (cmake-ide--idb-all-commands idb))
-					;         (command (elt all-commands 0))
          (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands))
          (hdr-includes (cmake-ide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
@@ -1106,14 +1105,14 @@ the object file's name just above."
 
     (unless (cmake-ide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-	(cmake-ide--message "Starting rdm server")
-	(with-current-buffer buf
-	  (let ((rdm-process (start-process "rdm" (current-buffer)
-					    (cmake-ide-rdm-executable)
-					    "-c" cmake-ide-rdm-rc-path)))
-	    ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
-	    (sleep-for 0.5)
-	    (set-process-query-on-exit-flag rdm-process nil)))))))
+        (cmake-ide--message "Starting rdm server")
+        (with-current-buffer buf
+          (let ((rdm-process (start-process "rdm" (current-buffer)
+                                            (cmake-ide-rdm-executable)
+                                            "-c" cmake-ide-rdm-rc-path)))
+            ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
+            (sleep-for 0.8)
+            (set-process-query-on-exit-flag rdm-process nil)))))))
 
 
 (defun cmake-ide--process-running-p (name)
@@ -1123,8 +1122,8 @@ the object file's name just above."
 (defun cmake-ide--system-process-running-p (name)
   "If a process called NAME is running on the system."
   (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
-	 (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args))
-	 )
+         (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args))
+         )
     (not (null match-args))))
 
 (defun cmake-ide--string-match (regexp name)
