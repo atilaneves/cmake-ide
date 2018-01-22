@@ -285,7 +285,7 @@ the closest possible matches available in cppcheck."
 
 (defun cmake-ide--need-to-run-cmake ()
   "If CMake needs to be run or not."
-  (and (cmake-ide--get-project-key) (not (get-process "cmake")) ; don't run if already running
+  (and (not (get-process "cmake")) ; don't run if already running
        (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
@@ -304,14 +304,13 @@ This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
 	    (progn
 	      (cmake-ide--add-file-to-buffer-list)
 					; run cmake only if project dir contains a CMakeLists.txt file.
-	      (if (file-exists-p (expand-file-name "CMakeLists.txt" project-dir))
+	      (if (cmake-ide--locate-cmakelists)
 		(let ((cmake-dir (cmake-ide--get-build-dir)))
 		  (let ((default-directory cmake-dir))
 		    (cmake-ide--run-cmake-impl project-dir cmake-dir)
 		    (cmake-ide--register-callback)))
 		(cmake-ide--message "No CMakeLists.txt found in project dir, skip cmake run.")
 		)
-	      
 	      )
 	  (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory)))))
 )
@@ -912,15 +911,17 @@ the object file's name just above."
 
 
 (defun cmake-ide--locate-cmakelists ()
-  "Find the topmost CMakeLists.txt file."
-  (if (cmake-ide--project-dir-var)
+  "Find CMakeLists.txt. Use CMakeLists.txt in user defined project-dir, or find the topmost CMakeLists.txt file.  Return nil if not found."
+  (if (and (cmake-ide--project-dir-var) (file-exists-p (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))))
       (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))
-    (let ((cmakelist-dir (cmake-ide--locate-cmakelists-impl default-directory nil)))
+    nil
+    )
+  (let ((cmakelist-dir (cmake-ide--locate-cmakelists-impl default-directory nil)))
       (if cmakelist-dir
 	  (expand-file-name "CMakeLists.txt" cmakelist-dir)
 	nil
 	)
-      )))
+      ))
 
 (defun cmake-ide--locate-cmakelists-impl (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
