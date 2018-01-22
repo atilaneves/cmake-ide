@@ -220,7 +220,8 @@
 (ert-deftest test-all-vars-ccache-alt ()
   (let ((idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
-                  \"command\": \"/usr/lib/ccache/bin/clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]")))
+                  \"command\": \"/usr/lib/ccache/bin/clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]"))
+	(cmake-ide-project-dir "/tmp"))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-std=c++14"))))))
@@ -503,6 +504,7 @@ company-c-headers to break."
 (ert-deftest test-issue-125 ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
   (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "/tmp")
   (let ((dir1 (cmake-ide--get-build-dir))
         (dir2 (cmake-ide--get-build-dir)))
     (should (equal dir1 dir2))))
@@ -515,7 +517,8 @@ company-c-headers to break."
   \"command\": \"clang++ -Wall -Wextra -std=c++14 -c foo.cpp\",
   \"file\": \"foo.cpp\"
 }
-]")))
+]"))
+	(cmake-ide-build-dir "/tmp"))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
@@ -557,6 +560,28 @@ company-c-headers to break."
       (should (not (equal dir1 dir2)))))
   )
 
+(ert-deftest test-build-dir-behavior ()
+  (setq cmake-ide-build-dir nil cmake-ide-dir nil)
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (setq cmake-ide-build-pool-dir nil)
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+
+
+  (setq cmake-ide-build-dir "test-build")
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (setq cmake-ide-build-pool-dir nil)
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+  
+  (setq cmake-ide-build-dir "/tmp/test-build")
+  (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
+  (setq cmake-ide-project-dir "./test1")
+  (let ((dir1 (cmake-ide--get-build-dir)))
+    (cmake-ide--message "dir 1 %s" dir1))
+)
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
