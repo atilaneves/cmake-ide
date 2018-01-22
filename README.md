@@ -2,6 +2,7 @@ cmake-ide
 ==========
 
 [![Build Status](https://travis-ci.org/atilaneves/cmake-ide.svg?branch=master)](https://travis-ci.org/atilaneves/cmake-ide)
+[![Coverage Status](https://coveralls.io/repos/github/atilaneves/cmake-ide/badge.svg?branch=master)](https://coveralls.io/github/atilaneves/cmake-ide?branch=master)
 
 [CppCon 2015 Lighning talk on cmake-ide](https://www.youtube.com/watch?v=5FQwQ0QWBTU).
 

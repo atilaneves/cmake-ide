@@ -8,4 +8,5 @@
  (depends-on "auto-complete-clang")
  (depends-on "company")
  (depends-on "company-c-headers")
- (depends-on "flycheck"))
+ (depends-on "flycheck")
+ (depends-on "undercover"))
