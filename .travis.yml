@@ -1,25 +1,44 @@
 language: emacs-lisp
-
+# Emacs fails to build in container-based builds on Travis
+# See https://github.com/travis-ci/travis-ci/issues/9061
+# and https://github.com/moby/moby/issues/22801
+sudo: required
+dist: trusty
+cache:
+  - directories:
+      # Cache stable Emacs binaries (saves 1min per job)
+      - "$HOME/emacs/"
+# Allow Emacs snapshot builds to fail and don’t wait for these as they can take
+# a looooong time
+matrix:
+  fast_finish: true
+  allow_failures:
+    - env: EMACS_VERSION=snapshot
 env:
-  matrix:
-    - EMACS=emacs24
-#    - EMACS=emacs-snapshot
-
+  - EMACS_VERSION=24.3
+  - EMACS_VERSION=24.5
+  - EMACS_VERSION=25.1
+  - EMACS_VERSION=25.2
+  - EMACS_VERSION=25.3
+  - EMACS_VERSION=snapshot
+before_install:
+  # Configure $PATH: Executables are installed to $HOME/bin
+  - export PATH="$HOME/bin:$PATH"
+  # Download the makefile to emacs-travis.mk
+  - wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
+  # Install Emacs (according to $EMACS_VERSION) and Cask
+  - make -f emacs-travis.mk install_emacs
+  - make -f emacs-travis.mk install_cask
+  # Install Texinfo, if you need to build info manuals for your project
+  - make -f emacs-travis.mk install_texinfo
 install:
-  - if [ "$EMACS" = "emacs24" ]; then
-      sudo add-apt-repository -y ppa:cassou/emacs &&
-      sudo apt-get update -qq &&
-      sudo apt-get install -qq emacs24 emacs24-el;
-    fi
-  - if [ "$EMACS" = "emacs-snapshot" ]; then
-      sudo add-apt-repository -y ppa:ubuntu-elisp/ppa &&
-      sudo apt-get update -qq &&
-      sudo apt-get install -qq emacs-snapshot;
-    fi
-  - curl -fsSL https://raw.githubusercontent.com/cask/cask/master/go | python
-  - export PATH="$HOME/.cask/bin:$PATH"
-  - cask
+  # Install your dependencies
+  - cask install
+  - sudo wget http://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list -O /etc/apt/sources.list.d/d-apt.list
+  - sudo apt-get update
+  - sudo apt-get -y --allow-unauthenticated install --reinstall d-apt-keyring
+  - sudo apt-get update
+  - sudo apt-get -y install dub
 
 script:
-  - emacs --version
-  - make test EMACS=${EMACS} CASK=cask
+  - make test
