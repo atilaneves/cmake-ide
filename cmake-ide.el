@@ -74,7 +74,7 @@
 
 (defcustom cmake-ide-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temporary directory under cmake-ide-build-pool-dir.  DEPRECATED, use cmake-ide-build-dir instead."
+  "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'.  DEPRECATED, use `cmake-ide-build-dir' instead."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -82,7 +82,7 @@
 
 (defcustom cmake-ide-build-dir
   nil
-  "The build directory to run CMake in.  If nil, runs in a temporary directory under cmake-ide-build-pool-dir."
+  "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -164,7 +164,7 @@
 (defcustom cmake-ide-flycheck-cppcheck-strict-standards
   nil
   "Whether or not to be strict when setting cppcheck standards for flycheck.
-If 't' or otherwise non-nil, the flycheck-cppcheck-standards
+If 't' or otherwise non-nil, the `flycheck-cppcheck-standards'
 variable will only be set to contain standards that exactly match
 those from the compile database.  (If there are none, it will not
 be modified.)  If 'nil', standards will be gracefully degraded to
@@ -198,7 +198,7 @@ the closest possible matches available in cppcheck."
 
 (defcustom cmake-ide-cmakelists-dir
   nil
-  "The directory where the main CMakelists.txt is.  DEPRECATED use cmake-ide-projet-dir instead."
+  "The directory where the main CMakelists.txt is.  DEPRECATED use `cmake-ide-projet-dir' instead."
   :group 'cmake-ide
   :type 'file)
 
@@ -228,11 +228,11 @@ the closest possible matches available in cppcheck."
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
 (defun cmake-ide--build-dir-var ()
-  "Return the value of cmake-ide-build-dir or cmake-ide-dir."
+  "Return the value of `cmake-ide-build-dir' or `cmake-ide-dir'."
   (or cmake-ide-build-dir cmake-ide-dir))
 
 (defun cmake-ide--project-dir-var ()
-  "Return the value of cmake-ide-project-dir or cmake-ide-cmakelists-dir."
+  "Return the value of `cmake-ide-project-dir' or `cmake-ide-cmakelists-dir'."
   (or cmake-ide-project-dir cmake-ide-cmakelists-dir))
 
 (defun cmake-ide--mode-hook()
@@ -291,7 +291,7 @@ the closest possible matches available in cppcheck."
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
   "Run CMake and set compiler flags for auto-completion and flycheck.
-This works by calling cmake in a temporary directory (or cmake-ide-build-dir)
+This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
