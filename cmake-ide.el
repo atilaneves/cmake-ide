@@ -1075,16 +1075,14 @@ the object file's name just above."
   (interactive)
   (when (cmake-ide--locate-project-dir)
     (if (cmake-ide--get-build-dir)
-	(let ((command-for-compile (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
-	  ;; command-for-compile could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
-	  (if command-for-compile
-	      (if (functionp command-for-compile)
-		  (funcall command-for-compile)
-		(compile command-for-compile))
-	    (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
-	      (compile command))))
-      (let ((command (read-from-minibuffer "Compiler command: " compile-command)))
-	(compile command)))
+	(let ((compile-command (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
+	  ;; compile-command could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
+	  (if compile-command
+	      (if (functionp compile-command)
+		  (funcall compile-command)
+		(compile compile-command))
+	    (call-interactively #'compile-command)))
+      (call-interactively #'compile-command))
     (cmake-ide--run-rc)))
 
 
