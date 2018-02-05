@@ -297,6 +297,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
   (interactive)
   (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
     (when (file-readable-p (buffer-file-name)) ; new files need not apply
+      (save-some-buffers 1)
       (let ((project-dir (cmake-ide--locate-project-dir)))
 	(if project-dir ; no point if it's not a CMake project
 	    ;; register this buffer to be either a header or source file
