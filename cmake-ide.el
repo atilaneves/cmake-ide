@@ -100,7 +100,7 @@
   nil
   "Whether or not to use a persistent naming scheme for all automatically created build directories."
   :group 'cmake-ide
-  :type 'booleanp
+  :type 'boolean
   :safe #'booleanp)
 
 (defcustom cmake-ide-project-dir
