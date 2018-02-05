@@ -144,21 +144,21 @@
   t
   "Whether or not to search for a corresponding source file for headers when setting flags for them."
   :group 'cmake-ide
-  :type 'booleanp
+  :type 'boolean
   :safe #'booleanp)
 
 (defcustom cmake-ide-header-search-first-including
   t
   "Whether or not to search for the first source file to include a header when setting flags for them."
   :group 'cmake-ide
-  :type 'booleanp
+  :type 'boolean
   :safe #'booleanp)
 
 (defcustom cmake-ide-header-no-flags
   nil
   "Whether to apply compiler flags to header files.  In some projects this takes too long."
   :group 'cmake-ide
-  :type 'booleanp
+  :type 'boolean
   :safe #'booleanp)
 
 (defcustom cmake-ide-flycheck-cppcheck-strict-standards
@@ -170,7 +170,7 @@ those from the compile database.  (If there are none, it will not
 be modified.)  If 'nil', standards will be gracefully degraded to
 the closest possible matches available in cppcheck."
   :group 'cmake-ide
-  :type 'booleanp
+  :type 'boolean
   :safe #'booleanp)
 
 ;;; The buffers to set variables for
