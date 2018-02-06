@@ -223,7 +223,7 @@
   (let ((idb (cmake-ide--cdb-json-string-to-idb
               "[{\"file\": \"file1.c\",
                   \"command\": \"/usr/lib/ccache/bin/clang++ -Iinc1 -Iinc2 -Dfoo=bar -S -F -g -std=c++14\"}]"))
-	(cmake-ide-project-dir "/tmp"))
+        (cmake-ide-project-dir "/tmp"))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F" "-std=c++14"))))))
@@ -520,7 +520,7 @@ company-c-headers to break."
   \"file\": \"foo.cpp\"
 }
 ]"))
-	(cmake-ide-build-dir "/tmp"))
+        (cmake-ide-build-dir "/tmp"))
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
@@ -546,18 +546,18 @@ company-c-headers to break."
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
   (setq cmake-ide--cmake-hash (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
-					; two run of get-project-key have to return the same result
+  ;; two run of get-project-key have to return the same result
   (let ((dir1 (cmake-ide--get-project-key))
         (dir2 (cmake-ide--get-project-key)))
     (should (equal dir1 dir2)))
   (let ((dir1 (cmake-ide--get-project-key)))
     (setq cmake-ide-project-dir "./test2")
-					; since project-key depend on project-dir, two different dir must have different value
+    ;; since project-key depend on project-dir, two different dir must have different value
     (let ((dir2 (cmake-ide--get-project-key)))
       (should (not (equal dir1 dir2)))))
   (let ((dir1 (cmake-ide--get-project-key)))
     (setq cmake-ide-cmake-opts "-DTest")
-    					; since project-key depend on cmake-opts, two different dir must have different value
+    ;; since project-key depend on cmake-opts, two different dir must have different value
     (let ((dir2 (cmake-ide--get-project-key)))
       (should (not (equal dir1 dir2)))))
   )
