@@ -1006,15 +1006,16 @@ the object file's name just above."
   (let ((dir (file-name-directory file-name))
         (ret))
 
-    (defun distance (object)
-      (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
-
-    (setq ret (mapcar (lambda (x) (push `(distance . ,(distance x)) x)) (cmake-ide--idb-all-objs idb)))
+    (setq ret (mapcar (lambda (x) (push `(distance . ,(cmake-ide--file-distance dir x)) x)) (cmake-ide--idb-all-objs idb)))
 
     (seq-sort
      (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
                       (cmake-ide--idb-obj-get y 'distance)))
      ret)))
+
+(defun cmake-ide--file-distance (dir object)
+  "Return the distance between DIR and OBJECT's file."
+  (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
 
 (defun cmake-ide--idb-all-objs (idb)
   "Return a list of IDB entries."
@@ -1087,8 +1088,8 @@ the object file's name just above."
               (if (functionp compile-command)
                   (funcall compile-command)
                 (compile compile-command))
-            (call-interactively #'compile-command)))
-      (call-interactively #'compile-command))
+            (call-interactively compile-command)))
+      (call-interactively compile-command))
     (cmake-ide--run-rc)))
 
 
