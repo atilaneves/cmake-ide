@@ -50,12 +50,17 @@
   "Check whether STRING is empty."
   (string= string ""))
 
-(when (not (require 'subr-x nil t))
-  (message "`subr-x' not found")
-  (fset 'string-empty-p 'cmake-ide--string-empty-p)
-  )
+(if (not (require 'subr-x nil t))
+    (progn
+      (message "`subr-x' not found, replacing string-empty-p with cmake-ide--string-empty-p")
+      (fset 'string-empty-p 'cmake-ide--string-empty-p))
+  (declare-function string-empty-p "subr-x"))
 
 (declare-function rtags-call-rc "rtags")
+(declare-function rtags-executable-find "rtags")
+(declare-function irony-cdb-json-add-compile-commands-path "irony")
+(declare-function flycheck-clear "flycheck")
+
 
 (defcustom cmake-ide-flags-c
   nil
