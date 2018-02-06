@@ -41,4 +41,4 @@ install:
   - sudo apt-get -y install dub
 
 script:
-  - make test
+  - make travis

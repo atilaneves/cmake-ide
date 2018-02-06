@@ -40,5 +40,9 @@
   (should (equal (cmake-ide--string-empty-p "") t))
   (should (equal (cmake-ide--string-empty-p "foo") nil)))
 
+(ert-deftest test-unquote ()
+  (should (equal (cmake-ide--unquote "\"foo\"") "foo")))
+
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
