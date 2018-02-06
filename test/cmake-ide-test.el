@@ -33,7 +33,7 @@
 
 (require 'ert)
 (require 'cmake-ide)
-(require 'cl)
+(require 'cl-lib)
 (require 'auto-complete-clang)
 (require 'company)
 (require 'company-c-headers)
@@ -42,7 +42,7 @@
 (defun equal-lists (lst1 lst2)
   "If LST1 is the same as LST2 regardless or ordering."
   (and (equal (length lst1) (length lst2))
-       (null (set-difference lst1 lst2 :test 'equal))))
+       (null (cl-set-difference lst1 lst2 :test 'equal))))
 
 (defmacro with-non-empty-file (&rest body)
   "Execute BODY in the context of a non-empty file buffer."

@@ -737,7 +737,7 @@ the object file's name just above."
       (cmake-ide--vector-to-list arguments))))
 
 (defun cmake-ide--quote-if-spaces (str)
-  "Add quotes to STR if it contains spaces."
+  "Add quotes to STR if it has spaces."
   (if (string-match-p " " str)
       (concat "\"" str "\"")
     str))

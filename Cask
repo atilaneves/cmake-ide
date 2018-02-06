@@ -9,4 +9,5 @@
  (depends-on "company")
  (depends-on "company-c-headers")
  (depends-on "flycheck")
+ (depends-on "cl-lib")
  (depends-on "undercover"))
