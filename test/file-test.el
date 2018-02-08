@@ -83,7 +83,7 @@ add_executable(app \"%s\")" file-name))
      (find-file file-name)
      (flycheck-mode)
      (cmake-ide-maybe-run-cmake)
-     (sleep-for 5)
+     (sleep-for 5) ; FIXME
 
      (should (equal-lists ac-clang-flags (list "-DDAS_DEF" (format "-I%s" leincludes) "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
