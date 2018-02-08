@@ -24,7 +24,7 @@ unit:
 	${CASK} exec ert-runner test/cmake-ide-test.el test/utils-test.el
 
 file-test:
-	${CASK} exec ert-runner test/cmake-ide-test.el test/file-test.el
+	${CASK} exec ert-runner test/file-test.el
 
 compile:
 	${CASK} exec ${EMACS} -Q -batch -f batch-byte-compile cmake-ide.el
