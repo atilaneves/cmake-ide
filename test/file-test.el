@@ -83,14 +83,15 @@ add_executable(app \"%s\")" file-name))
      (find-file file-name)
      (flycheck-mode)
      (cmake-ide-maybe-run-cmake)
-     (sleep-for 5) ; FIXME
 
-     (should (equal-lists ac-clang-flags (list "-DDAS_DEF" (format "-I%s" leincludes) "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o")))
-     (should (equal-lists company-clang-arguments ac-clang-flags))
-     (should (equal-lists flycheck-clang-include-path (list leincludes)))
-     (should (equal-lists flycheck-clang-definitions '("DAS_DEF")))
-     (should (equal-lists flycheck-clang-includes nil))
-     (should (equal-lists flycheck-clang-args '("-g" "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o" "-c"))))))
+     (cmake-ide--register-a-callback
+      (lambda (_process _event)
+        (should (equal-lists ac-clang-flags (list "-DDAS_DEF" (format "-I%s" leincludes) "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o")))
+        (should (equal-lists company-clang-arguments ac-clang-flags))
+        (should (equal-lists flycheck-clang-include-path (list leincludes)))
+        (should (equal-lists flycheck-clang-definitions '("DAS_DEF")))
+        (should (equal-lists flycheck-clang-includes nil))
+        (should (equal-lists flycheck-clang-args '("-g" "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o" "-c"))))))))
 
 
 

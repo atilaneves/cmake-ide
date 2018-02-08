@@ -325,12 +325,16 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cmake-ide--register-callback ()
   "Register callback for when CMake finishes running."
-  (set-process-sentinel (get-process "cmake")
-                        (lambda (process _event)
-                          (cmake-ide--message "Finished running CMake")
-                          (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
-                              (cmake-ide--on-cmake-finished)
-                            (cmake-ide--message "CMake failed, see *cmake* for details.")))))
+  (cmake-ide--register-a-callback
+   (lambda (process _event)
+     (cmake-ide--message "Finished running CMake")
+     (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
+         (cmake-ide--on-cmake-finished)
+       (cmake-ide--message "CMake failed, see *cmake* for details.")))))
+
+(defun cmake-ide--register-a-callback (callback)
+  "Register CALLBACK to be called when CMake finishes running."
+  (set-process-sentinel (get-process "cmake") callback))
 
 (defun cmake-ide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
