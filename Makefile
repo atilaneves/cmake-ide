@@ -3,11 +3,7 @@ CASK ?= cask
 
 all: test
 
-travis: clean-elc
-	${MAKE} unit
-	${MAKE} compile
-	${MAKE} unit
-	${MAKE} clean-elc
+travis: test
 
 
 test: clean-elc
