@@ -1,2 +1,2 @@
 (when (require 'undercover nil t)
-  (undercover "*.el" ))
+  (undercover "*.el"))
