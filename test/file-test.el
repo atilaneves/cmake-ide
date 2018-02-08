@@ -35,6 +35,11 @@
 (require 'ert)
 (require 'cmake-ide)
 (require 'cl-lib)
+(require 'auto-complete-clang)
+(require 'company)
+(require 'company-clang)
+(require 'flycheck)
+
 
 (defvar cmake-ide--sandbox-path (expand-file-name "sandbox" cmake-ide--test-path))
 
@@ -58,22 +63,43 @@
   (and (equal (length lst1) (length lst2))
        (null (cl-set-difference lst1 lst2 :test 'equal))))
 
+
+(defmacro with-cpp-file (cmakelists-txt file-name file-contents &rest body)
+  "Write CMakeLists.txt with CMAKELISTS-TXT then FILE-NAME out to the sandbox with FILE-CONTENTS then evaluate BODY."
+  `(let ((file-name ,file-name))
+     (with-sandbox
+      (write-file-str file-name ,file-contents)
+      (write-file-str "CMakeLists.txt" ,cmakelists-txt)
+      (find-file file-name)
+      (flycheck-mode)
+      (cmake-ide-maybe-run-cmake)
+      (cmake-ide--register-a-callback
+       (lambda (_process _event)
+         ,@body))
+
+                                        ;,@body
+      )))
+
+
 (ert-deftest test-one-cpp-file ()
-  (with-sandbox
-   (write-file-str "foo.cpp" "int add(int i, int j) { return i + j; }")
-   (write-file-str "CMakeLists.txt"
-                   "
+  (with-cpp-file
+   "
 cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
-set(CMAKE_CXX_FLAGS \"-g -debug\")
-add_executable(foo \"foo.cpp\")")
-   (cmake-ide--message "Running cmake !!!!!!1oneoneoneoene")
-   (cmake-ide-maybe-run-cmake)
-   (should (equal-lists ac-clang-flags '("-Iinc1" "-Iinc2" "-Dfoo=bar" "-S" "-F")))
-   (should (equal-lists company-clang-arguments ac-clang-flags))
-   (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
-   (should (equal-lists flycheck-clang-definitions '("foo=bar")))
-   (should (equal-lists flycheck-clang-includes nil))
-   (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))))
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG \"-g -Wall -Wextra\")
+include_directories(\"leincludes\")
+add_definitions(\"-DDAS_DEF\")
+add_executable(app \"foo.cpp\")"
+   "foo.cpp"
+   "int add(int i, int j) { return i + j; }"
+
+   (let ((leincludes (expand-file-name "leincludes" cmake-ide--sandbox-path)))
+     (should (equal-lists ac-clang-flags (list "-DDAS_DEF" (format "-I%s" leincludes) "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o")))
+     (should (equal-lists company-clang-arguments ac-clang-flags))
+     (should (equal-lists flycheck-clang-include-path (list leincludes)))
+     (should (equal-lists flycheck-clang-definitions '("DAS_DEF")))
+     (should (equal-lists flycheck-clang-includes nil))
+     (should (equal-lists flycheck-clang-args '("-g" "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o" "-c"))))))
 
 
 (provide 'file-test)

@@ -537,7 +537,6 @@ company-c-headers to break."
   \"file\": \"/tmp/name - with hyphen/main.cpp\"
 }
 ]")))
-    (cmake-ide--message "idb: %s" idb)
     (with-non-empty-file
      (cmake-ide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-pedantic" "-c"))))))
