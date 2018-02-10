@@ -94,8 +94,8 @@
   )
 
 (defcustom cmake-ide-build-pool-dir
-  nil
-  "The parent directory for all automatically created build directories.  If nil, the system tmp-directory is used."
+  temporary-file-directory
+  "The parent directory for all automatically created build directories."
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
