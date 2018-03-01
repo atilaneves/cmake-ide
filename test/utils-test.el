@@ -58,5 +58,13 @@
                     ((file . "bar") (command . "a b c"))))
                  '("a b c"))))
 
+(ert-deftest test-cmake-ide--idb-all-objs ()
+  (let ((idb (make-hash-table)))
+    (puthash "foo" '(((file . "foo") (command . "cmd1"))) idb)
+    (puthash "bar" '(((file . "bar") (command . "cmd2"))) idb)
+    (should (equal (cmake-ide--idb-all-objs idb)
+                   '(((file . "foo") (command . "cmd1"))
+                     ((file . "bar") (command . "cmd2")))))))
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
