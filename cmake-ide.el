@@ -1046,13 +1046,6 @@ the object file's name just above."
     ret))
 
 
-(defun cmake-ide--idb-unique-compiler-commands (idb)
-  "Calculate the list of unique compiler commands in IDB ignoring the source file name."
-  (let ((objects) (ret))
-    (maphash (lambda (_ v) (push v objects)) idb)
-    (setq ret (cmake-ide--idb-objs-to-unique-commands objects))
-    ret))
-
 (defun cmake-ide--idb-objs-to-unique-commands (objects)
   "Calculate the list of unique compiler commands in OBJECTS ignoring the source file name."
   (let ((ret (mapcar (lambda (x)
