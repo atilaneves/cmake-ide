@@ -43,6 +43,10 @@
 (ert-deftest test-unquote ()
   (should (equal (cmake-ide--unquote "\"foo\"") "foo")))
 
+(ert-deftest test-cmake-ide--string-match ()
+  (should (equal (cmake-ide--string-match "foo" "foobar") 0))
+  (should (equal (cmake-ide--string-match "oo" "foobar") 1))
+  (should (equal (cmake-ide--string-match "foo" "bar") nil)))
 
 (provide 'utils-test)
 ;;; utils-test.el ends here
