@@ -129,13 +129,24 @@ add_executable(app \"foo.cpp\")"
    (write-file-str "foo.txt" "abcdefghi")
    (should (equal (cmake-ide--hash-file "foo.txt") "8aa99b1f439ff71293e95357bac6fd94"))))
 
+
 (ert-deftest test-cmake-ide--cdb-idb-from-cache-no-idbs ()
   (with-sandbox
-   (write-file-str "comp.db" "foobarbz")
-   (let ((cmake-ide--idbs (make-hash-table))
-         (cmake-ide--cdb-hash (make-hash-table))
-         (cmake-ide-build-dir (concat root-sandbox-path "comp.db")))
-     (should (equal (cmake-ide--cdb-idb-from-cache) nil)))))
+   (write-file-str "compile_commands.json" "foobarbz")
+   (setq cmake-ide--idbs (cmake-ide--make-hash-table))
+   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
+   (setq cmake-ide-build-dir root-sandbox-path)
+   (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
+
+(ert-deftest test-cmake-ide--cdb-idb-from-cache-one-idb ()
+  (with-sandbox
+   (write-file-str "compile_commands.json" "foobarbz")
+   (setq cmake-ide--idbs (cmake-ide--make-hash-table))
+   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
+   (setq cmake-ide-build-dir root-sandbox-path)
+   (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file "compile_commands.json") cmake-ide--cdb-hash)
+   (should (equal (cmake-ide--cdb-idb-from-cache) "idb"))))
 
 
 (provide 'file-test)

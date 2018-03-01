@@ -212,20 +212,24 @@ the closest possible matches available in cppcheck."
   "Whether or not to try all unique compiler flags for header files."
   )
 
+(defun cmake-ide--make-hash-table ()
+  "Make a hash table with equal for the test function."
+  (make-hash-table :test #'equal))
+
 (defvar cmake-ide--idbs
-  (make-hash-table :test #'equal)
+  (cmake-ide--make-hash-table)
   "A cached map of build directories to IDE databases.")
 
 (defvar cmake-ide--cdb-hash
-  (make-hash-table :test #'equal)
+  (cmake-ide--make-hash-table)
   "The hash of the JSON CDB for each build directory.")
 
 (defvar cmake-ide--cmake-hash
-  (make-hash-table :test #'equal)
+  (cmake-ide--make-hash-table)
   "A hash to remember cmake build dirs.")
 
 (defvar cmake-ide--irony
-  (make-hash-table :test #'equal)
+  (cmake-ide--make-hash-table)
   "A hash to remember irony build dirs.")
 
 (defvar cmake-ide--semantic-system-include)
