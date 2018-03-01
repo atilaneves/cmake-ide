@@ -129,6 +129,14 @@ add_executable(app \"foo.cpp\")"
    (write-file-str "foo.txt" "abcdefghi")
    (should (equal (cmake-ide--hash-file "foo.txt") "8aa99b1f439ff71293e95357bac6fd94"))))
 
+(ert-deftest test-cmake-ide--cdb-idb-from-cache-no-idbs ()
+  (with-sandbox
+   (write-file-str "comp.db" "foobarbz")
+   (let ((cmake-ide--idbs (make-hash-table))
+         (cmake-ide--cdb-hash (make-hash-table))
+         (cmake-ide-build-dir (concat root-sandbox-path "comp.db")))
+     (should (equal (cmake-ide--cdb-idb-from-cache) nil)))))
+
 
 (provide 'file-test)
 ;;; file-test.el ends here
