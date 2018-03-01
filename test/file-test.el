@@ -116,6 +116,14 @@ add_executable(app \"foo.cpp\")"
   (with-sandbox
    (should (equal (cmake-ide--get-compile-command root-sandbox-path) nil))))
 
+(ert-deftest test-cmake-ide--idb-obj-depends-on-file ()
+  (with-sandbox
+   (write-file-str "foo.c" "#include <bar.h>")
+   (let ((obj '((file . "foo.c"))))
+     (should (equal (cmake-ide--idb-obj-depends-on-file obj "foo.c") nil))
+     (should (equal (cmake-ide--idb-obj-depends-on-file obj "foo.h") nil))
+     (should (equal (cmake-ide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
+
 
 (provide 'file-test)
 ;;; file-test.el ends here
