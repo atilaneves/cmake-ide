@@ -119,4 +119,3 @@ for the first time to specify options). Best done with
 Related Projects:
 ----------------
 * [cpputils-cmake](https://github.com/redguardtoo/cpputils-cmake).
-* [My CMake modules for emacs. cmake-ide is definitely better](https://github.com/atilaneves/cmake_modules).

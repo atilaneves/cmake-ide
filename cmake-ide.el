@@ -917,7 +917,7 @@ the object file's name just above."
 
 
 (defun cmake-ide--locate-cmakelists ()
-  "Find CMakeLists.txt. Use CMakeLists.txt in user defined project-dir, or find the topmost CMakeLists.txt file.  Return nil if not found."
+  "Find CMakeLists.txt.  Use CMakeLists.txt in user defined project-dir, or find the topmost CMakeLists.txt file.  Return nil if not found."
   (if (and (cmake-ide--project-dir-var) (file-exists-p (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))))
       (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))
     nil
