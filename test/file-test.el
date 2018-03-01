@@ -102,5 +102,20 @@ add_executable(app \"foo.cpp\")"
      (should (equal-lists flycheck-clang-args '("-g" "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o" "-c"))))))
 
 
+(ert-deftest test-cmake-ide--get-compile-command-ninja ()
+  (with-sandbox
+   (write-file-str "build.ninja" "")
+   (should (equal (cmake-ide--get-compile-command root-sandbox-path) (concat "ninja -C " root-sandbox-path)))))
+
+(ert-deftest test-cmake-ide--get-compile-command-make ()
+  (with-sandbox
+   (write-file-str "Makefile" "")
+   (should (equal (cmake-ide--get-compile-command root-sandbox-path) (concat "make --no-print-directory -C " root-sandbox-path)))))
+
+(ert-deftest test-cmake-ide--get-compile-command-other ()
+  (with-sandbox
+   (should (equal (cmake-ide--get-compile-command root-sandbox-path) nil))))
+
+
 (provide 'file-test)
 ;;; file-test.el ends here
