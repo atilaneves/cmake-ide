@@ -48,5 +48,15 @@
   (should (equal (cmake-ide--string-match "oo" "foobar") 1))
   (should (equal (cmake-ide--string-match "foo" "bar") nil)))
 
+(ert-deftest test-cmake-ide--idb-objs-to-unique-commands ()
+  (should (equal (cmake-ide--idb-objs-to-unique-commands
+                  '(((file . "foo") (command . "a b c"))
+                    ((file . "bar") (command . "d e f"))))
+                 '("a b c" "d e f")))
+  (should (equal (cmake-ide--idb-objs-to-unique-commands
+                  '(((file . "foo") (command . "a b c"))
+                    ((file . "bar") (command . "a b c"))))
+                 '("a b c"))))
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
