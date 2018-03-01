@@ -148,6 +148,16 @@ add_executable(app \"foo.cpp\")"
    (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file "compile_commands.json") cmake-ide--cdb-hash)
    (should (equal (cmake-ide--cdb-idb-from-cache) "idb"))))
 
+(ert-deftest test-cmake-ide--cdb-idb-from-cache-one-changed-idb ()
+  (with-sandbox
+   (write-file-str "compile_commands.json" "foobarbz")
+   (setq cmake-ide--idbs (cmake-ide--make-hash-table))
+   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
+   (setq cmake-ide-build-dir root-sandbox-path)
+   (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   (puthash (cmake-ide--get-build-dir) "wronghash" cmake-ide--cdb-hash)
+   (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
+
 
 (provide 'file-test)
 ;;; file-test.el ends here
