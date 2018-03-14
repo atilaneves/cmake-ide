@@ -919,18 +919,13 @@ the object file's name just above."
 
 Use CMakeLists.txt in user defined project-dir, or find the topmost
 CMakeLists.txt file.  Return nil if not found."
-
   (if (and (cmake-ide--project-dir-var)
            (file-exists-p (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))))
       (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))
-    nil
-    )
-  (let ((cmakelist-dir (cmake-ide--topmost-cmakelists default-directory nil)))
-    (if cmakelist-dir
-        (expand-file-name "CMakeLists.txt" cmakelist-dir)
-      nil
-      )
-    ))
+    (let ((cmakelist-dir (cmake-ide--topmost-cmakelists default-directory nil)))
+      (if cmakelist-dir
+          (expand-file-name "CMakeLists.txt" cmakelist-dir)
+        nil))))
 
 (defun cmake-ide--topmost-cmakelists (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."

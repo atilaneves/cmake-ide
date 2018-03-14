@@ -154,7 +154,7 @@ add_executable(app \"foo.cpp\")"
    (puthash (cmake-ide--get-build-dir) "wronghash" cmake-ide--cdb-hash)
    (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
 
-(ert-deftest test-cmake-ide--dcb-json-file-to-idb-no-caches ()
+(ert-deftest test-cmake-ide--cdb-json-file-to-idb-no-caches ()
   (with-sandbox
    ;; no caches, this CDB written to the file system
    (initialise-caches "[
@@ -176,6 +176,28 @@ add_executable(app \"foo.cpp\")"
                           (command . "clang++ -Wall -Wextra -std=c++14 -c foo.cpp")
                           (file . "foo.cpp"))))
      (should (equal bar nil)))))
+
+
+(ert-deftest test-cmake-ide--locate-cmakelists-no-dir-var ()
+  (with-sandbox
+   (write-file-str "CMakeLists.txt" "stuff")
+   (f-mkdir "subdir")
+   (write-file-str "subdir/CMakeLists.txt" "stuff")
+   (let ((default-directory (expand-file-name "subdir")))
+     (should (equal (cmake-ide--locate-cmakelists)
+                    (expand-file-name "CMakeLists.txt" cmake-ide--sandbox-path))))))
+
+(ert-deftest test-cmake-ide--locate-cmakelists-with-dir-var ()
+  (with-sandbox
+   (write-file-str "CMakeLists.txt" "stuff")
+   (f-mkdir "subdir")
+   (write-file-str "subdir/CMakeLists.txt" "stuff")
+   (let* ((default-directory (expand-file-name "subdir"))
+          ;; setting this should select the subdir instead of the topmost dir
+          (cmake-ide-project-dir default-directory))
+     (should (equal (cmake-ide--locate-cmakelists)
+                    (expand-file-name "CMakeLists.txt"
+                                      (expand-file-name "subdir" cmake-ide--sandbox-path)))))))
 
 (provide 'file-test)
 ;;; file-test.el ends here
