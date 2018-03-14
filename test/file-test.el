@@ -136,15 +136,18 @@ add_executable(app \"foo.cpp\")"
   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
   (setq cmake-ide-build-dir cmake-ide--sandbox-path))
 
+
 (ert-deftest test-cmake-ide--cdb-idb-from-cache-no-idbs ()
   (with-sandbox
-   (initialise-caches "{}")  ;; not even valid json
+   (initialise-caches "{}")
+   ;; no caches, nothing to find
    (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
 
 (ert-deftest test-cmake-ide--cdb-idb-from-cache-one-idb ()
   (with-sandbox
    (initialise-caches "{}")
    (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   ;; put the right hash for the CDB - it won't be considered to have changed
    (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file "compile_commands.json") cmake-ide--cdb-hash)
    (should (equal (cmake-ide--cdb-idb-from-cache) "idb"))))
 
@@ -152,6 +155,7 @@ add_executable(app \"foo.cpp\")"
   (with-sandbox
    (initialise-caches "{}")
    (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   ;; put the wrong hash for the CDB - it will be considered to have changed
    (puthash (cmake-ide--get-build-dir) "wronghash" cmake-ide--cdb-hash)
    (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
 
