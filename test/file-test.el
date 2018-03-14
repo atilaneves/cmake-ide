@@ -45,11 +45,10 @@
 
 (defmacro with-sandbox (&rest body)
   "Evaluate BODY in an empty temporary directory."
-  `(let* ((root-sandbox-path (expand-file-name "sandbox" cmake-ide--test-path))
-          (default-directory root-sandbox-path))
-     (when (f-dir? root-sandbox-path)
-       (f-delete root-sandbox-path :force))
-     (f-mkdir root-sandbox-path)
+  `(let ((default-directory cmake-ide--sandbox-path))
+     (when (f-dir? cmake-ide--sandbox-path)
+       (f-delete cmake-ide--sandbox-path :force))
+     (f-mkdir cmake-ide--sandbox-path)
      ,@body))
 
 (defun write-file-str (name str)
@@ -105,16 +104,16 @@ add_executable(app \"foo.cpp\")"
 (ert-deftest test-cmake-ide--get-compile-command-ninja ()
   (with-sandbox
    (write-file-str "build.ninja" "")
-   (should (equal (cmake-ide--get-compile-command root-sandbox-path) (concat "ninja -C " root-sandbox-path)))))
+   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) (concat "ninja -C " cmake-ide--sandbox-path)))))
 
 (ert-deftest test-cmake-ide--get-compile-command-make ()
   (with-sandbox
    (write-file-str "Makefile" "")
-   (should (equal (cmake-ide--get-compile-command root-sandbox-path) (concat "make --no-print-directory -C " root-sandbox-path)))))
+   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) (concat "make --no-print-directory -C " cmake-ide--sandbox-path)))))
 
 (ert-deftest test-cmake-ide--get-compile-command-other ()
   (with-sandbox
-   (should (equal (cmake-ide--get-compile-command root-sandbox-path) nil))))
+   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) nil))))
 
 (ert-deftest test-cmake-ide--idb-obj-depends-on-file ()
   (with-sandbox
@@ -135,7 +134,7 @@ add_executable(app \"foo.cpp\")"
   (write-file-str "compile_commands.json" "foobarbaz")
   (setq cmake-ide--idbs (cmake-ide--make-hash-table))
   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
-  (setq cmake-ide-build-dir root-sandbox-path))
+  (setq cmake-ide-build-dir cmake-ide--sandbox-path))
 
 (ert-deftest test-cmake-ide--cdb-idb-from-cache-no-idbs ()
   (with-sandbox
