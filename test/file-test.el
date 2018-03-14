@@ -123,11 +123,6 @@ add_executable(app \"foo.cpp\")"
      (should (equal (cmake-ide--idb-obj-depends-on-file obj "foo.h") nil))
      (should (equal (cmake-ide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
 
-(ert-deftest test-cmake-ide--hash-file ()
-  (with-sandbox
-   (write-file-str "foo.txt" "abcdefghi")
-   (should (equal (cmake-ide--hash-file "foo.txt") "8aa99b1f439ff71293e95357bac6fd94"))))
-
 
 (defun initialise-caches (cdb-json)
   "Initialise all DB caches using CDB-JSON as the CDB."
