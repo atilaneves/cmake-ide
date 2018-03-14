@@ -126,7 +126,7 @@ add_executable(app \"foo.cpp\")"
 
 (defun initialise-caches (cdb-json)
   "Initialise all DB caches using CDB-JSON as the CDB."
-  (write-file-str "compile_commands.json" "foobarbaz")
+  (write-file-str "compile_commands.json" cdb-json)
   (setq cmake-ide--idbs (cmake-ide--make-hash-table))
   (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
   (setq cmake-ide-build-dir cmake-ide--sandbox-path))
@@ -154,6 +154,28 @@ add_executable(app \"foo.cpp\")"
    (puthash (cmake-ide--get-build-dir) "wronghash" cmake-ide--cdb-hash)
    (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
 
+(ert-deftest test-cmake-ide--dcb-json-file-to-idb-no-caches ()
+  (with-sandbox
+   ;; no caches, this CDB written to the file system
+   (initialise-caches "[
+{
+  \"directory\": \"\",
+  \"command\": \"clang++ -Wall -Wextra -std=c++14 -c foo.cpp\",
+  \"file\": \"foo.cpp\"
+}
+]")
+   (let*
+       ;; map from file to JSON objects (should only have one)
+       ((idb (cmake-ide--cdb-json-file-to-idb))
+        ;; retrieve 1st (only) object for "foo.cpp"
+        (foo (cmake-ide--idb-file-to-obj idb "foo.cpp"))
+        ;; retrieve 1st (none) object for "bar.cpp"
+        (bar (cmake-ide--idb-file-to-obj idb "bar.cpp")))
+
+     (should (equal foo '((directory . "")
+                          (command . "clang++ -Wall -Wextra -std=c++14 -c foo.cpp")
+                          (file . "foo.cpp"))))
+     (should (equal bar nil)))))
 
 (provide 'file-test)
 ;;; file-test.el ends here
