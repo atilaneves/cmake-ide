@@ -218,19 +218,19 @@ the closest possible matches available in cppcheck."
 
 (defvar cmake-ide--idbs
   (cmake-ide--make-hash-table)
-  "A cached map of build directories to IDE databases.")
+  "Key: build directory.  Value: IDB for that build directory.")
 
 (defvar cmake-ide--cdb-hash
   (cmake-ide--make-hash-table)
-  "The hash of the JSON CDB for each build directory.")
+  "Key: build directory.  Value: The hash of the JSON CDB.")
 
 (defvar cmake-ide--cmake-hash
   (cmake-ide--make-hash-table)
-  "A hash to remember cmake build dirs.")
+  "Key: project key.  Value: build dir.")
 
 (defvar cmake-ide--irony
   (cmake-ide--make-hash-table)
-  "A hash to remember irony build dirs.")
+  "Used as a set.  Key: build dir.  Value: T or nil.")
 
 (defvar cmake-ide--semantic-system-include)
 
@@ -677,11 +677,9 @@ the object file's name just above."
                     (if (and cmake-ide-build-pool-use-persistent-naming project-key)
                         project-key
                       (make-temp-name "cmake")))
-              (setq build-dir (expand-file-name build-directory-name build-parent-directory)
-                    )
+              (setq build-dir (expand-file-name build-directory-name build-parent-directory))
               (progn
-                (puthash project-key build-dir cmake-ide--cmake-hash)
-                )
+                (puthash project-key build-dir cmake-ide--cmake-hash))
               build-dir)
           build-dir)))))
 
