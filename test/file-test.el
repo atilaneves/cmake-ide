@@ -172,9 +172,9 @@ add_executable(app \"foo.cpp\")"
         ;; retrieve 1st (none) object for "bar.cpp"
         (bar (cmake-ide--idb-file-to-obj idb "bar.cpp")))
 
-     (should (equal foo '((directory . "")
-                          (command . "clang++ -Wall -Wextra -std=c++14 -c foo.cpp")
-                          (file . "foo.cpp"))))
+     (should (equal-lists foo '((directory . "")
+                                (command . "clang++ -Wall -Wextra -std=c++14 -c foo.cpp")
+                                (file . "foo.cpp"))))
      (should (equal bar nil)))))
 
 
