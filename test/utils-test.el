@@ -66,5 +66,9 @@
                    '(((file . "foo") (command . "cmd1"))
                      ((file . "bar") (command . "cmd2")))))))
 
+(ert-deftest test-filter-first ()
+  (should (equal (cmake-ide--filter-first (lambda (x) (equal x "foo")) '("bar" "foo")) "foo"))
+  (should (equal (cmake-ide--filter-first (lambda (x) (equal x "quux")) '("bar" "foo")) nil)))
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
