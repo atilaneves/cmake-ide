@@ -501,7 +501,11 @@ company-c-headers to break."
      (should (equal-lists flycheck-clang-include-path '("/tmp/inc1" "/tmp/inc2")))
      (should (equal-lists flycheck-clang-definitions '("foo=bar")))
      (should (equal-lists flycheck-clang-includes nil))
-     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g"))))))
+     (should (equal-lists flycheck-clang-args '("-S" "-F" "-g")))
+     (should (equal-lists flycheck-gcc-include-path '("/tmp/inc1" "/tmp/inc2")))
+     (should (equal-lists flycheck-gcc-definitions '("foo=bar")))
+     (should (equal-lists flycheck-gcc-includes nil))
+     (should (equal-lists flycheck-gcc-args '("-S" "-F" "-g"))))))
 
 (ert-deftest test-issue-125 ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)

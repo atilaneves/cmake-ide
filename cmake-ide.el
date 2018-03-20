@@ -597,22 +597,32 @@ the object file's name just above."
                                                       (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))) " ")))
 
       (when (featurep 'flycheck)
-        (make-local-variable 'flycheck-clang-include-path)
-        (setq flycheck-clang-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+        (let* ((std-regex "^-std=")
+               (include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
+               (definitions (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
+               (args (cmake-ide--filter (lambda (x) (not (string-match std-regex x))) (cmake-ide--flags-filtered flags))))
+          (make-local-variable 'flycheck-clang-include-path)
+          (make-local-variable 'flycheck-gcc-include-path)
+          (setq flycheck-clang-include-path include-path)
+          (setq flycheck-gcc-include-path include-path)
 
-        (make-local-variable 'flycheck-clang-definitions)
-        (setq flycheck-clang-definitions
-              (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
+          (make-local-variable 'flycheck-clang-definitions)
+          (make-local-variable 'flycheck-gcc-definitions)
+          (setq flycheck-clang-definitions definitions)
+          (setq flycheck-gcc-definitions definitions)
 
-        (let ((std-regex "^-std="))
           (make-local-variable 'flycheck-clang-args)
-          (setq flycheck-clang-args (cmake-ide--filter (lambda (x) (not (string-match std-regex x))) (cmake-ide--flags-filtered flags)))
+          (make-local-variable 'flycheck-gcc-args)
+          (setq flycheck-clang-args args)
+          (setq flycheck-gcc-args args)
 
           (make-local-variable 'flycheck-clang-language-standard)
+          (make-local-variable 'flycheck-gcc-language-standard)
           (let* ((stds (cmake-ide--filter (lambda (x) (string-match std-regex x)) flags))
                  (repls (mapcar (lambda (x) (replace-regexp-in-string std-regex "" x)) stds)))
             (when repls
               (setq flycheck-clang-language-standard (car repls))
+              (setq flycheck-gcc-language-standard (car repls))
               (unless cmake-ide-flycheck-cppcheck-strict-standards
                 (setq repls (mapcar 'cmake-ide--cmake-standard-to-cppcheck-standard repls)))
               (setq repls (cmake-ide--filter 'cmake-ide--valid-cppcheck-standard-p repls))
@@ -624,6 +634,7 @@ the object file's name just above."
           (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags))))
 
         (setq flycheck-clang-includes includes)
+        (setq flycheck-gcc-includes includes)
         (flycheck-clear)
         (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
 
