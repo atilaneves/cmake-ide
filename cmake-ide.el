@@ -677,9 +677,9 @@ the object file's name just above."
       (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
                                                       cmake-ide-cmake-opts)))))
 
-(defun cide--get-build-dir-from-hash ()
+(defun cide--get-build-dir-from-cache ()
   "Get the build dir from the cache if there or compute if not.
-For non cmake project, insert and use a nil entry (associated temp directory)."
+Return nil for non-CMake project."
   (let ((project-key (cide--project-key)))
     (when project-key
       (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
@@ -701,7 +701,7 @@ For non cmake project, insert and use a nil entry (associated temp directory)."
   ;; build the directory key for the project
   (let ((build-dir-base
          (or (cide--build-dir-var) ; if use set, use this value (may be relative)
-             (cide--get-build-dir-from-hash)))) ; else get from project-key (return an absolute path)
+             (cide--get-build-dir-from-cache)))) ; else get from project-key (return an absolute path)
     (when build-dir-base
       (let ((build-dir (expand-file-name  build-dir-base
                                           (cide--locate-project-dir)))) ; if relative, use project-dir as base directory
