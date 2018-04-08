@@ -239,7 +239,8 @@ the closest possible matches available in cppcheck."
 
 (defun cide--build-dir-var ()
   "Return the value of `cmake-ide-build-dir' or `cmake-ide-dir'."
-  (or cmake-ide-build-dir cmake-ide-dir))
+  (let ((ret (or cmake-ide-build-dir cmake-ide-dir)))
+    (when ret (file-name-as-directory ret))))
 
 (defun cide--project-dir-var ()
   "Return the value of `cmake-ide-project-dir' or `cmake-ide-cmakelists-dir'."
@@ -290,8 +291,8 @@ the closest possible matches available in cppcheck."
 
 (defun cide--comp-db-file-name ()
   "The name of the compilation database file."
-  (when (cide--get-build-dir)
-    (expand-file-name "compile_commands.json" (cide--get-build-dir))))
+  (when (cide--build-dir)
+    (expand-file-name "compile_commands.json" (cide--build-dir))))
 
 (defun cide--need-to-run-cmake ()
   "If CMake needs to be run or not."
@@ -316,7 +317,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
               (cide--add-file-to-buffer-list)
               ;; run cmake only if project dir contains a CMakeLists.txt file.
               (if (cide--locate-cmakelists)
-                  (let ((cmake-dir (cide--get-build-dir)))
+                  (let ((cmake-dir (cide--build-dir)))
                     (let ((default-directory cmake-dir))
                       (cide--run-cmake-impl project-dir cmake-dir)
                       (cide--register-callback)))
@@ -385,7 +386,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
     (cmake-ide-maybe-start-rdm)
     (cide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
-    (let ((cmake-ide-local-build-dir (cide--get-build-dir)))
+    (let ((cmake-ide-local-build-dir (cide--build-dir)))
       (if (get-process "rdm")
           (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
             (rtags-call-rc "-J" cmake-ide-local-build-dir))
@@ -483,7 +484,7 @@ compiler command in the project that has that object file in itself."
 
 Ask ninja for all dependencies then find FILE-NAME in the output, returning
 the object file's name just above."
-  (let ((default-directory (cide--get-build-dir))
+  (let ((default-directory (cide--build-dir))
         (beg)
         (end))
     (if (not (file-exists-p (expand-file-name "build.ninja" default-directory)))
@@ -579,9 +580,9 @@ the object file's name just above."
         (when sys-includes
           (setq company-c-headers-path-system (append sys-includes company-c-headers-path-system))))
 
-      (when (and (featurep 'irony) (not (gethash (cide--get-build-dir) cide--cache-irony-dirs)))
+      (when (and (featurep 'irony) (not (gethash (cide--build-dir) cide--cache-irony-dirs)))
         (irony-cdb-json-add-compile-commands-path (cide--locate-project-dir) (cide--comp-db-file-name))
-        (puthash (cide--get-build-dir) t cide--cache-irony-dirs))
+        (puthash (cide--build-dir) t cide--cache-irony-dirs))
 
       (when (featurep 'semantic)
         (let ((dirs (cide--flags-to-include-paths flags)))
@@ -643,7 +644,7 @@ the object file's name just above."
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
   (when (cide--locate-project-dir)
-    (if (cide--get-build-dir)
+    (if (cide--build-dir)
         (let ((filename (buffer-file-name))
               (buffer (current-buffer))
               (name (buffer-name)))
@@ -654,7 +655,7 @@ the object file's name just above."
               (kill-buffer buffer)
               (let ((project-dir (cide--locate-project-dir)))
                 (when (and project-dir  (file-exists-p (expand-file-name "CMakeLists.txt" project-dir)))
-                  (cide--run-cmake-impl project-dir (cide--get-build-dir)))
+                  (cide--run-cmake-impl project-dir (cide--build-dir)))
                 (cide--message "File '%s' successfully removed" filename)))))
       (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
 
@@ -677,31 +678,11 @@ the object file's name just above."
       (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
                                                       cmake-ide-cmake-opts)))))
 
-(defun cide--get-build-dir-from-cache ()
-  "Get the build dir from the cache if there or compute if not.
-Return nil for non-CMake project."
-  (let ((project-key (cide--project-key)))
-    (when project-key
-      (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
-        (if (not build-dir)
-            (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
-                  build-directory-name)
-              (setq build-directory-name
-                    (if (and cmake-ide-build-pool-use-persistent-naming project-key)
-                        project-key
-                      (make-temp-name "cmake")))
-              (setq build-dir (expand-file-name build-directory-name build-parent-directory))
-              (progn
-                (puthash project-key build-dir cide--cache-pkey-to-dir))
-              build-dir)
-          build-dir)))))
-
-(defun cide--get-build-dir ()
+(defun cide--build-dir ()
   "Return the directory name to run CMake in."
-  ;; build the directory key for the project
   (let ((build-dir-base
          (or (cide--build-dir-var) ; if use set, use this value (may be relative)
-             (cide--get-build-dir-from-cache)))) ; else get from project-key (return an absolute path)
+             (cide--build-dir-from-cache)))) ; else get from project-key (return an absolute path)
     (when build-dir-base
       (let ((build-dir (expand-file-name  build-dir-base
                                           (cide--locate-project-dir)))) ; if relative, use project-dir as base directory
@@ -709,6 +690,28 @@ Return nil for non-CMake project."
           (cide--message "Making directory %s" build-dir)
           (make-directory build-dir 't))
         (file-name-as-directory build-dir)))))
+
+(defun cide--build-dir-from-cache ()
+  "Get the build dir from the cache if there or compute if not.
+Return nil for non-CMake project."
+  (cide--message "project key: %s" (cide--project-key))
+  (let ((project-key (cide--project-key)))
+    (when project-key
+      (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
+        (cide--message "from-cache build-dir: %s" build-dir)
+        (or build-dir
+            (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
+                  (build-directory-name (if cmake-ide-build-pool-use-persistent-naming
+                                            project-key
+                                          (make-temp-name "cmake"))))
+              (cide--message "parent: %s" build-parent-directory)
+              (cide--message "dir: %s" build-directory-name)
+              (cide--message "pool dir: %s" cmake-ide-build-pool-dir)
+              (setq build-dir (expand-file-name build-directory-name build-parent-directory))
+              (progn
+                (puthash project-key build-dir cide--cache-pkey-to-dir))
+              build-dir))))))
+
 
 (defun cide--is-src-file (name)
   "Test if NAME is a source file or not."
@@ -850,12 +853,12 @@ Return nil for non-CMake project."
 (defun cide--flags-to-include-paths (flags)
   "From FLAGS (a list of flags) to a list of include paths."
   (let ((raw-paths (cide--to-simple-flags flags "^-I")))
-    (mapcar (lambda (x) (expand-file-name x (cide--get-build-dir))) raw-paths)))
+    (mapcar (lambda (x) (expand-file-name x (cide--build-dir))) raw-paths)))
 
 (defun cide--relativize (path)
   "Make PATH relative to the build directory, but only if relative path with dots."
   (if (or (equal path ".") (string-prefix-p ".." path))
-      (expand-file-name path (cide--get-build-dir))
+      (expand-file-name path (cide--build-dir))
     path))
 
 
@@ -967,15 +970,15 @@ computed IDBs, and if none are found actually performs the conversion."
         (progn
           (cide--message "Converting JSON CDB %s to IDB" (cide--comp-db-file-name))
           (setq idb (cide--cdb-json-string-to-idb (cide--get-string-from-file (cide--comp-db-file-name))))
-          (puthash (cide--get-build-dir) idb cide--cache-dir-to-idb)
-          (puthash (cide--get-build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cache-dir-to-cdb-hash)
-          (remhash (cide--get-build-dir) cide--cache-irony-dirs))))
+          (puthash (cide--build-dir) idb cide--cache-dir-to-idb)
+          (puthash (cide--build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cache-dir-to-cdb-hash)
+          (remhash (cide--build-dir) cide--cache-irony-dirs))))
     idb))
 
 (defun cide--cdb-idb-from-cache ()
   "Return the IDB from the cache unless the JSON CDB has changed."
-  (let ((idb (gethash (cide--get-build-dir) cide--cache-dir-to-idb))
-        (cached-hash (gethash (cide--get-build-dir) cide--cache-dir-to-cdb-hash))
+  (let ((idb (gethash (cide--build-dir) cide--cache-dir-to-idb))
+        (cached-hash (gethash (cide--build-dir) cide--cache-dir-to-cdb-hash))
         (current-hash (cide--hash-file (cide--comp-db-file-name))))
     (if (equal cached-hash current-hash)
         idb
@@ -1090,8 +1093,8 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
   "Compile the project."
   (interactive)
   (when (cide--locate-project-dir)
-    (if (cide--get-build-dir)
-        (let ((compile-command (cide--get-compile-command (cide--get-build-dir))))
+    (if (cide--build-dir)
+        (let ((compile-command (cide--get-compile-command (cide--build-dir))))
           ;; compile-command could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
           (if compile-command
               (if (functionp compile-command)

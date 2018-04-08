@@ -41,7 +41,8 @@
 (require 'flycheck)
 
 
-(defvar cide--sandbox-path (expand-file-name "sandbox" cide--test-path))
+(defvar cide--sandbox-path
+  (file-name-as-directory (expand-file-name "sandbox" cide--test-path)))
 
 (defmacro with-sandbox (&rest body)
   "Evaluate BODY in an empty temporary directory."
@@ -56,6 +57,9 @@
   (let ((path (expand-file-name name cide--sandbox-path)))
     (f-write-text str 'utf-8 path)))
 
+(defun cide--mkdir (path)
+  "Make a directory at PATH."
+  (f-mkdir (expand-file-name path cide--sandbox-path)))
 
 (defun equal-lists (lst1 lst2)
   "If LST1 is the same as LST2 regardless or ordering."
@@ -75,9 +79,16 @@
       (cide--register-a-callback
        (lambda (_process _event)
          ,@body))
-
-                                        ;,@body
       )))
+
+(defun initialise-caches (cdb-json-str)
+  "Initialise all DB caches using CDB-JSON-STR as the CDB."
+  (write-file-str "compile_commands.json" cdb-json-str)
+  (setq cide--cache-dir-to-idb (cide--make-hash-table))
+  (setq cide--cache-dir-to-cdb-hash (cide--make-hash-table))
+  (setq cide--cache-pkey-to-dir (cide--make-hash-table))
+  (setq cide--cache-irony-dirs (cide--make-hash-table))
+  (setq cmake-ide-build-dir cide--sandbox-path))
 
 
 (ert-deftest test-one-cpp-file ()
@@ -124,15 +135,6 @@ add_executable(app \"foo.cpp\")"
      (should (equal (cide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
 
 
-(defun initialise-caches (cdb-json-str)
-  "Initialise all DB caches using CDB-JSON-STR as the CDB."
-  (write-file-str "compile_commands.json" cdb-json-str)
-  (setq cide--cache-dir-to-idb (cide--make-hash-table))
-  (setq cide--cache-dir-to-cdb-hash (cide--make-hash-table))
-  (setq cide--cache-irony-dirs (cide--make-hash-table))
-  (setq cmake-ide-build-dir cide--sandbox-path))
-
-
 (ert-deftest test-cide--cdb-idb-from-cache-no-idbs ()
   (with-sandbox
    (initialise-caches "{}")
@@ -142,17 +144,17 @@ add_executable(app \"foo.cpp\")"
 (ert-deftest test-cide--cdb-idb-from-cache-one-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cide--get-build-dir) "idb" cide--cache-dir-to-idb)
+   (puthash (cide--build-dir) "idb" cide--cache-dir-to-idb)
    ;; put the right hash for the CDB - it won't be considered to have changed
-   (puthash (cide--get-build-dir) (cide--hash-file "compile_commands.json") cide--cache-dir-to-cdb-hash)
+   (puthash (cide--build-dir) (cide--hash-file "compile_commands.json") cide--cache-dir-to-cdb-hash)
    (should (equal (cide--cdb-idb-from-cache) "idb"))))
 
 (ert-deftest test-cide--cdb-idb-from-cache-one-changed-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cide--get-build-dir) "idb" cide--cache-dir-to-idb)
+   (puthash (cide--build-dir) "idb" cide--cache-dir-to-idb)
    ;; put the wrong hash for the CDB - it will be considered to have changed
-   (puthash (cide--get-build-dir) "wronghash" cide--cache-dir-to-cdb-hash)
+   (puthash (cide--build-dir) "wronghash" cide--cache-dir-to-cdb-hash)
    (should (equal (cide--cdb-idb-from-cache) nil))))
 
 (ert-deftest test-cide--cdb-json-file-to-idb-no-caches ()
@@ -209,6 +211,39 @@ add_executable(app \"foo.cpp\")"
 (ert-deftest test-cide--get-project-key-no-cmake ()
   (let ((default-directory "/tmp"))
     (with-sandbox (should (equal (cide--project-key) nil)))))
+
+(ert-deftest test-cide--build-dir ()
+  (with-sandbox
+   (initialise-caches "{}")
+   (setq cmake-ide-build-dir nil)
+   (setq cmake-ide-build-pool-dir nil)
+   (cide--mkdir "subdir")
+   (write-file-str "subdir/CMakeLists.txt" "stuff")
+   (let ((default-directory (expand-file-name "subdir")))
+     (should (equal (seq-subseq (cide--build-dir) 0 5) temporary-file-directory)))))
+
+(ert-deftest test-cide--build-dir-with-var ()
+  (with-sandbox
+   (initialise-caches "{}")
+   (cide--mkdir "project")
+   (cide--mkdir "build")
+   (setq cmake-ide-build-dir (expand-file-name "build"))
+   (write-file-str "project/CMakeLists.txt" "stuff")
+   (let ((default-directory (expand-file-name "project")))
+     (should (equal (cide--build-dir) (file-name-as-directory (expand-file-name "build" cide--sandbox-path)))))))
+
+(ert-deftest test-cide--build-dir-with-pool ()
+  (with-sandbox
+
+   (initialise-caches "{}")
+   (setq cmake-ide-build-dir nil)
+   (setq cmake-ide-build-pool-dir "/tmp/foo/bar")
+   (setq cmake-ide-build-pool-use-persistent-naming t)
+
+   (cide--mkdir "subdir")
+   (write-file-str "subdir/CMakeLists.txt" "stuff")
+   (let ((default-directory (expand-file-name "subdir")))
+     (should (equal (cide--build-dir) (file-name-as-directory (expand-file-name (cide--project-key) "/tmp/foo/bar/")))))))
 
 (provide 'file-test)
 ;;; file-test.el ends here

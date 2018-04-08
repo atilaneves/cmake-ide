@@ -511,8 +511,8 @@ company-c-headers to break."
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "/tmp")
-  (let ((dir1 (cide--get-build-dir))
-        (dir2 (cide--get-build-dir)))
+  (let ((dir1 (cide--build-dir))
+        (dir2 (cide--build-dir)))
     (should (equal dir1 dir2))))
 
 (ert-deftest test-flycheck-clang-args ()
@@ -570,7 +570,7 @@ company-c-headers to break."
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (setq cmake-ide-build-pool-dir nil)
-  (let ((dir1 (cide--get-build-dir)))
+  (let ((dir1 (cide--build-dir)))
     (cide--message "dir 1 %s" dir1))
 
 
@@ -578,13 +578,13 @@ company-c-headers to break."
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (setq cmake-ide-build-pool-dir nil)
-  (let ((dir1 (cide--get-build-dir)))
+  (let ((dir1 (cide--build-dir)))
     (cide--message "dir 1 %s" dir1))
 
   (setq cmake-ide-build-dir "/tmp/test-build")
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
-  (let ((dir1 (cide--get-build-dir)))
+  (let ((dir1 (cide--build-dir)))
     (cide--message "dir 1 %s" dir1))
   )
 
