@@ -26,11 +26,11 @@
 
 (require 'f)
 
-(defvar cmake-ide--test-path)
-(defvar cmake-ide--root-path)
-(setq cmake-ide--test-path (f-dirname load-file-name))
-(setq cmake-ide--root-path (f-parent cmake-ide--test-path))
-(add-to-list 'load-path cmake-ide--root-path)
+(defvar cide--test-path)
+(defvar cide--root-path)
+(setq cide--test-path (f-dirname load-file-name))
+(setq cide--root-path (f-parent cide--test-path))
+(add-to-list 'load-path cide--root-path)
 
 (require 'ert)
 (require 'cmake-ide)
@@ -41,19 +41,19 @@
 (require 'flycheck)
 
 
-(defvar cmake-ide--sandbox-path (expand-file-name "sandbox" cmake-ide--test-path))
+(defvar cide--sandbox-path (expand-file-name "sandbox" cide--test-path))
 
 (defmacro with-sandbox (&rest body)
   "Evaluate BODY in an empty temporary directory."
-  `(let ((default-directory cmake-ide--sandbox-path))
-     (when (f-dir? cmake-ide--sandbox-path)
-       (f-delete cmake-ide--sandbox-path :force))
-     (f-mkdir cmake-ide--sandbox-path)
+  `(let ((default-directory cide--sandbox-path))
+     (when (f-dir? cide--sandbox-path)
+       (f-delete cide--sandbox-path :force))
+     (f-mkdir cide--sandbox-path)
      ,@body))
 
 (defun write-file-str (name str)
   "Write to a file named NAME with contents STR."
-  (let ((path (expand-file-name name cmake-ide--sandbox-path)))
+  (let ((path (expand-file-name name cide--sandbox-path)))
     (f-write-text str 'utf-8 path)))
 
 
@@ -72,7 +72,7 @@
       (find-file file-name)
       (flycheck-mode)
       (cmake-ide-maybe-run-cmake)
-      (cmake-ide--register-a-callback
+      (cide--register-a-callback
        (lambda (_process _event)
          ,@body))
 
@@ -92,7 +92,7 @@ add_executable(app \"foo.cpp\")"
    "foo.cpp"
    "int add(int i, int j) { return i + j; }"
 
-   (let ((leincludes (expand-file-name "leincludes" cmake-ide--sandbox-path)))
+   (let ((leincludes (expand-file-name "leincludes" cide--sandbox-path)))
      (should (equal-lists ac-clang-flags (list "-DDAS_DEF" (format "-I%s" leincludes) "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o")))
      (should (equal-lists company-clang-arguments ac-clang-flags))
      (should (equal-lists flycheck-clang-include-path (list leincludes)))
@@ -101,60 +101,60 @@ add_executable(app \"foo.cpp\")"
      (should (equal-lists flycheck-clang-args '("-g" "-Wall" "-Wextra" "-o" "CMakeFiles/app.dir/foo.cpp.o" "-c"))))))
 
 
-(ert-deftest test-cmake-ide--get-compile-command-ninja ()
+(ert-deftest test-cide--get-compile-command-ninja ()
   (with-sandbox
    (write-file-str "build.ninja" "")
-   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) (concat "ninja -C " cmake-ide--sandbox-path)))))
+   (should (equal (cide--get-compile-command cide--sandbox-path) (concat "ninja -C " cide--sandbox-path)))))
 
-(ert-deftest test-cmake-ide--get-compile-command-make ()
+(ert-deftest test-cide--get-compile-command-make ()
   (with-sandbox
    (write-file-str "Makefile" "")
-   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) (concat "make --no-print-directory -C " cmake-ide--sandbox-path)))))
+   (should (equal (cide--get-compile-command cide--sandbox-path) (concat "make --no-print-directory -C " cide--sandbox-path)))))
 
-(ert-deftest test-cmake-ide--get-compile-command-other ()
+(ert-deftest test-cide--get-compile-command-other ()
   (with-sandbox
-   (should (equal (cmake-ide--get-compile-command cmake-ide--sandbox-path) nil))))
+   (should (equal (cide--get-compile-command cide--sandbox-path) nil))))
 
-(ert-deftest test-cmake-ide--idb-obj-depends-on-file ()
+(ert-deftest test-cide--idb-obj-depends-on-file ()
   (with-sandbox
    (write-file-str "foo.c" "#include <bar.h>")
    (let ((obj '((file . "foo.c"))))
-     (should (equal (cmake-ide--idb-obj-depends-on-file obj "foo.c") nil))
-     (should (equal (cmake-ide--idb-obj-depends-on-file obj "foo.h") nil))
-     (should (equal (cmake-ide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
+     (should (equal (cide--idb-obj-depends-on-file obj "foo.c") nil))
+     (should (equal (cide--idb-obj-depends-on-file obj "foo.h") nil))
+     (should (equal (cide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
 
 
 (defun initialise-caches (cdb-json)
   "Initialise all DB caches using CDB-JSON as the CDB."
   (write-file-str "compile_commands.json" cdb-json)
-  (setq cmake-ide--idbs (cmake-ide--make-hash-table))
-  (setq cmake-ide--cdb-hash (cmake-ide--make-hash-table))
-  (setq cmake-ide-build-dir cmake-ide--sandbox-path))
+  (setq cide--idbs (cide--make-hash-table))
+  (setq cide--cdb-hash (cide--make-hash-table))
+  (setq cmake-ide-build-dir cide--sandbox-path))
 
 
-(ert-deftest test-cmake-ide--cdb-idb-from-cache-no-idbs ()
+(ert-deftest test-cide--cdb-idb-from-cache-no-idbs ()
   (with-sandbox
    (initialise-caches "{}")
    ;; no caches, nothing to find
-   (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
+   (should (equal (cide--cdb-idb-from-cache) nil))))
 
-(ert-deftest test-cmake-ide--cdb-idb-from-cache-one-idb ()
+(ert-deftest test-cide--cdb-idb-from-cache-one-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   (puthash (cide--get-build-dir) "idb" cide--idbs)
    ;; put the right hash for the CDB - it won't be considered to have changed
-   (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file "compile_commands.json") cmake-ide--cdb-hash)
-   (should (equal (cmake-ide--cdb-idb-from-cache) "idb"))))
+   (puthash (cide--get-build-dir) (cide--hash-file "compile_commands.json") cide--cdb-hash)
+   (should (equal (cide--cdb-idb-from-cache) "idb"))))
 
-(ert-deftest test-cmake-ide--cdb-idb-from-cache-one-changed-idb ()
+(ert-deftest test-cide--cdb-idb-from-cache-one-changed-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cmake-ide--get-build-dir) "idb" cmake-ide--idbs)
+   (puthash (cide--get-build-dir) "idb" cide--idbs)
    ;; put the wrong hash for the CDB - it will be considered to have changed
-   (puthash (cmake-ide--get-build-dir) "wronghash" cmake-ide--cdb-hash)
-   (should (equal (cmake-ide--cdb-idb-from-cache) nil))))
+   (puthash (cide--get-build-dir) "wronghash" cide--cdb-hash)
+   (should (equal (cide--cdb-idb-from-cache) nil))))
 
-(ert-deftest test-cmake-ide--cdb-json-file-to-idb-no-caches ()
+(ert-deftest test-cide--cdb-json-file-to-idb-no-caches ()
   (with-sandbox
    ;; no caches, this CDB written to the file system
    (initialise-caches "[
@@ -166,11 +166,11 @@ add_executable(app \"foo.cpp\")"
 ]")
    (let*
        ;; map from file to JSON objects (should only have one)
-       ((idb (cmake-ide--cdb-json-file-to-idb))
+       ((idb (cide--cdb-json-file-to-idb))
         ;; retrieve 1st (only) object for "foo.cpp"
-        (foo (cmake-ide--idb-file-to-obj idb "foo.cpp"))
+        (foo (cide--idb-file-to-obj idb "foo.cpp"))
         ;; retrieve 1st (none) object for "bar.cpp"
-        (bar (cmake-ide--idb-file-to-obj idb "bar.cpp")))
+        (bar (cide--idb-file-to-obj idb "bar.cpp")))
 
      (should (equal-lists foo '((directory . "")
                                 (command . "clang++ -Wall -Wextra -std=c++14 -c foo.cpp")
@@ -178,16 +178,16 @@ add_executable(app \"foo.cpp\")"
      (should (equal bar nil)))))
 
 
-(ert-deftest test-cmake-ide--locate-cmakelists-no-dir-var ()
+(ert-deftest test-cide--locate-cmakelists-no-dir-var ()
   (with-sandbox
    (write-file-str "CMakeLists.txt" "stuff")
    (f-mkdir "subdir")
    (write-file-str "subdir/CMakeLists.txt" "stuff")
    (let ((default-directory (expand-file-name "subdir")))
-     (should (equal (cmake-ide--locate-cmakelists)
-                    (expand-file-name "CMakeLists.txt" cmake-ide--sandbox-path))))))
+     (should (equal (cide--locate-cmakelists)
+                    (expand-file-name "CMakeLists.txt" cide--sandbox-path))))))
 
-(ert-deftest test-cmake-ide--locate-cmakelists-with-dir-var ()
+(ert-deftest test-cide--locate-cmakelists-with-dir-var ()
   (with-sandbox
    (write-file-str "CMakeLists.txt" "stuff")
    (f-mkdir "subdir")
@@ -195,9 +195,9 @@ add_executable(app \"foo.cpp\")"
    (let* ((default-directory (expand-file-name "subdir"))
           ;; setting this should select the subdir instead of the topmost dir
           (cmake-ide-project-dir default-directory))
-     (should (equal (cmake-ide--locate-cmakelists)
+     (should (equal (cide--locate-cmakelists)
                     (expand-file-name "CMakeLists.txt"
-                                      (expand-file-name "subdir" cmake-ide--sandbox-path)))))))
+                                      (expand-file-name "subdir" cide--sandbox-path)))))))
 
 (provide 'file-test)
 ;;; file-test.el ends here

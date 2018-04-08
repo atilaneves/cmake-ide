@@ -46,14 +46,14 @@
 (require 'seq)
 (require 's)
 
-(defsubst cmake-ide--string-empty-p (string)
+(defsubst cide--string-empty-p (string)
   "Check whether STRING is empty."
   (string= string ""))
 
 (if (not (require 'subr-x nil t))
     (progn
-      (message "`subr-x' not found, replacing string-empty-p with cmake-ide--string-empty-p")
-      (fset 'string-empty-p 'cmake-ide--string-empty-p))
+      (message "`subr-x' not found, replacing string-empty-p with cide--string-empty-p")
+      (fset 'string-empty-p 'cide--string-empty-p))
   (declare-function string-empty-p "subr-x"))
 
 (declare-function rtags-call-rc "rtags")
@@ -179,8 +179,8 @@ the closest possible matches available in cppcheck."
   :safe #'booleanp)
 
 ;;; The buffers to set variables for
-(defvar cmake-ide--src-buffers nil)
-(defvar cmake-ide--hdr-buffers nil)
+(defvar cide--src-buffers nil)
+(defvar cide--hdr-buffers nil)
 
 (defcustom cmake-ide-rdm-executable
   "rdm"
@@ -212,39 +212,39 @@ the closest possible matches available in cppcheck."
   "Whether or not to try all unique compiler flags for header files."
   )
 
-(defun cmake-ide--make-hash-table ()
+(defun cide--make-hash-table ()
   "Make a hash table with equal for the test function."
   (make-hash-table :test #'equal))
 
-(defvar cmake-ide--idbs
-  (cmake-ide--make-hash-table)
+(defvar cide--idbs
+  (cide--make-hash-table)
   "Key: build directory.  Value: IDB for that build directory.")
 
-(defvar cmake-ide--cdb-hash
-  (cmake-ide--make-hash-table)
+(defvar cide--cdb-hash
+  (cide--make-hash-table)
   "Key: build directory.  Value: The hash of the JSON CDB.")
 
-(defvar cmake-ide--cmake-hash
-  (cmake-ide--make-hash-table)
+(defvar cide--cmake-hash
+  (cide--make-hash-table)
   "Key: project key.  Value: build dir.")
 
-(defvar cmake-ide--irony
-  (cmake-ide--make-hash-table)
+(defvar cide--irony
+  (cide--make-hash-table)
   "Used as a set.  Key: build dir.  Value: T or nil.")
 
-(defvar cmake-ide--semantic-system-include)
+(defvar cide--semantic-system-include)
 
 (defconst cmake-ide-rdm-buffer-name "*rdm*" "The rdm buffer name.")
 
-(defun cmake-ide--build-dir-var ()
+(defun cide--build-dir-var ()
   "Return the value of `cmake-ide-build-dir' or `cmake-ide-dir'."
   (or cmake-ide-build-dir cmake-ide-dir))
 
-(defun cmake-ide--project-dir-var ()
+(defun cide--project-dir-var ()
   "Return the value of `cmake-ide-project-dir' or `cmake-ide-cmakelists-dir'."
   (or cmake-ide-project-dir cmake-ide-cmakelists-dir))
 
-(defun cmake-ide--mode-hook()
+(defun cide--mode-hook()
   "Function to add to a major mode hook"
   (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
   (cmake-ide-maybe-start-rdm))
@@ -252,50 +252,50 @@ the closest possible matches available in cppcheck."
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
-  (add-hook 'c-mode-hook #'cmake-ide--mode-hook)
-  (add-hook 'c++-mode-hook #'cmake-ide--mode-hook)
+  (add-hook 'c-mode-hook #'cide--mode-hook)
+  (add-hook 'c++-mode-hook #'cide--mode-hook)
 
   ;; When creating a file in Emacs, run CMake again to pick it up
-  (add-hook 'before-save-hook #'cmake-ide--before-save))
+  (add-hook 'before-save-hook #'cide--before-save))
 
-(defun cmake-ide--before-save ()
+(defun cide--before-save ()
   "When creating a file in Emacs, run CMake again to pick it up."
-  (when (and (cmake-ide--is-src-file (buffer-file-name))
+  (when (and (cide--is-src-file (buffer-file-name))
              (not (file-readable-p (buffer-file-name))))
-    (add-hook 'after-save-hook 'cmake-ide--new-file-saved nil 'local)))
+    (add-hook 'after-save-hook 'cide--new-file-saved nil 'local)))
 
-(defun cmake-ide--new-file-saved ()
+(defun cide--new-file-saved ()
   "Run CMake to pick up newly created files."
   (cmake-ide-run-cmake)
-  (remove-hook 'after-save-hook 'cmake-ide--new-file-saved 'local))
+  (remove-hook 'after-save-hook 'cide--new-file-saved 'local))
 
 ;;;###autoload
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
-  (when (cmake-ide--locate-project-dir)
+  (when (cide--locate-project-dir)
     (cmake-ide-maybe-start-rdm)
-    (if (cmake-ide--need-to-run-cmake)
+    (if (cide--need-to-run-cmake)
         (cmake-ide-run-cmake)
       (progn
-        (cmake-ide--add-file-to-buffer-list)
-        (cmake-ide--on-cmake-finished)))))
+        (cide--add-file-to-buffer-list)
+        (cide--on-cmake-finished)))))
 
-(defun cmake-ide--add-file-to-buffer-list ()
+(defun cide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
-  (if (cmake-ide--is-src-file buffer-file-name)
-      (add-to-list 'cmake-ide--src-buffers (current-buffer))
-    (add-to-list 'cmake-ide--hdr-buffers (current-buffer))))
+  (if (cide--is-src-file buffer-file-name)
+      (add-to-list 'cide--src-buffers (current-buffer))
+    (add-to-list 'cide--hdr-buffers (current-buffer))))
 
-(defun cmake-ide--comp-db-file-name ()
+(defun cide--comp-db-file-name ()
   "The name of the compilation database file."
-  (when (cmake-ide--get-build-dir)
-    (expand-file-name "compile_commands.json" (cmake-ide--get-build-dir))))
+  (when (cide--get-build-dir)
+    (expand-file-name "compile_commands.json" (cide--get-build-dir))))
 
-(defun cmake-ide--need-to-run-cmake ()
+(defun cide--need-to-run-cmake ()
   "If CMake needs to be run or not."
   (and (not (get-process "cmake")) ; don't run if already running
-       (not (file-exists-p (cmake-ide--comp-db-file-name))))) ; no need if the file exists
+       (not (file-exists-p (cide--comp-db-file-name))))) ; no need if the file exists
 
 ;;;###autoload
 (defun cmake-ide-run-cmake ()
@@ -307,84 +307,84 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
   (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
     (when (file-readable-p (buffer-file-name)) ; new files need not apply
       (save-some-buffers 1)
-      (let ((project-dir (cmake-ide--locate-project-dir)))
+      (let ((project-dir (cide--locate-project-dir)))
         (if project-dir ; no point if it's not a CMake project
             ;; register this buffer to be either a header or source file
             ;; waiting for results
             (progn
-              (cmake-ide--add-file-to-buffer-list)
+              (cide--add-file-to-buffer-list)
               ;; run cmake only if project dir contains a CMakeLists.txt file.
-              (if (cmake-ide--locate-cmakelists)
-                  (let ((cmake-dir (cmake-ide--get-build-dir)))
+              (if (cide--locate-cmakelists)
+                  (let ((cmake-dir (cide--get-build-dir)))
                     (let ((default-directory cmake-dir))
-                      (cmake-ide--run-cmake-impl project-dir cmake-dir)
-                      (cmake-ide--register-callback)))
-                (cmake-ide--message "No CMakeLists.txt found in project dir, skip cmake run.")))
-          (cmake-ide--message "try to run cmake on a non cmake project [%s]" default-directory))))))
+                      (cide--run-cmake-impl project-dir cmake-dir)
+                      (cide--register-callback)))
+                (cide--message "No CMakeLists.txt found in project dir, skip cmake run.")))
+          (cide--message "try to run cmake on a non cmake project [%s]" default-directory))))))
 
 
-(defun cmake-ide--message (str &rest vars)
+(defun cide--message (str &rest vars)
   "Output a message with STR and formatted by VARS."
   (message (apply #'format (concat "cmake-ide [%s]: " str) (cons (current-time-string) vars))))
 
-(defun cmake-ide--register-callback ()
+(defun cide--register-callback ()
   "Register callback for when CMake finishes running."
-  (cmake-ide--register-a-callback
+  (cide--register-a-callback
    (lambda (process _event)
-     (cmake-ide--message "Finished running CMake")
+     (cide--message "Finished running CMake")
      (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
-         (cmake-ide--on-cmake-finished)
-       (cmake-ide--message "CMake failed, see *cmake* for details.")))))
+         (cide--on-cmake-finished)
+       (cide--message "CMake failed, see *cmake* for details.")))))
 
-(defun cmake-ide--register-a-callback (callback)
+(defun cide--register-a-callback (callback)
   "Register CALLBACK to be called when CMake finishes running."
   (set-process-sentinel (get-process "cmake") callback))
 
-(defun cmake-ide--on-cmake-finished ()
+(defun cide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
-  (let* ((idb (cmake-ide--cdb-json-file-to-idb))
-         (set-flags (lambda (x) (cmake-ide--set-flags-for-file idb x))))
-    (mapc set-flags cmake-ide--src-buffers)
-    (mapc set-flags cmake-ide--hdr-buffers)
-    (setq cmake-ide--src-buffers nil cmake-ide--hdr-buffers nil)
-    (cmake-ide--run-rc)))
+  (let* ((idb (cide--cdb-json-file-to-idb))
+         (set-flags (lambda (x) (cide--set-flags-for-file idb x))))
+    (mapc set-flags cide--src-buffers)
+    (mapc set-flags cide--hdr-buffers)
+    (setq cide--src-buffers nil cide--hdr-buffers nil)
+    (cide--run-rc)))
 
 
 ;;;###autoload
 (defun cmake-ide-load-db ()
   "Load compilation DB and set flags for current buffer."
   (interactive)
-  (when (cmake-ide--locate-project-dir)
-    (cmake-ide--message "cmake-ide-load-db for file %s" (buffer-file-name))
+  (when (cide--locate-project-dir)
+    (cide--message "cmake-ide-load-db for file %s" (buffer-file-name))
     (cmake-ide-maybe-start-rdm)
     (let* ((file-name buffer-file-name)
            (buffers (list (current-buffer)))
-           (cmake-ide--src-buffers (if (cmake-ide--is-src-file file-name) buffers nil))
-           (cmake-ide--hdr-buffers (if (cmake-ide--is-src-file file-name) nil buffers)))
-      (cmake-ide--on-cmake-finished))))
+           (cide--src-buffers (if (cide--is-src-file file-name) buffers nil))
+           (cide--hdr-buffers (if (cide--is-src-file file-name) nil buffers)))
+      (cide--on-cmake-finished))))
 
-(defvar cmake-ide--rdm-executable nil
+(defvar cide--rdm-executable nil
   "Rdm executable location path.")
 
 (defun cmake-ide-rdm-executable ()
   "Return rdm executable location path."
-  (cond (cmake-ide--rdm-executable cmake-ide--rdm-executable)
+  (cond (cide--rdm-executable cide--rdm-executable)
         ((file-exists-p cmake-ide-rdm-executable)
-         (setq cmake-ide--rdm-executable cmake-ide-rdm-executable)
-         cmake-ide--rdm-executable)
+         (setq cide--rdm-executable cmake-ide-rdm-executable)
+         cide--rdm-executable)
         ((featurep 'rtags)
-         (setq cmake-ide--rdm-executable (rtags-executable-find "rdm"))
-         cmake-ide--rdm-executable)
+         (setq cide--rdm-executable (rtags-executable-find "rdm"))
+         cide--rdm-executable)
         (t "rdm")))
 
 
-(defun cmake-ide--run-rc ()
+(defun cide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
   (when (featurep 'rtags)
     (cmake-ide-maybe-start-rdm)
-    (cmake-ide--message "Running rc for rtags")
+    (cide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
-    (let ((cmake-ide-local-build-dir (cmake-ide--get-build-dir)))
+    (let ((cmake-ide-local-build-dir (cide--get-build-dir)))
       (if (get-process "rdm")
           (with-current-buffer (get-buffer cmake-ide-rdm-buffer-name)
             (rtags-call-rc "-J" cmake-ide-local-build-dir))
@@ -392,97 +392,97 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
           (rtags-call-rc "-J" cmake-ide-local-build-dir))))))
 
 
-(defun cmake-ide--set-flags-for-file (idb buffer)
+(defun cide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
   (let* ((file-name (buffer-file-name buffer))
-         (file-params (cmake-ide--idb-file-to-obj idb file-name))
-         (sys-includes (cmake-ide--params-to-sys-includes file-params))
-         (all-commands (cmake-ide--idb-all-commands idb))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands)))
-    (cmake-ide--message "Setting flags for file %s" file-name)
+         (file-params (cide--idb-file-to-obj idb file-name))
+         (sys-includes (cide--params-to-sys-includes file-params))
+         (all-commands (cide--idb-all-commands idb))
+         (hdr-flags (cide--commands-to-hdr-flags all-commands)))
+    (cide--message "Setting flags for file %s" file-name)
     ;; set flags for all source files that registered
-    (if (cmake-ide--is-src-file file-name)
-        (cmake-ide--set-flags-for-src-file file-params buffer sys-includes)
-      (cmake-ide--set-flags-for-hdr-file idb buffer (cmake-ide--flags-to-sys-includes hdr-flags)))))
+    (if (cide--is-src-file file-name)
+        (cide--set-flags-for-src-file file-params buffer sys-includes)
+      (cide--set-flags-for-hdr-file idb buffer (cide--flags-to-sys-includes hdr-flags)))))
 
-(defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
+(defun cide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
-  (let* ((src-flags (cmake-ide--params-to-src-flags file-params))
-         (src-includes (cmake-ide--params-to-src-includes file-params)))
+  (let* ((src-flags (cide--params-to-src-flags file-params))
+         (src-includes (cide--params-to-src-includes file-params)))
     (cmake-ide-set-compiler-flags buffer src-flags src-includes sys-includes)))
 
-(defun cmake-ide--set-flags-for-hdr-file (idb buffer sys-includes)
+(defun cide--set-flags-for-hdr-file (idb buffer sys-includes)
   "Set the compiler flags from IDB for header BUFFER with SYS-INCLUDES."
-  (when (and (not (string-empty-p (cmake-ide--buffer-string buffer))) (not cmake-ide-header-no-flags))
+  (when (and (not (string-empty-p (cide--buffer-string buffer))) (not cmake-ide-header-no-flags))
     (cond
      ;; try all unique compiler flags until one successfully compiles the header
-     (cmake-ide-try-unique-compiler-flags-for-headers (cmake-ide--hdr-try-unique-compiler-flags idb buffer sys-includes))
+     (cmake-ide-try-unique-compiler-flags-for-headers (cide--hdr-try-unique-compiler-flags idb buffer sys-includes))
      ;; ask ninja or make depending on what the user chose for the flags to use on the header
-     ((cmake-ide--hdr-ask-ninja-and-make idb buffer sys-includes) t)
+     ((cide--hdr-ask-ninja-and-make idb buffer sys-includes) t)
      ;; the default algorithm used so far
-     (t (cmake-ide--hdr-legacy idb buffer sys-includes)))))
+     (t (cide--hdr-legacy idb buffer sys-includes)))))
 
-(defun cmake-ide--buffer-string (buffer)
+(defun cide--buffer-string (buffer)
   "Return the contents of BUFFER as a string."
   (with-current-buffer buffer
     (buffer-string)))
 
-(defun cmake-ide--hdr-try-unique-compiler-flags (idb buffer sys-includes)
+(defun cide--hdr-try-unique-compiler-flags (idb buffer sys-includes)
   "Try all unique compiler flags in IDB in an attempt to find appropriate flags for header file in BUFFER using SYS-INCLUDES."
   (let ((hdr-flags) (hdr-includes))
-    (setq hdr-flags (cmake-ide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
-    (setq hdr-flags (cmake-ide--remove-compiler-from-args-string hdr-flags))
-    (setq hdr-includes (cmake-ide--flags-to-includes hdr-flags))
+    (setq hdr-flags (cide--idb-hdr-compiler-args idb (buffer-file-name buffer)))
+    (setq hdr-flags (cide--remove-compiler-from-args-string hdr-flags))
+    (setq hdr-includes (cide--flags-to-includes hdr-flags))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
-(defun cmake-ide--hdr-ask-ninja-and-make (idb buffer sys-includes)
+(defun cide--hdr-ask-ninja-and-make (idb buffer sys-includes)
   "Try to get compiler flags from IDB from a source file that depends on the header BUFFER using SYS-INCLUDES."
-  (let ((ninja-hdr-command (cmake-ide--ninja-header-command idb (buffer-file-name buffer))))
+  (let ((ninja-hdr-command (cide--ninja-header-command idb (buffer-file-name buffer))))
     (if ninja-hdr-command
         (progn
-          (cmake-ide--set-flags-for-hdr-exact buffer sys-includes ninja-hdr-command)
-          (cmake-ide--message "Setting flags for %s from ninja dependency information" (buffer-file-name buffer))
+          (cide--set-flags-for-hdr-exact buffer sys-includes ninja-hdr-command)
+          (cide--message "Setting flags for %s from ninja dependency information" (buffer-file-name buffer))
           t) ;; has done something
       nil)))
 
-(defun cmake-ide--hdr-legacy (idb buffer sys-includes)
+(defun cide--hdr-legacy (idb buffer sys-includes)
   "Try to set compiler flags from IDB for header BUFFER using SYS-INCLUDES.
 
 First, try to find a source file corresponding to the header.
 Then, try to find a source file in IDB that directly includes the header.
 If all else fails, use all compiler flags in the project."
 
-  (let* ((other (cmake-ide--src-file-for-hdr buffer))
-         (src-file-name (or other (cmake-ide--first-including-src-file idb buffer))))
+  (let* ((other (cide--src-file-for-hdr buffer))
+         (src-file-name (or other (cide--first-including-src-file idb buffer))))
     (if src-file-name
         ;; if a source file is found, use its flags
-        (cmake-ide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
+        (cide--set-flags-for-hdr-from-src idb buffer sys-includes src-file-name)
       ;; otherwise use flags from all source files
-      (cmake-ide--set-flags-for-hdr-from-all-flags idb buffer sys-includes))))
+      (cide--set-flags-for-hdr-from-all-flags idb buffer sys-includes))))
 
-(defun cmake-ide--set-flags-for-hdr-exact (buffer sys-includes command)
+(defun cide--set-flags-for-hdr-exact (buffer sys-includes command)
   "Set flags for BUFFER using SYS-INCLUDES and compiler COMMAND."
-  (let* ((hdr-flags (cmake-ide--remove-compiler-from-args-string command))
-         (hdr-includes (cmake-ide--flags-to-includes hdr-flags)))
+  (let* ((hdr-flags (cide--remove-compiler-from-args-string command))
+         (hdr-includes (cide--flags-to-includes hdr-flags)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
-(defun cmake-ide--ninja-header-command (idb file-name)
+(defun cide--ninja-header-command (idb file-name)
   "Return the command used by a file in IDB that depends on FILE-NAME.
 
 Find an object file that lists FILE-NAME as a dependency, then return the first
 compiler command in the project that has that object file in itself."
-  (let ((obj-file-name (cmake-ide--ninja-obj-file-depending-on-hdr file-name)))
+  (let ((obj-file-name (cide--ninja-obj-file-depending-on-hdr file-name)))
     (if (null obj-file-name) nil
-      (let ((all-commands (cmake-ide--idb-all-commands idb)))
-        (cmake-ide--filter-first (lambda (x) (string-match obj-file-name x))
+      (let ((all-commands (cide--idb-all-commands idb)))
+        (cide--filter-first (lambda (x) (string-match obj-file-name x))
                                  all-commands)))))
 
-(defun cmake-ide--ninja-obj-file-depending-on-hdr (file-name)
+(defun cide--ninja-obj-file-depending-on-hdr (file-name)
   "Find the first object file that depends on the header FILE-NAME.
 
 Ask ninja for all dependencies then find FILE-NAME in the output, returning
 the object file's name just above."
-  (let ((default-directory (cmake-ide--get-build-dir))
+  (let ((default-directory (cide--get-build-dir))
         (beg)
         (end))
     (if (not (file-exists-p (expand-file-name "build.ninja" default-directory)))
@@ -499,7 +499,7 @@ the object file's name just above."
           (copy-region-as-kill beg end)
           (car kill-ring))))))
 
-(defun cmake-ide--src-file-for-hdr (buffer)
+(defun cide--src-file-for-hdr (buffer)
   "Try and find a source file for a header BUFFER (e.g. foo.cpp for foo.hpp)."
   (if cmake-ide-header-search-other-file
       (when (and buffer (buffer-live-p buffer))
@@ -508,15 +508,15 @@ the object file's name just above."
             (if other-file-name (expand-file-name other-file-name) nil))))
     nil))
 
-(defun cmake-ide--set-flags-for-hdr-from-src (idb buffer sys-includes src-file-name)
+(defun cide--set-flags-for-hdr-from-src (idb buffer sys-includes src-file-name)
   "Use IDB to set flags for a header BUFFER with SYS-INCLUDES from its corresponding SRC-FILE-NAME."
-  (cmake-ide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
-  (cmake-ide--set-flags-for-src-file (cmake-ide--idb-file-to-obj idb src-file-name) buffer sys-includes))
+  (cide--message "Found src file %s for %s, using its flags" src-file-name (buffer-file-name buffer))
+  (cide--set-flags-for-src-file (cide--idb-file-to-obj idb src-file-name) buffer sys-includes))
 
-(defun cmake-ide--first-including-src-file (idb buffer)
+(defun cide--first-including-src-file (idb buffer)
   "Use IDB to find first source file that includes the header BUFFER."
   (when (and (buffer-file-name buffer) cmake-ide-header-search-first-including)
-    (cmake-ide--message "Searching for source file including %s" (buffer-file-name buffer))
+    (cide--message "Searching for source file including %s" (buffer-file-name buffer))
     (let* ((file-name (buffer-file-name buffer))
            ret-obj
            ret-file-name)
@@ -525,23 +525,23 @@ the object file's name just above."
         (setq ret-file-name
               (with-temp-buffer
                 (rtags-call-rc "--dependencies" file-name "included-by" :noerror t)
-                (cmake-ide--filter-first
+                (cide--filter-first
                  (lambda (a)
                    (gethash a idb))
                  (split-string (buffer-string) "\n" t split-string-default-separators)))))
 
       (unless ret-file-name
-        (setq idb (cmake-ide--idb-sorted-by-file-distance idb file-name))
-        (setq ret-obj (cmake-ide--filter-first
-                       (lambda (x) (cmake-ide--idb-obj-depends-on-file x file-name))
+        (setq idb (cide--idb-sorted-by-file-distance idb file-name))
+        (setq ret-obj (cide--filter-first
+                       (lambda (x) (cide--idb-obj-depends-on-file x file-name))
                        idb))
-        (when ret-obj (setq ret-file-name (cmake-ide--idb-obj-get ret-obj 'file))))
+        (when ret-obj (setq ret-file-name (cide--idb-obj-get ret-obj 'file))))
 
-      (when ret-file-name (cmake-ide--message "Found a source file including %s" file-name))
+      (when ret-file-name (cide--message "Found a source file including %s" file-name))
 
       ret-file-name)))
 
-(defun cmake-ide--get-string-from-file (path)
+(defun cide--get-string-from-file (path)
   "Return PATH's file content."
   (if (file-exists-p path)
       (with-temp-buffer
@@ -549,12 +549,12 @@ the object file's name just above."
         (buffer-string))
     ""))
 
-(defun cmake-ide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
+(defun cide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
-  (cmake-ide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
-  (let* ((all-commands (cmake-ide--idb-all-commands idb))
-         (hdr-flags (cmake-ide--commands-to-hdr-flags all-commands))
-         (hdr-includes (cmake-ide--commands-to-hdr-includes all-commands)))
+  (cide--message "Could not find suitable src file for %s, using all compiler flags" (buffer-file-name buffer))
+  (let* ((all-commands (cide--idb-all-commands idb))
+         (hdr-flags (cide--commands-to-hdr-flags all-commands))
+         (hdr-includes (cide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
 
@@ -565,42 +565,42 @@ the object file's name just above."
 
       (when (featurep 'auto-complete-clang)
         (make-local-variable 'ac-clang-flags)
-        (setq ac-clang-flags (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
+        (setq ac-clang-flags (cide--filter-ac-flags (cide--get-compiler-flags flags))))
 
       (when (featurep 'company)
         (make-local-variable 'company-clang-arguments)
-        (setq company-clang-arguments (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))))
+        (setq company-clang-arguments (cide--filter-ac-flags (cide--get-compiler-flags flags))))
 
       (when (featurep 'company-c-headers)
         (make-local-variable 'company-c-headers-path-user)
-        (setq company-c-headers-path-user (cmake-ide--flags-to-include-paths flags))
+        (setq company-c-headers-path-user (cide--flags-to-include-paths flags))
         (make-local-variable 'company-c-headers-path-system)
         (when sys-includes
           (setq company-c-headers-path-system (append sys-includes company-c-headers-path-system))))
 
-      (when (and (featurep 'irony) (not (gethash (cmake-ide--get-build-dir) cmake-ide--irony)))
-        (irony-cdb-json-add-compile-commands-path (cmake-ide--locate-project-dir) (cmake-ide--comp-db-file-name))
-        (puthash (cmake-ide--get-build-dir) t cmake-ide--irony))
+      (when (and (featurep 'irony) (not (gethash (cide--get-build-dir) cide--irony)))
+        (irony-cdb-json-add-compile-commands-path (cide--locate-project-dir) (cide--comp-db-file-name))
+        (puthash (cide--get-build-dir) t cide--irony))
 
       (when (featurep 'semantic)
-        (let ((dirs (cmake-ide--flags-to-include-paths flags)))
-          (when (boundp 'cmake-ide--semantic-system-include)
-            (mapc 'semantic-remove-system-include cmake-ide--semantic-system-include))
+        (let ((dirs (cide--flags-to-include-paths flags)))
+          (when (boundp 'cide--semantic-system-include)
+            (mapc 'semantic-remove-system-include cide--semantic-system-include))
           (mapc 'semantic-add-system-include dirs)
-          (setq-local cmake-ide--semantic-system-include dirs)))
+          (setq-local cide--semantic-system-include dirs)))
 
 
       (let ((macro-regex "\\(^-std=\\|\\.o$\\|^-o$\\)"))
         (make-local-variable 'c-macro-cppflags)
         (setq c-macro-cppflags
-              (mapconcat 'identity (cmake-ide--filter (lambda (x) (not (string-match macro-regex x)))
-                                                      (cmake-ide--filter-ac-flags (cmake-ide--get-compiler-flags flags))) " ")))
+              (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
+                                                      (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
 
       (when (featurep 'flycheck)
         (let* ((std-regex "^-std=")
-               (include-path (append sys-includes (cmake-ide--flags-to-include-paths flags)))
-               (definitions (append (cmake-ide--get-existing-definitions) (cmake-ide--flags-to-defines flags)))
-               (args (cmake-ide--filter (lambda (x) (not (string-match std-regex x))) (cmake-ide--flags-filtered flags))))
+               (include-path (append sys-includes (cide--flags-to-include-paths flags)))
+               (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
+               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered flags))))
           (make-local-variable 'flycheck-clang-include-path)
           (make-local-variable 'flycheck-gcc-include-path)
           (setq flycheck-clang-include-path include-path)
@@ -618,20 +618,20 @@ the object file's name just above."
 
           (make-local-variable 'flycheck-clang-language-standard)
           (make-local-variable 'flycheck-gcc-language-standard)
-          (let* ((stds (cmake-ide--filter (lambda (x) (string-match std-regex x)) flags))
+          (let* ((stds (cide--filter (lambda (x) (string-match std-regex x)) flags))
                  (repls (mapcar (lambda (x) (replace-regexp-in-string std-regex "" x)) stds)))
             (when repls
               (setq flycheck-clang-language-standard (car repls))
               (setq flycheck-gcc-language-standard (car repls))
               (unless cmake-ide-flycheck-cppcheck-strict-standards
-                (setq repls (mapcar 'cmake-ide--cmake-standard-to-cppcheck-standard repls)))
-              (setq repls (cmake-ide--filter 'cmake-ide--valid-cppcheck-standard-p repls))
+                (setq repls (mapcar 'cide--cmake-standard-to-cppcheck-standard repls)))
+              (setq repls (cide--filter 'cide--valid-cppcheck-standard-p repls))
               (when repls
                 (make-local-variable 'flycheck-cppcheck-standards)
                 (setq flycheck-cppcheck-standards repls))))
 
           (make-local-variable 'flycheck-cppcheck-include-path)
-          (setq flycheck-cppcheck-include-path (append sys-includes (cmake-ide--flags-to-include-paths flags))))
+          (setq flycheck-cppcheck-include-path (append sys-includes (cide--flags-to-include-paths flags))))
 
         (setq flycheck-clang-includes includes)
         (setq flycheck-gcc-includes includes)
@@ -641,8 +641,8 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
-  (when (cmake-ide--locate-project-dir)
-    (if (cmake-ide--get-build-dir)
+  (when (cide--locate-project-dir)
+    (if (cide--get-build-dir)
         (let ((filename (buffer-file-name))
               (buffer (current-buffer))
               (name (buffer-name)))
@@ -651,36 +651,36 @@ the object file's name just above."
             (when (yes-or-no-p "Are you sure you want to remove this file? ")
               (delete-file filename)
               (kill-buffer buffer)
-              (let ((project-dir (cmake-ide--locate-project-dir)))
+              (let ((project-dir (cide--locate-project-dir)))
                 (when (and project-dir  (file-exists-p (expand-file-name "CMakeLists.txt" project-dir)))
-                  (cmake-ide--run-cmake-impl project-dir (cmake-ide--get-build-dir)))
-                (cmake-ide--message "File '%s' successfully removed" filename)))))
+                  (cide--run-cmake-impl project-dir (cide--get-build-dir)))
+                (cide--message "File '%s' successfully removed" filename)))))
       (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
 
 
-(defun cmake-ide--run-cmake-impl (project-dir cmake-dir)
+(defun cide--run-cmake-impl (project-dir cmake-dir)
   "Run the CMake process for PROJECT-DIR in CMAKE-DIR."
   (when project-dir
     (let ((default-directory cmake-dir))
-      (cmake-ide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
+      (cide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
       (apply 'start-process (append (list "cmake" "*cmake*" cmake-ide-cmake-command)
                                     (split-string cmake-ide-cmake-opts)
                                     (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))))
 
 
-(defun cmake-ide--get-project-key ()
+(defun cide--get-project-key ()
   "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
-  (let ((project-dir (cmake-ide--locate-project-dir)))
+  (let ((project-dir (cide--locate-project-dir)))
     (when project-dir
       ;; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
       (replace-regexp-in-string "[-/= ]" "_"  (concat (expand-file-name project-dir)
                                                       cmake-ide-cmake-opts)))))
 
-(defun cmake-ide--get-build-dir-from-hash ()
+(defun cide--get-build-dir-from-hash ()
   "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
-  (let ((project-key (cmake-ide--get-project-key)))
+  (let ((project-key (cide--get-project-key)))
     (when project-key
-      (let ((build-dir (gethash project-key cmake-ide--cmake-hash nil)))
+      (let ((build-dir (gethash project-key cide--cmake-hash nil)))
         (if (not build-dir)
             (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
                   build-directory-name)
@@ -690,35 +690,35 @@ the object file's name just above."
                       (make-temp-name "cmake")))
               (setq build-dir (expand-file-name build-directory-name build-parent-directory))
               (progn
-                (puthash project-key build-dir cmake-ide--cmake-hash))
+                (puthash project-key build-dir cide--cmake-hash))
               build-dir)
           build-dir)))))
 
-(defun cmake-ide--get-build-dir ()
+(defun cide--get-build-dir ()
   "Return the directory name to run CMake in."
   ;; build the directory key for the project
   (let ((build-dir-base
-         (or (cmake-ide--build-dir-var) ; if use set, use this value (may be relative)
-             (cmake-ide--get-build-dir-from-hash)))) ; else get from project-key (return an absolute path)
+         (or (cide--build-dir-var) ; if use set, use this value (may be relative)
+             (cide--get-build-dir-from-hash)))) ; else get from project-key (return an absolute path)
     (when build-dir-base
       (let ((build-dir (expand-file-name  build-dir-base
-                                          (cmake-ide--locate-project-dir)))) ; if relative, use project-dir as base directory
+                                          (cide--locate-project-dir)))) ; if relative, use project-dir as base directory
         (when (not (file-accessible-directory-p build-dir))
-          (cmake-ide--message "Making directory %s" build-dir)
+          (cide--message "Making directory %s" build-dir)
           (make-directory build-dir 't))
         (file-name-as-directory build-dir)))))
 
-(defun cmake-ide--is-src-file (name)
+(defun cide--is-src-file (name)
   "Test if NAME is a source file or not."
   (cl-some (lambda (x) (string-suffix-p x name)) cmake-ide-src-extensions))
 
 
-(defun cmake-ide--filter (pred seq)
+(defun cide--filter (pred seq)
   "Apply PRED to filter SEQ."
   (delq nil
         (mapcar (lambda (x) (and (funcall pred x) x)) seq)))
 
-(defun cmake-ide--filter-first (pred seq)
+(defun cide--filter-first (pred seq)
   "Return first element to satisfy PRED in SEQ."
   (let ((index 0) (ret))
     (while (and (null ret) (< index (length seq)))
@@ -728,39 +728,39 @@ the object file's name just above."
     ret))
 
 
-(defun cmake-ide--filter-params (file-params filter-func)
+(defun cide--filter-params (file-params filter-func)
   "Filter FILE-PARAMS with FILTER-FUNC."
   ;; The compilation database is a JSON array of JSON objects
   ;; Each object is a file with directory, file and command fields
   ;; Depending on FILTER-FUNC, it maps file names to desired compiler flags
   ;; An example would be -I include flags
-  (let* ((args (cmake-ide--file-params-to-args file-params))
+  (let* ((args (cide--file-params-to-args file-params))
          (flags (funcall filter-func args)))
     (mapconcat 'identity flags " ")))
 
-(defun cmake-ide--file-params-to-args (file-params)
+(defun cide--file-params-to-args (file-params)
   "Get the compiler command arguments from FILE-PARAMS."
-  (let ((command (cmake-ide--idb-obj-get file-params 'command))
-        (arguments (cmake-ide--idb-obj-get file-params 'arguments)))
+  (let ((command (cide--idb-obj-get file-params 'command))
+        (arguments (cide--idb-obj-get file-params 'arguments)))
     (if command
-        (mapcar #'cmake-ide--quote-if-spaces (cmake-ide--split-command command))
-      (cmake-ide--vector-to-list arguments))))
+        (mapcar #'cide--quote-if-spaces (cide--split-command command))
+      (cide--vector-to-list arguments))))
 
-(defun cmake-ide--quote-if-spaces (str)
+(defun cide--quote-if-spaces (str)
   "Add quotes to STR if it has spaces."
   (if (string-match-p " " str)
       (concat "\"" str "\"")
     str))
 
-(defun cmake-ide--vector-to-list (vector)
+(defun cide--vector-to-list (vector)
   "Convert VECTOR to a list."
   (append vector nil))
 
-(defun cmake-ide--args-to-only-flags (args)
+(defun cide--args-to-only-flags (args)
   "Get compiler flags from ARGS."
-  (cmake-ide--filter (lambda (x) (not (cmake-ide--is-src-file (cmake-ide--unquote x)))) args))
+  (cide--filter (lambda (x) (not (cide--is-src-file (cide--unquote x)))) args))
 
-(defun cmake-ide--unquote (x)
+(defun cide--unquote (x)
   "Possibly unquote a string X."
   (if (and (stringp x) (> (length x) 2))
       (if (and (equal (elt x 0) ?") (equal (elt x (1- (length x))) ?"))
@@ -768,101 +768,101 @@ the object file's name just above."
         x)
     x))
 
-(defun cmake-ide--json-unescape (str)
+(defun cide--json-unescape (str)
   "Remove JSON-escaped backslashes in STR."
   (let* ((no-double-backslashes (replace-regexp-in-string "\\\\\\\\" "\\\\" str))
          (no-backslash-quote (replace-regexp-in-string "\\\\\"" "\"" no-double-backslashes)))
     no-backslash-quote))
 
-(defun cmake-ide--params-to-src-flags (file-params &optional filter-func)
+(defun cide--params-to-src-flags (file-params &optional filter-func)
   "Source compiler flags for FILE-PARAMS using FILTER-FUNC."
   (if (not file-params) nil
-    (let* ((filter-func (or filter-func #'cmake-ide--args-to-only-flags))
-           (value (cmake-ide--filter-params file-params filter-func))
+    (let* ((filter-func (or filter-func #'cide--args-to-only-flags))
+           (value (cide--filter-params file-params filter-func))
            (flags-string (if value value nil)))
-      (if flags-string (cmake-ide--cleanup-flags-str flags-string) nil))))
+      (if flags-string (cide--cleanup-flags-str flags-string) nil))))
 
-(defun cmake-ide--cleanup-flags-str (str)
+(defun cide--cleanup-flags-str (str)
   "Clean up and filter STR to yield a list of compiler flags."
-  (let ((unescaped-flags-string (cmake-ide--json-unescape str)))
-    (cmake-ide--remove-compiler-from-args-string unescaped-flags-string)))
+  (let ((unescaped-flags-string (cide--json-unescape str)))
+    (cide--remove-compiler-from-args-string unescaped-flags-string)))
 
-(defun cmake-ide--remove-compiler-from-args-string (str)
+(defun cide--remove-compiler-from-args-string (str)
   "Remove the compiler command from STR, leaving only arguments.  Return a list of strings."
-  (let ((args (cmake-ide--split-command str)))
-    (cmake-ide--remove-compiler-from-args args)))
+  (let ((args (cide--split-command str)))
+    (cide--remove-compiler-from-args args)))
 
-(defun cmake-ide--remove-compiler-from-args (args)
+(defun cide--remove-compiler-from-args (args)
   "Remove the compiler command from ARGS, leaving only arguments."
   (if (string-suffix-p "ccache" (car args))
       (cddr args)
     (cdr args)))
 
 
-(defun cmake-ide--filter-ac-flags (flags)
+(defun cide--filter-ac-flags (flags)
   "Filter unwanted compiler arguments out from FLAGS."
-  (cmake-ide--filter
+  (cide--filter
    (lambda (x)
      (cl-loop for flag in '("-m32" "-Werror" "-c" "-fPIC" "-pipe" "-g" "-ggdb")
               never (string-match (format "^%s$" flag) x)))
    flags))
 
-(defun cmake-ide--delete-dup-hdr-flags (flags)
+(defun cide--delete-dup-hdr-flags (flags)
   "Delete duplicates in FLAGS for header files."
-  (let* ((rest (cmake-ide--flags-filtered flags))
-         (dashes (cmake-ide--filter #'cmake-ide--dash-i-or-dash-d-p flags)))
+  (let* ((rest (cide--flags-filtered flags))
+         (dashes (cide--filter #'cide--dash-i-or-dash-d-p flags)))
     (append (delete-dups dashes) rest)))
 
-(defun cmake-ide--commands-to-hdr-flags (commands)
+(defun cide--commands-to-hdr-flags (commands)
   "Header compiler flags from COMMANDS."
-  (let* ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args-string commands)))
-         (flags (cmake-ide--args-to-only-flags args)))
-    (setq flags (cmake-ide--filter (lambda (x) (not (equal x "-o"))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
-    (setq flags (cmake-ide--filter (lambda (x) (not (string-suffix-p ".obj" x))) flags))
-    (cmake-ide--delete-dup-hdr-flags flags)))
+  (let* ((args (cide--flatten (mapcar #'cide--remove-compiler-from-args-string commands)))
+         (flags (cide--args-to-only-flags args)))
+    (setq flags (cide--filter (lambda (x) (not (equal x "-o"))) flags))
+    (setq flags (cide--filter (lambda (x) (not (string-suffix-p ".o" x))) flags))
+    (setq flags (cide--filter (lambda (x) (not (string-suffix-p ".obj" x))) flags))
+    (cide--delete-dup-hdr-flags flags)))
 
-(defun cmake-ide--params-to-src-includes (file-params)
+(defun cide--params-to-src-includes (file-params)
   "-include compiler flags for from FILE-PARAMS."
-  (cmake-ide--flags-to-includes (cmake-ide--params-to-src-flags file-params 'identity)))
+  (cide--flags-to-includes (cide--params-to-src-flags file-params 'identity)))
 
 
-(defun cmake-ide--params-to-sys-includes (file-params)
+(defun cide--params-to-sys-includes (file-params)
   "-include compiler flags for from FILE-PARAMS."
-  (cmake-ide--flags-to-sys-includes (cmake-ide--params-to-src-flags file-params 'identity)))
+  (cide--flags-to-sys-includes (cide--params-to-src-flags file-params 'identity)))
 
 
-(defun cmake-ide--commands-to-hdr-includes (commands)
+(defun cide--commands-to-hdr-includes (commands)
   "Header `-include` flags from COMMANDS."
-  (let ((args (cmake-ide--flatten (mapcar #'cmake-ide--remove-compiler-from-args-string commands))))
-    (delete-dups (cmake-ide--flags-to-includes args))))
+  (let ((args (cide--flatten (mapcar #'cide--remove-compiler-from-args-string commands))))
+    (delete-dups (cide--flags-to-includes args))))
 
 
-(defun cmake-ide--flatten (lst)
+(defun cide--flatten (lst)
   "Flatten LST."
   (if (equal (length lst) 1)
       (elt lst 0)
     (apply #'append lst)))
 
 
-(defun cmake-ide--flags-to-include-paths (flags)
+(defun cide--flags-to-include-paths (flags)
   "From FLAGS (a list of flags) to a list of include paths."
-  (let ((raw-paths (cmake-ide--to-simple-flags flags "^-I")))
-    (mapcar (lambda (x) (expand-file-name x (cmake-ide--get-build-dir))) raw-paths)))
+  (let ((raw-paths (cide--to-simple-flags flags "^-I")))
+    (mapcar (lambda (x) (expand-file-name x (cide--get-build-dir))) raw-paths)))
 
-(defun cmake-ide--relativize (path)
+(defun cide--relativize (path)
   "Make PATH relative to the build directory, but only if relative path with dots."
   (if (or (equal path ".") (string-prefix-p ".." path))
-      (expand-file-name path (cmake-ide--get-build-dir))
+      (expand-file-name path (cide--get-build-dir))
     path))
 
 
-(defun cmake-ide--flags-to-defines (flags)
+(defun cide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines."
-  (cmake-ide--to-simple-flags flags "^-D"))
+  (cide--to-simple-flags flags "^-D"))
 
 
-(defun cmake-ide--flags-to-includes (flags)
+(defun cide--flags-to-includes (flags)
   "From FLAGS (a list of flags) to a list of includes."
   (let ((includes nil))
     (while (member "-include" flags)
@@ -870,7 +870,7 @@ the object file's name just above."
       (when flags (setq includes (cons (car flags) includes))))
     includes))
 
-(defun cmake-ide--flags-to-sys-includes (flags)
+(defun cide--flags-to-sys-includes (flags)
   "From FLAGS (a list of flags) to a list of isystem includes."
   (let ((sysincludes nil))
     (while (member "-isystem" flags)
@@ -882,22 +882,22 @@ the object file's name just above."
     sysincludes))
 
 
-(defun cmake-ide--dash-i-or-dash-d-p (flag)
+(defun cide--dash-i-or-dash-d-p (flag)
   "If FLAG is -I or -D."
   (let* ((case-fold-search nil)
          (imatch (string-match "^-I" flag))
          (dmatch (string-match "^-D" flag)))
     (or imatch dmatch)))
 
-(defun cmake-ide--flags-filtered (flags)
+(defun cide--flags-filtered (flags)
   "Filter out defines and includes from FLAGS."
-  (cmake-ide--filter (lambda (x) (not (cmake-ide--dash-i-or-dash-d-p x))) flags))
+  (cide--filter (lambda (x) (not (cide--dash-i-or-dash-d-p x))) flags))
 
 
-(defun cmake-ide--to-simple-flags (flags flag)
+(defun cide--to-simple-flags (flags flag)
   "A list of either directories or defines from FLAGS depending on FLAG."
   (let* ((case-fold-search nil)
-         (res-flags (cmake-ide--filter
+         (res-flags (cide--filter
                      (lambda (x)
                        (let ((match (string-match flag x)))
                          (and match (zerop match))))
@@ -905,181 +905,181 @@ the object file's name just above."
     (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
-(defun cmake-ide--get-compiler-flags (flags)
+(defun cide--get-compiler-flags (flags)
   "Use FLAGS to return all compiler flags including existing ones."
-  (append (cmake-ide--get-existing-compiler-flags) flags))
+  (append (cide--get-existing-compiler-flags) flags))
 
-(defun cmake-ide--get-existing-compiler-flags ()
+(defun cide--get-existing-compiler-flags ()
   "Return existing ac-clang flags for this mode, if set."
   (if (eq major-mode 'c++-mode)
-      (cmake-ide--symbol-value 'cmake-ide-flags-c++)
-    (cmake-ide--symbol-value 'cmake-ide-flags-c)))
+      (cide--symbol-value 'cmake-ide-flags-c++)
+    (cide--symbol-value 'cmake-ide-flags-c)))
 
-(defun cmake-ide--get-existing-definitions ()
+(defun cide--get-existing-definitions ()
   "Return existing compiler defines, if set."
-  (cmake-ide--symbol-value 'cmake-ide-definitions))
+  (cide--symbol-value 'cmake-ide-definitions))
 
 
-(defun cmake-ide--symbol-value (sym)
+(defun cide--symbol-value (sym)
   "Return the value of SYM if bound, nil if not."
   (if (boundp sym) (symbol-value sym) nil))
 
 
-(defun cmake-ide--locate-cmakelists ()
+(defun cide--locate-cmakelists ()
   "Find CMakeLists.txt.
 
 Use CMakeLists.txt in user defined project-dir, or find the topmost
 CMakeLists.txt file.  Return nil if not found."
-  (if (and (cmake-ide--project-dir-var)
-           (file-exists-p (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))))
-      (expand-file-name "CMakeLists.txt" (cmake-ide--project-dir-var))
-    (let ((cmakelist-dir (cmake-ide--topmost-cmakelists default-directory nil)))
+  (if (and (cide--project-dir-var)
+           (file-exists-p (expand-file-name "CMakeLists.txt" (cide--project-dir-var))))
+      (expand-file-name "CMakeLists.txt" (cide--project-dir-var))
+    (let ((cmakelist-dir (cide--topmost-cmakelists default-directory nil)))
       (if cmakelist-dir
           (expand-file-name "CMakeLists.txt" cmakelist-dir)
         nil))))
 
-(defun cmake-ide--topmost-cmakelists (dir last-found)
+(defun cide--topmost-cmakelists (dir last-found)
   "Find the topmost CMakeLists.txt from DIR using LAST-FOUND as a 'plan B'."
   (let ((new-dir (locate-dominating-file dir "CMakeLists.txt")))
     (if new-dir
-        (cmake-ide--topmost-cmakelists (expand-file-name ".." new-dir) new-dir)
+        (cide--topmost-cmakelists (expand-file-name ".." new-dir) new-dir)
       last-found)))
 
-(defun cmake-ide--locate-project-dir ()
+(defun cide--locate-project-dir ()
   "Return the path to the project directory."
-  (let ((cmakelists (cmake-ide--locate-cmakelists)))
+  (let ((cmakelists (cide--locate-cmakelists)))
     ;; if project dir is set by the user, use this value.
-    (or (and (cmake-ide--project-dir-var) (expand-file-name (cmake-ide--project-dir-var)))
+    (or (and (cide--project-dir-var) (expand-file-name (cide--project-dir-var)))
         (and cmakelists (file-name-directory cmakelists)) ; else try to use cmakelists dir
         nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
         )))
 
-(defun cmake-ide--cdb-json-file-to-idb ()
+(defun cide--cdb-json-file-to-idb ()
   "Convert the compile_commands.json CDB to an IDB.
 First it checks the cache for previously
 computed IDBs, and if none are found actually performs the conversion."
-  (let ((idb (cmake-ide--cdb-idb-from-cache)))
+  (let ((idb (cide--cdb-idb-from-cache)))
     (unless idb
-      (if (not (file-exists-p (cmake-ide--comp-db-file-name)))
-          (cmake-ide--message "Non-existent compilation DB file %s" (cmake-ide--comp-db-file-name))
+      (if (not (file-exists-p (cide--comp-db-file-name)))
+          (cide--message "Non-existent compilation DB file %s" (cide--comp-db-file-name))
         (progn
-          (cmake-ide--message "Converting JSON CDB %s to IDB" (cmake-ide--comp-db-file-name))
-          (setq idb (cmake-ide--cdb-json-string-to-idb (cmake-ide--get-string-from-file (cmake-ide--comp-db-file-name))))
-          (puthash (cmake-ide--get-build-dir) idb cmake-ide--idbs)
-          (puthash (cmake-ide--get-build-dir) (cmake-ide--hash-file (cmake-ide--comp-db-file-name)) cmake-ide--cdb-hash)
-          (remhash (cmake-ide--get-build-dir) cmake-ide--irony))))
+          (cide--message "Converting JSON CDB %s to IDB" (cide--comp-db-file-name))
+          (setq idb (cide--cdb-json-string-to-idb (cide--get-string-from-file (cide--comp-db-file-name))))
+          (puthash (cide--get-build-dir) idb cide--idbs)
+          (puthash (cide--get-build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cdb-hash)
+          (remhash (cide--get-build-dir) cide--irony))))
     idb))
 
-(defun cmake-ide--cdb-idb-from-cache ()
+(defun cide--cdb-idb-from-cache ()
   "Return the IDB from the cache unless the JSON CDB has changed."
-  (let ((idb (gethash (cmake-ide--get-build-dir) cmake-ide--idbs))
-        (cached-hash (gethash (cmake-ide--get-build-dir) cmake-ide--cdb-hash))
-        (current-hash (cmake-ide--hash-file (cmake-ide--comp-db-file-name))))
+  (let ((idb (gethash (cide--get-build-dir) cide--idbs))
+        (cached-hash (gethash (cide--get-build-dir) cide--cdb-hash))
+        (current-hash (cide--hash-file (cide--comp-db-file-name))))
     (if (equal cached-hash current-hash)
         idb
       nil)))
 
-(defun cmake-ide--hash-file (file-name)
+(defun cide--hash-file (file-name)
   "Calculate the hash of FILE-NAME."
-  (secure-hash 'md5 (cmake-ide--get-string-from-file file-name)))
+  (secure-hash 'md5 (cide--get-string-from-file file-name)))
 
-(defun cmake-ide--cdb-json-string-to-idb (json-str)
+(defun cide--cdb-json-string-to-idb (json-str)
   "Tranform JSON-STR into an IDB.
 
 The IDB is hash mapping files to all JSON objects (usually only one) in the CDB."
-  (let ((idb (cmake-ide--make-hash-table))
+  (let ((idb (cide--make-hash-table))
         (json (json-read-from-string json-str)))
     ;; map over all the JSON objects in JSON, which is an array of objects (CDB)
     (mapc (lambda (obj)
-            (let* ((file (cmake-ide--relativize (cmake-ide--idb-obj-get obj 'file)))
+            (let* ((file (cide--relativize (cide--idb-obj-get obj 'file)))
                    (objs (gethash file idb)))
               (push obj objs)
               (puthash file objs idb)))
           json)
     idb))
 
-(defun cmake-ide--idb-obj-get (obj key)
+(defun cide--idb-obj-get (obj key)
   "Get the value in OBJ for KEY."
   (cdr (assoc key obj)))
 
-(defmacro cmake-ide--idb-obj-set (obj key value)
+(defmacro cide--idb-obj-set (obj key value)
   "Take OBJ and set KEY to VALUE."
   `(push (cons ,key ,value) ,obj))
 
-(defun cmake-ide--idb-file-to-obj (idb file-name)
+(defun cide--idb-file-to-obj (idb file-name)
   "Get object from IDB for FILE-NAME."
   (car (gethash file-name idb)))
 
-(defun cmake-ide--idb-all-commands (idb)
+(defun cide--idb-all-commands (idb)
   "A list of all commands in IDB."
-  (mapcar (lambda (x) (s-join " " (cmake-ide--file-params-to-args x))) (cmake-ide--idb-all-objs idb)))
+  (mapcar (lambda (x) (s-join " " (cide--file-params-to-args x))) (cide--idb-all-objs idb)))
 
 
-(defun cmake-ide--idb-sorted-by-file-distance (idb file-name)
+(defun cide--idb-sorted-by-file-distance (idb file-name)
   "Return a list of IDB entries sorted by their directory's name's distance to FILE-NAME."
   (let ((dir (file-name-directory file-name))
         (ret))
 
-    (setq ret (mapcar (lambda (x) (push `(distance . ,(cmake-ide--file-distance dir x)) x)) (cmake-ide--idb-all-objs idb)))
+    (setq ret (mapcar (lambda (x) (push `(distance . ,(cide--file-distance dir x)) x)) (cide--idb-all-objs idb)))
 
     (seq-sort
-     (lambda (x y) (< (cmake-ide--idb-obj-get x 'distance)
-                      (cmake-ide--idb-obj-get y 'distance)))
+     (lambda (x y) (< (cide--idb-obj-get x 'distance)
+                      (cide--idb-obj-get y 'distance)))
      ret)))
 
-(defun cmake-ide--file-distance (dir object)
+(defun cide--file-distance (dir object)
   "Return the distance between DIR and OBJECT's file."
-  (levenshtein-distance dir (file-name-directory (cmake-ide--idb-obj-get object 'file))))
+  (levenshtein-distance dir (file-name-directory (cide--idb-obj-get object 'file))))
 
-(defun cmake-ide--idb-all-objs (idb)
+(defun cide--idb-all-objs (idb)
   "Return a list of IDB entries."
   (let ((ret))
     (maphash (lambda (_ objs) (setq ret (append ret objs))) idb)
     ret))
 
 
-(defun cmake-ide--idb-obj-depends-on-file (obj file-name)
+(defun cide--idb-obj-depends-on-file (obj file-name)
   "If OBJ is a source file that depends on FILE-NAME."
   (let* ((base-name (file-name-nondirectory file-name))
-         (src-file-name (cmake-ide--idb-obj-get obj 'file)))
+         (src-file-name (cide--idb-obj-get obj 'file)))
     (if (string-match (concat "# *include +[\"<] *" base-name)
-                      (cmake-ide--get-string-from-file src-file-name))
+                      (cide--get-string-from-file src-file-name))
         src-file-name
       nil)))
 
-(defun cmake-ide--idb-hdr-compiler-args (idb file-name)
+(defun cide--idb-hdr-compiler-args (idb file-name)
   "Try every unique compiler command in IDB on FILE-NAME and return the first to succeed."
-  (let* ((objects  (cmake-ide--idb-sorted-by-file-distance idb file-name))
-         (commands (cmake-ide--idb-objs-to-unique-commands objects))
+  (let* ((objects  (cide--idb-sorted-by-file-distance idb file-name))
+         (commands (cide--idb-objs-to-unique-commands objects))
          (index 0)
          (ret))
     (while (and (null ret) (< index (length commands)))
       (let* ((tmp-file-name (expand-file-name "tmp.o" (make-temp-file "tryheader" t)))
              (command (concat (elt commands index) " " file-name " " "-o" " " tmp-file-name))
-             (_ (cmake-ide--message "Trying to compile '%s' with '%s'" file-name command))
-             (args (cmake-ide--split-command command)))
+             (_ (cide--message "Trying to compile '%s' with '%s'" file-name command))
+             (args (cide--split-command command)))
         (when (eq 0 (apply #'call-process (car args) nil nil nil (cdr args)))
           (setq ret command)))
       (cl-incf index))
     ret))
 
 
-(defun cmake-ide--idb-objs-to-unique-commands (objects)
+(defun cide--idb-objs-to-unique-commands (objects)
   "Calculate the list of unique compiler commands in OBJECTS ignoring the source file name."
   (let ((ret (mapcar (lambda (x)
-                       (let* ((file (cmake-ide--idb-obj-get x 'file))
+                       (let* ((file (cide--idb-obj-get x 'file))
                               (base-name (file-name-nondirectory file))
-                              (command (cmake-ide--idb-obj-get x 'command))
-                              (args (cmake-ide--split-command command)))
-                         (setq args (cmake-ide--filter (lambda (x) (not (string-match base-name x))) args))
-                         (setq args (cmake-ide--filter (lambda (x) (not (equal x "-c"))) args))
-                         (setq args (cmake-ide--filter (lambda (x) (not (equal x "-o"))) args))
+                              (command (cide--idb-obj-get x 'command))
+                              (args (cide--split-command command)))
+                         (setq args (cide--filter (lambda (x) (not (string-match base-name x))) args))
+                         (setq args (cide--filter (lambda (x) (not (equal x "-c"))) args))
+                         (setq args (cide--filter (lambda (x) (not (equal x "-o"))) args))
                          (mapconcat 'identity args " ")))
                      objects)))
     (delete-dups ret)
     ret))
 
-(defun cmake-ide--split-command (command-string)
+(defun cide--split-command (command-string)
   "Split COMMAND-STRING and return a list of strings."
   (split-string-and-unquote command-string))
 
@@ -1087,9 +1087,9 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
-  (when (cmake-ide--locate-project-dir)
-    (if (cmake-ide--get-build-dir)
-        (let ((compile-command (cmake-ide--get-compile-command (cmake-ide--get-build-dir))))
+  (when (cide--locate-project-dir)
+    (if (cide--get-build-dir)
+        (let ((compile-command (cide--get-compile-command (cide--get-build-dir))))
           ;; compile-command could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
           (if compile-command
               (if (functionp compile-command)
@@ -1097,10 +1097,10 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
                 (compile compile-command))
             (call-interactively compile-command)))
       (call-interactively compile-command))
-    (cmake-ide--run-rc)))
+    (cide--run-rc)))
 
 
-(defun cmake-ide--get-compile-command (dir)
+(defun cide--get-compile-command (dir)
   "Return the compile command to use for DIR."
   (cond (cmake-ide-compile-command cmake-ide-compile-command)
         ((file-exists-p (expand-file-name "build.ninja" dir)) (concat cmake-ide-ninja-command " -C " dir))
@@ -1113,12 +1113,12 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
   "Start the rdm (rtags) server."
   (interactive)
   (when (and (featurep 'rtags)
-             (or (and (cmake-ide--comp-db-file-name) (file-exists-p (cmake-ide--comp-db-file-name)))
-                 (cmake-ide--locate-project-dir)))
+             (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
+                 (cide--locate-project-dir)))
 
-    (unless (cmake-ide--process-running-p "rdm")
+    (unless (cide--process-running-p "rdm")
       (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-        (cmake-ide--message "Starting rdm server")
+        (cide--message "Starting rdm server")
         (with-current-buffer buf
           (let ((rdm-process (start-process "rdm" (current-buffer)
                                             (cmake-ide-rdm-executable)
@@ -1128,26 +1128,26 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
             (set-process-query-on-exit-flag rdm-process nil)))))))
 
 
-(defun cmake-ide--process-running-p (name)
+(defun cide--process-running-p (name)
   "If a process called NAME is running or not."
-  (or (get-process name) (cmake-ide--system-process-running-p name)))
+  (or (get-process name) (cide--system-process-running-p name)))
 
-(defun cmake-ide--system-process-running-p (name)
+(defun cide--system-process-running-p (name)
   "If a process called NAME is running on the system."
   (let* ((all-args (mapcar (lambda (x) (cdr (assq 'args (process-attributes x)))) (list-system-processes)))
-         (match-args (cmake-ide--filter (lambda (x) (cmake-ide--string-match (concat "\\b" name "\\b") x)) all-args)))
+         (match-args (cide--filter (lambda (x) (cide--string-match (concat "\\b" name "\\b") x)) all-args)))
     (not (null match-args))))
 
-(defun cmake-ide--string-match (regexp name)
+(defun cide--string-match (regexp name)
   "Wrap 'string-match' of REGEXP and NAME to make sure we don't pass it a nil string."
   (when name
     (string-match regexp name)))
 
-(defun cmake-ide--valid-cppcheck-standard-p (standard)
+(defun cide--valid-cppcheck-standard-p (standard)
   "If STANDARD is supported by cppcheck."
   (member standard '("posix" "c89" "c99" "c11" "c++03" "c++11")))
 
-(defun cmake-ide--cmake-standard-to-cppcheck-standard (standard)
+(defun cide--cmake-standard-to-cppcheck-standard (standard)
   "Convert a CMake language STANDARD to the closest supported by cppcheck.
 If there is no clear and sensible conversion, the input is
 returned unchanged."
@@ -1162,7 +1162,7 @@ returned unchanged."
      ((equal gnu-replaced "c++17") "c++11")
      ((equal gnu-replaced "c++1z") "c++11")
      ;; See if what we have matches cppcheck's capabilities exactly.
-     ((cmake-ide--valid-cppcheck-standard-p gnu-replaced) gnu-replaced)
+     ((cide--valid-cppcheck-standard-p gnu-replaced) gnu-replaced)
      ;; Otherwise, just hand back the original input.
      (t standard))))
 

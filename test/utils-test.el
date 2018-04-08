@@ -26,49 +26,49 @@
 
 (require 'f)
 
-(defvar cmake-ide--test-path)
-(defvar cmake-ide--root-path)
-(setq cmake-ide--test-path (f-dirname load-file-name))
-(setq cmake-ide--root-path (f-parent cmake-ide--test-path))
-(add-to-list 'load-path cmake-ide--root-path)
+(defvar cide--test-path)
+(defvar cide--root-path)
+(setq cide--test-path (f-dirname load-file-name))
+(setq cide--root-path (f-parent cide--test-path))
+(add-to-list 'load-path cide--root-path)
 
 (require 'ert)
 (require 'cmake-ide)
 
 
-(ert-deftest test-cmake-ide--string-empty-p ()
-  (should (equal (cmake-ide--string-empty-p "") t))
-  (should (equal (cmake-ide--string-empty-p "foo") nil)))
+(ert-deftest test-cide--string-empty-p ()
+  (should (equal (cide--string-empty-p "") t))
+  (should (equal (cide--string-empty-p "foo") nil)))
 
 (ert-deftest test-unquote ()
-  (should (equal (cmake-ide--unquote "\"foo\"") "foo")))
+  (should (equal (cide--unquote "\"foo\"") "foo")))
 
-(ert-deftest test-cmake-ide--string-match ()
-  (should (equal (cmake-ide--string-match "foo" "foobar") 0))
-  (should (equal (cmake-ide--string-match "oo" "foobar") 1))
-  (should (equal (cmake-ide--string-match "foo" "bar") nil)))
+(ert-deftest test-cide--string-match ()
+  (should (equal (cide--string-match "foo" "foobar") 0))
+  (should (equal (cide--string-match "oo" "foobar") 1))
+  (should (equal (cide--string-match "foo" "bar") nil)))
 
-(ert-deftest test-cmake-ide--idb-objs-to-unique-commands ()
-  (should (equal (cmake-ide--idb-objs-to-unique-commands
+(ert-deftest test-cide--idb-objs-to-unique-commands ()
+  (should (equal (cide--idb-objs-to-unique-commands
                   '(((file . "foo") (command . "a b c"))
                     ((file . "bar") (command . "d e f"))))
                  '("a b c" "d e f")))
-  (should (equal (cmake-ide--idb-objs-to-unique-commands
+  (should (equal (cide--idb-objs-to-unique-commands
                   '(((file . "foo") (command . "a b c"))
                     ((file . "bar") (command . "a b c"))))
                  '("a b c"))))
 
-(ert-deftest test-cmake-ide--idb-all-objs ()
+(ert-deftest test-cide--idb-all-objs ()
   (let ((idb (make-hash-table)))
     (puthash "foo" '(((file . "foo") (command . "cmd1"))) idb)
     (puthash "bar" '(((file . "bar") (command . "cmd2"))) idb)
-    (should (equal (cmake-ide--idb-all-objs idb)
+    (should (equal (cide--idb-all-objs idb)
                    '(((file . "foo") (command . "cmd1"))
                      ((file . "bar") (command . "cmd2")))))))
 
 (ert-deftest test-filter-first ()
-  (should (equal (cmake-ide--filter-first (lambda (x) (equal x "foo")) '("bar" "foo")) "foo"))
-  (should (equal (cmake-ide--filter-first (lambda (x) (equal x "quux")) '("bar" "foo")) nil)))
+  (should (equal (cide--filter-first (lambda (x) (equal x "foo")) '("bar" "foo")) "foo"))
+  (should (equal (cide--filter-first (lambda (x) (equal x "quux")) '("bar" "foo")) nil)))
 
 (provide 'utils-test)
 ;;; utils-test.el ends here
