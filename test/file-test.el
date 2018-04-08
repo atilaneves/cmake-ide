@@ -124,11 +124,12 @@ add_executable(app \"foo.cpp\")"
      (should (equal (cide--idb-obj-depends-on-file obj "bar.h") "foo.c")))))
 
 
-(defun initialise-caches (cdb-json)
-  "Initialise all DB caches using CDB-JSON as the CDB."
-  (write-file-str "compile_commands.json" cdb-json)
+(defun initialise-caches (cdb-json-str)
+  "Initialise all DB caches using CDB-JSON-STR as the CDB."
+  (write-file-str "compile_commands.json" cdb-json-str)
   (setq cide--idbs (cide--make-hash-table))
   (setq cide--cdb-hash (cide--make-hash-table))
+  (setq cide--irony (cide--make-hash-table))
   (setq cmake-ide-build-dir cide--sandbox-path))
 
 
