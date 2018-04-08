@@ -200,5 +200,15 @@ add_executable(app \"foo.cpp\")"
                     (expand-file-name "CMakeLists.txt"
                                       (expand-file-name "subdir" cide--sandbox-path)))))))
 
+(ert-deftest test-cide--get-project-key-cmake ()
+  (let ((default-directory "/tmp"))
+    (f-write-text "stuff" 'utf-8 "/tmp/CMakeLists.txt")
+    (should (equal (cide--project-key)
+                   "_tmp__DCMAKE_BUILD_TYPE_Release"))))
+
+(ert-deftest test-cide--get-project-key-no-cmake ()
+  (let ((default-directory "/tmp"))
+    (with-sandbox (should (equal (cide--project-key) nil)))))
+
 (provide 'file-test)
 ;;; file-test.el ends here

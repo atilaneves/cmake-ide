@@ -669,8 +669,8 @@ the object file's name just above."
                                     (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))))
 
 
-(defun cide--get-project-key ()
-  "Return the directory name to run CMake in, it is the Project Key to store this directory in the hash map.  Return nil for non cmake project."
+(defun cide--project-key ()
+  "Return a unique key for a project based on the project dir and cmake options."
   (let ((project-dir (cide--locate-project-dir)))
     (when project-dir
       ;; if no project-dir, then get-project-key is called from a non cmake project dir, simply ignore
@@ -678,8 +678,9 @@ the object file's name just above."
                                                       cmake-ide-cmake-opts)))))
 
 (defun cide--get-build-dir-from-hash ()
-  "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
-  (let ((project-key (cide--get-project-key)))
+  "Get the build dir from the cache if there or compute if not.
+For non cmake project, insert and use a nil entry (associated temp directory)."
+  (let ((project-key (cide--project-key)))
     (when project-key
       (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
         (if (not build-dir)

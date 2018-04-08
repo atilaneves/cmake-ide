@@ -550,18 +550,18 @@ company-c-headers to break."
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   ;; two run of get-project-key have to return the same result
-  (let ((dir1 (cide--get-project-key))
-        (dir2 (cide--get-project-key)))
+  (let ((dir1 (cide--project-key))
+        (dir2 (cide--project-key)))
     (should (equal dir1 dir2)))
-  (let ((dir1 (cide--get-project-key)))
+  (let ((dir1 (cide--project-key)))
     (setq cmake-ide-project-dir "./test2")
     ;; since project-key depend on project-dir, two different dir must have different value
-    (let ((dir2 (cide--get-project-key)))
+    (let ((dir2 (cide--project-key)))
       (should (not (equal dir1 dir2)))))
-  (let ((dir1 (cide--get-project-key)))
+  (let ((dir1 (cide--project-key)))
     (setq cmake-ide-cmake-opts "-DTest")
     ;; since project-key depend on cmake-opts, two different dir must have different value
-    (let ((dir2 (cide--get-project-key)))
+    (let ((dir2 (cide--project-key)))
       (should (not (equal dir1 dir2)))))
   )
 
