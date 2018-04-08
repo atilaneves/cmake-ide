@@ -509,7 +509,7 @@ company-c-headers to break."
 
 (ert-deftest test-issue-125 ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
-  (setq cide--cmake-hash (make-hash-table :test #'equal))
+  (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "/tmp")
   (let ((dir1 (cide--get-build-dir))
         (dir2 (cide--get-build-dir)))
@@ -547,7 +547,7 @@ company-c-headers to break."
 
 (ert-deftest test-project-key-basic ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
-  (setq cide--cmake-hash (make-hash-table :test #'equal))
+  (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   ;; two run of get-project-key have to return the same result
   (let ((dir1 (cide--get-project-key))
@@ -567,7 +567,7 @@ company-c-headers to break."
 
 (ert-deftest test-build-dir-behavior ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
-  (setq cide--cmake-hash (make-hash-table :test #'equal))
+  (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (setq cmake-ide-build-pool-dir nil)
   (let ((dir1 (cide--get-build-dir)))
@@ -575,14 +575,14 @@ company-c-headers to break."
 
 
   (setq cmake-ide-build-dir "test-build")
-  (setq cide--cmake-hash (make-hash-table :test #'equal))
+  (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (setq cmake-ide-build-pool-dir nil)
   (let ((dir1 (cide--get-build-dir)))
     (cide--message "dir 1 %s" dir1))
 
   (setq cmake-ide-build-dir "/tmp/test-build")
-  (setq cide--cmake-hash (make-hash-table :test #'equal))
+  (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (let ((dir1 (cide--get-build-dir)))
     (cide--message "dir 1 %s" dir1))

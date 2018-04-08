@@ -127,9 +127,9 @@ add_executable(app \"foo.cpp\")"
 (defun initialise-caches (cdb-json-str)
   "Initialise all DB caches using CDB-JSON-STR as the CDB."
   (write-file-str "compile_commands.json" cdb-json-str)
-  (setq cide--idbs (cide--make-hash-table))
-  (setq cide--cdb-hash (cide--make-hash-table))
-  (setq cide--irony (cide--make-hash-table))
+  (setq cide--cache-dir-to-idb (cide--make-hash-table))
+  (setq cide--cache-dir-to-cdb-hash (cide--make-hash-table))
+  (setq cide--cache-irony-dirs (cide--make-hash-table))
   (setq cmake-ide-build-dir cide--sandbox-path))
 
 
@@ -142,17 +142,17 @@ add_executable(app \"foo.cpp\")"
 (ert-deftest test-cide--cdb-idb-from-cache-one-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cide--get-build-dir) "idb" cide--idbs)
+   (puthash (cide--get-build-dir) "idb" cide--cache-dir-to-idb)
    ;; put the right hash for the CDB - it won't be considered to have changed
-   (puthash (cide--get-build-dir) (cide--hash-file "compile_commands.json") cide--cdb-hash)
+   (puthash (cide--get-build-dir) (cide--hash-file "compile_commands.json") cide--cache-dir-to-cdb-hash)
    (should (equal (cide--cdb-idb-from-cache) "idb"))))
 
 (ert-deftest test-cide--cdb-idb-from-cache-one-changed-idb ()
   (with-sandbox
    (initialise-caches "{}")
-   (puthash (cide--get-build-dir) "idb" cide--idbs)
+   (puthash (cide--get-build-dir) "idb" cide--cache-dir-to-idb)
    ;; put the wrong hash for the CDB - it will be considered to have changed
-   (puthash (cide--get-build-dir) "wronghash" cide--cdb-hash)
+   (puthash (cide--get-build-dir) "wronghash" cide--cache-dir-to-cdb-hash)
    (should (equal (cide--cdb-idb-from-cache) nil))))
 
 (ert-deftest test-cide--cdb-json-file-to-idb-no-caches ()

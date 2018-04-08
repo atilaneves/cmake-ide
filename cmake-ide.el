@@ -216,19 +216,20 @@ the closest possible matches available in cppcheck."
   "Make a hash table with equal for the test function."
   (make-hash-table :test #'equal))
 
-(defvar cide--idbs
+(defvar cide--cache-dir-to-idb
   (cide--make-hash-table)
   "Key: build directory.  Value: IDB for that build directory.")
 
-(defvar cide--cdb-hash
+(defvar cide--cache-dir-to-cdb-hash
   (cide--make-hash-table)
   "Key: build directory.  Value: The hash of the JSON CDB.")
 
-(defvar cide--cmake-hash
+(defvar cide--cache-pkey-to-dir
   (cide--make-hash-table)
   "Key: project key.  Value: build dir.")
 
-(defvar cide--irony
+;; Build dirs we've already told irony about
+(defvar cide--cache-irony-dirs
   (cide--make-hash-table)
   "Used as a set.  Key: build dir.  Value: T or nil.")
 
@@ -578,9 +579,9 @@ the object file's name just above."
         (when sys-includes
           (setq company-c-headers-path-system (append sys-includes company-c-headers-path-system))))
 
-      (when (and (featurep 'irony) (not (gethash (cide--get-build-dir) cide--irony)))
+      (when (and (featurep 'irony) (not (gethash (cide--get-build-dir) cide--cache-irony-dirs)))
         (irony-cdb-json-add-compile-commands-path (cide--locate-project-dir) (cide--comp-db-file-name))
-        (puthash (cide--get-build-dir) t cide--irony))
+        (puthash (cide--get-build-dir) t cide--cache-irony-dirs))
 
       (when (featurep 'semantic)
         (let ((dirs (cide--flags-to-include-paths flags)))
@@ -680,7 +681,7 @@ the object file's name just above."
   "Get dir form hash table, if not present compute a build dir and insert it in the table.  For non cmake project, insert and use a nil entry (associated temp directory)."
   (let ((project-key (cide--get-project-key)))
     (when project-key
-      (let ((build-dir (gethash project-key cide--cmake-hash nil)))
+      (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
         (if (not build-dir)
             (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
                   build-directory-name)
@@ -690,7 +691,7 @@ the object file's name just above."
                       (make-temp-name "cmake")))
               (setq build-dir (expand-file-name build-directory-name build-parent-directory))
               (progn
-                (puthash project-key build-dir cide--cmake-hash))
+                (puthash project-key build-dir cide--cache-pkey-to-dir))
               build-dir)
           build-dir)))))
 
@@ -965,15 +966,15 @@ computed IDBs, and if none are found actually performs the conversion."
         (progn
           (cide--message "Converting JSON CDB %s to IDB" (cide--comp-db-file-name))
           (setq idb (cide--cdb-json-string-to-idb (cide--get-string-from-file (cide--comp-db-file-name))))
-          (puthash (cide--get-build-dir) idb cide--idbs)
-          (puthash (cide--get-build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cdb-hash)
-          (remhash (cide--get-build-dir) cide--irony))))
+          (puthash (cide--get-build-dir) idb cide--cache-dir-to-idb)
+          (puthash (cide--get-build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cache-dir-to-cdb-hash)
+          (remhash (cide--get-build-dir) cide--cache-irony-dirs))))
     idb))
 
 (defun cide--cdb-idb-from-cache ()
   "Return the IDB from the cache unless the JSON CDB has changed."
-  (let ((idb (gethash (cide--get-build-dir) cide--idbs))
-        (cached-hash (gethash (cide--get-build-dir) cide--cdb-hash))
+  (let ((idb (gethash (cide--get-build-dir) cide--cache-dir-to-idb))
+        (cached-hash (gethash (cide--get-build-dir) cide--cache-dir-to-cdb-hash))
         (current-hash (cide--hash-file (cide--comp-db-file-name))))
     (if (equal cached-hash current-hash)
         idb
