@@ -616,7 +616,7 @@ the object file's name just above."
           (make-local-variable 'flycheck-clang-args)
           (make-local-variable 'flycheck-gcc-args)
           (setq flycheck-clang-args args)
-          (setq flycheck-gcc-args args)
+          (setq flycheck-gcc-args (cide--filter-output-arg args))
 
           (make-local-variable 'flycheck-clang-language-standard)
           (make-local-variable 'flycheck-gcc-language-standard)
@@ -1170,6 +1170,13 @@ returned unchanged."
      ((cide--valid-cppcheck-standard-p gnu-replaced) gnu-replaced)
      ;; Otherwise, just hand back the original input.
      (t standard))))
+(defun cide--filter-output-arg (args)
+  "Filter out '-o <output>' from the provided 'args' list."
+  (if (not args)
+      nil
+    (if (cide--string-match "^-o" (car args))
+	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here. 
+      (cons (car args) (cide--filter-output-arg (cdr args))))))
 
 (provide 'cmake-ide)
 ;;; cmake-ide.el ends here
