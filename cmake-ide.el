@@ -694,19 +694,14 @@ the object file's name just above."
 (defun cide--build-dir-from-cache ()
   "Get the build dir from the cache if there or compute if not.
 Return nil for non-CMake project."
-  (cide--message "project key: %s" (cide--project-key))
   (let ((project-key (cide--project-key)))
     (when project-key
       (let ((build-dir (gethash project-key cide--cache-pkey-to-dir nil)))
-        (cide--message "from-cache build-dir: %s" build-dir)
         (or build-dir
             (let ((build-parent-directory (or cmake-ide-build-pool-dir temporary-file-directory))
                   (build-directory-name (if cmake-ide-build-pool-use-persistent-naming
                                             project-key
                                           (make-temp-name "cmake"))))
-              (cide--message "parent: %s" build-parent-directory)
-              (cide--message "dir: %s" build-directory-name)
-              (cide--message "pool dir: %s" cmake-ide-build-pool-dir)
               (setq build-dir (expand-file-name build-directory-name build-parent-directory))
               (progn
                 (puthash project-key build-dir cide--cache-pkey-to-dir))
