@@ -545,6 +545,10 @@ company-c-headers to break."
        (cide--set-flags-for-src-file file-params (current-buffer) sys-includes))
      (should (equal flycheck-gcc-args '("-pipe" "-m64" "-g" "-fPIC" "-c"))))))
 
+
+(ert-deftest test-cide--filter-output-arg ()
+  (should (equal (cide--filter-output-arg '("-fPIC" "-o" "output" "-Wall")) '("-fPIC" "-Wall") )))
+
 (ert-deftest test-split-command ()
   (should (equal (cide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
 
