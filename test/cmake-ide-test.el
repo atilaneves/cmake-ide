@@ -529,6 +529,26 @@ company-c-headers to break."
      (cide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
 
+(ert-deftest test-flycheck-gcc-args ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"\",
+  \"command\": \"/bin/c++ -Dfoo_cpp_EXPORTS -I/usr/local/include -pipe -m64 -std=c++14 -g -fPIC -o CMakeFiles/hello.dir/foo.cpp.o -c foo.cpp\",
+  \"file\": \"foo.cpp\"
+}
+]"))
+        (cmake-ide-build-dir "/tmp"))
+    (with-non-empty-file
+     (let* ((file-params (cide--idb-file-to-obj idb "foo.cpp"))
+	    (sys-includes (cide--params-to-sys-includes file-params)))
+       (cide--set-flags-for-src-file file-params (current-buffer) sys-includes))
+     (should (equal flycheck-gcc-args '("-pipe" "-m64" "-g" "-fPIC" "-c"))))))
+
+
+(ert-deftest test-cide--filter-output-arg ()
+  (should (equal (cide--filter-output-arg '("-fPIC" "-o" "output" "-Wall")) '("-fPIC" "-Wall") )))
+
 (ert-deftest test-split-command ()
   (should (equal (cide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
 
