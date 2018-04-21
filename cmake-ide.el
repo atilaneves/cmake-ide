@@ -1081,7 +1081,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
 (defun cide--split-command (command-string)
   "Split COMMAND-STRING and return a list of strings."
-  (split-string-and-unquote command-string))
+  (split-string-and-unquote (replace-regexp-in-string "\\\\\"" "\"" command-string)))
 
 ;;;###autoload
 (defun cmake-ide-compile ()
