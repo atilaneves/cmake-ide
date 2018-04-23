@@ -80,6 +80,7 @@
 (defcustom cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'.  DEPRECATED, use `cmake-ide-build-dir' instead."
+  
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -396,7 +397,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
-  (let* ((file-name (buffer-file-name buffer))
+  (let* ((file-name (cide--get-buffer-file-name buffer))
          (file-params (cide--idb-file-to-obj idb file-name))
          (sys-includes (cide--params-to-sys-includes file-params))
          (all-commands (cide--idb-all-commands idb))
@@ -407,7 +408,18 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
         (cide--set-flags-for-src-file file-params buffer sys-includes)
       (cide--set-flags-for-hdr-file idb buffer (cide--flags-to-sys-includes hdr-flags)))))
 
-(defun cide--set-flags-for-src-file (file-params buffer sys-includes)
+(defun cide--get-buffer-file-name (buffer)
+  "Get the name of a file for a given buffer."
+  (let ((file-name (buffer-file-name buffer)))
+    (cide--get-system-filename file-name)))
+
+(defun cide--get-system-filename (file-name)
+  "Get the file name considering case sensitivity of the system."
+  (if (eq system-type 'windows-nt)
+      (s-downcase file-name)
+    file-name))
+
+(defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
   (let* ((src-flags (cide--params-to-src-flags file-params))
          (src-includes (cide--params-to-src-includes file-params)))
@@ -991,7 +1003,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
         (json (json-read-from-string json-str)))
     ;; map over all the JSON objects in JSON, which is an array of objects (CDB)
     (mapc (lambda (obj)
-            (let* ((file (cide--relativize (cide--idb-obj-get obj 'file)))
+            (let* ((file (cide--get-system-filename (cide--relativize (cide--idb-obj-get obj 'file))))
                    (objs (gethash file idb)))
               (push obj objs)
               (puthash file objs idb)))
