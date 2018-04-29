@@ -45,6 +45,7 @@
 (require 'cl-lib)
 (require 'seq)
 (require 's)
+(require 'subr-x)
 
 (defsubst cide--string-empty-p (string)
   "Check whether STRING is empty."
