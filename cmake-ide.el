@@ -752,11 +752,32 @@ Return nil for non-CMake project."
 
 (defun cide--file-params-to-args (file-params)
   "Get the compiler command arguments from FILE-PARAMS."
-  (let ((command (cide--idb-obj-get file-params 'command))
-        (arguments (cide--idb-obj-get file-params 'arguments)))
+  (let ((command (cide--resolve-response-file (cide--idb-obj-get file-params 'command)))
+        (arguments (cide--resolve-response-file (cide--idb-obj-get file-params 'arguments))))
     (if command
         (mapcar #'cide--quote-if-spaces (cide--split-command command))
       (cide--vector-to-list arguments))))
+
+(defun cide--resolve-response-file (obj)
+  "Matches response file string and adds its content to the object parameters."
+  (if (stringp obj)
+      (let* ((match-begin (string-match "@[^[:space:]]+" obj))
+             (match-end (and match-begin (match-end 0))))
+        (if match-begin
+            (let* ((response-file (substring obj (+ 1 match-begin) match-end))
+                   (file-params (cide--get-file-params response-file))
+                   (params (cide--replace-params-in-region obj file-params match-begin match-end)))
+              (cide--resolve-response-file params))
+          obj))
+    obj))
+
+(defun cide--get-file-params (response-file)
+  "Get file parameters from a response file given as compilation argument."
+  (string-remove-suffix "\n" (cide--get-string-from-file (expand-file-name response-file (cide--get-build-dir)))))
+
+(defun cide--replace-params-in-region (obj params begin end)
+  "Cut regions from begin to end and place params in it."
+  (concat (substring obj 0 begin) params (substring obj end)))
 
 (defun cide--quote-if-spaces (str)
   "Add quotes to STR if it has spaces."
