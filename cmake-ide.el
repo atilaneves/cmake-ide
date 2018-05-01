@@ -614,7 +614,7 @@ the object file's name just above."
         (let* ((std-regex "^-std=")
                (include-path (append sys-includes (cide--flags-to-include-paths flags)))
                (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
-               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered flags))))
+               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered (cide--get-compiler-flags flags)))))
           (make-local-variable 'flycheck-clang-include-path)
           (make-local-variable 'flycheck-gcc-include-path)
           (setq flycheck-clang-include-path include-path)
