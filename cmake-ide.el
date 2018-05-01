@@ -419,7 +419,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
       (s-downcase file-name)
     file-name))
 
-(defun cmake-ide--set-flags-for-src-file (file-params buffer sys-includes)
+(defun cide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
   (let* ((src-flags (cide--params-to-src-flags file-params))
          (src-includes (cide--params-to-src-includes file-params)))
