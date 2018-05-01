@@ -415,7 +415,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cide--get-system-filename (file-name)
   "Get the file name considering case sensitivity of the system."
-  (if (eq system-type 'windows-nt)
+  (if (and file-name (eq system-type 'windows-nt))
       (s-downcase file-name)
     file-name))
 
