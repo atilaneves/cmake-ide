@@ -1169,7 +1169,7 @@ returned unchanged."
   "Filter out '-o <output>' from the provided 'args' list."
   (if (not args)
       nil
-    (if (cide--string-match "^-o" (car args))
+    (if (string-equal "-o" (car args))
 	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here. 
       (cons (car args) (cide--filter-output-arg (cdr args))))))
 
