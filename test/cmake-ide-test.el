@@ -605,8 +605,22 @@ company-c-headers to break."
   (setq cide--cache-pkey-to-dir (make-hash-table :test #'equal))
   (setq cmake-ide-project-dir "./test1")
   (let ((dir1 (cide--build-dir)))
-    (cide--message "dir 1 %s" dir1))
-  )
+    (cide--message "dir 1 %s" dir1)))
+
+(ert-deftest test-issue-148 ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+    \"command\": \"cc -c -Wp,-MD,tools/.fit_image.o.d -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -include ./include/libfdt_env.h -idirafterinclude -idirafter./arch/arm/include -I./lib/libfdt -I./tools -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -D_GNU_SOURCE -DMKIMAGE_DTC=\\\\\\\"dtc\\\\\\\" -o tools/fit_image.o tools/fit_image.c\",
+    \"directory\": \"/home/ljj/dev/u-boot\",
+    \"file\": \"/home/ljj/dev/u-boot/tools/fit_image.c\"
+}
+]")))
+    (with-non-empty-file
+     (cide--set-flags-for-file idb (current-buffer))
+     ;; no asserts, it just should not error
+     )))
+
 
 (provide 'cmake-ide-test)
 ;;; cmake-ide-test.el ends here
