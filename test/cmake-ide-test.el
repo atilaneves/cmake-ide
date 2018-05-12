@@ -465,6 +465,26 @@ company-c-headers to break."
     (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
   )
 
+
+(ert-deftest test-get-command-args-with-resolve-file ()
+  "Check if resolve file is read in in case it is used by CMake"
+  (let* ((temporary-filename (make-temp-file "test-get-command-args-with-resolve-file"))
+         (idb (cide--cdb-json-string-to-idb
+               (concat "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 " "@" temporary-filename " -Ifoo -Ibar -std=c++14 --foo --bar\"},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
+         (file-params (cide--idb-file-to-obj idb "file1")))
+    (with-temp-file temporary-filename
+      (insert "-fmessage-length=0")
+      (end-of-line)
+      (newline))
+    (let ((args (cide--file-params-to-args file-params)))
+      (should (equal args '("cmd1" "-fmessage-length=0" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
+    (delete-file temporary-filename))
+  )
+
+
 (ert-deftest test-get-command-args-with-arguments ()
   "Check getting command arguments from file-params."
   (let* ((idb (cide--cdb-json-string-to-idb
@@ -476,6 +496,7 @@ company-c-headers to break."
          (args (cide--file-params-to-args file-params)))
     (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
   )
+
 
 (ert-deftest test-all-commands ()
   "Check getting command arguments from file-params."
