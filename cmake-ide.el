@@ -773,7 +773,7 @@ Return nil for non-CMake project."
 
 (defun cide--get-file-params (response-file)
   "Get file parameters from a response file given as compilation argument."
-  (string-remove-suffix "\n" (cide--get-string-from-file (expand-file-name response-file (cide--get-build-dir)))))
+  (string-remove-suffix "\n" (cide--get-string-from-file (expand-file-name response-file (cide--build-dir-from-cache)))))
 
 (defun cide--replace-params-in-region (obj params begin end)
   "Cut regions from begin to end and place params in it."
