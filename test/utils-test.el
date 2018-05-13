@@ -101,5 +101,27 @@
       (delete-file temporary-filename)))
   (should-error (cide--get-file-params nil)))
 
+(ert-deftest test-replace-response-file ()
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0 -nostdlib")
+        (end-of-line)
+        (newline))
+      (should (equal (cide--replace-response-file (concat "@" temporary-filename)) (list "-fmessage-length=0" "-nostdlib")))
+      (delete-file temporary-filename)))
+  )
+
+(ert-deftest test-resolve-response-file ()
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0 -nostdlib")
+        (end-of-line)
+        (newline))
+      (should (equal (cide--resolve-response-file (list "-Iinclude" (concat "@" temporary-filename))) (list "-Iinclude" "-fmessage-length=0" "-nostdlib")))
+      (delete-file temporary-filename)))
+  )
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
