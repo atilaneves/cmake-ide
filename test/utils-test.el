@@ -90,13 +90,6 @@
      (setq system-type 'any-other-system)
      (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "C:/MyTestPath/MyFile.cpp"))))
 
-(ert-deftest test-replace-param-in-region ()
-  (let* ((text "-DTEST pattern -ftest")
-         (match-begin (string-match "pattern" text))
-         (match-end (match-end 0))
-         (new-text "-fmessage-length=0"))
-    (should (equal (cide--replace-params-in-region text new-text match-begin match-end) "-DTEST -fmessage-length=0 -ftest"))))
-
 (ert-deftest test-get-file-params ()
   (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
     (let ((temporary-filename (make-temp-file "test-get-file-params")))
