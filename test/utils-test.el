@@ -79,16 +79,19 @@
   (should-error (test-get-buffer-file-name nil)))
 
 (ert-deftest test-get-system-filename ()
-  (should
-   (progn
-     (make-local-variable system-type)
-     (setq system-type 'windows-nt)
-     (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "c:/mytestpath/myfile.cpp")))
-  (should
-   (progn
-     (make-local-variable system-type)
-     (setq system-type 'any-other-system)
-     (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "C:/MyTestPath/MyFile.cpp"))))
+  (let ((initial-system-type system-type))
+    (should
+     (progn
+       (make-local-variable system-type)
+       (setq system-type 'windows-nt)
+       (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "c:/mytestpath/myfile.cpp")
+       (setq system-type initial-system-type)))
+    (should
+     (progn
+       (make-local-variable system-type)
+       (setq system-type 'any-other-system)
+       (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "C:/MyTestPath/MyFile.cpp")
+       (setq system-type initial-system-type)))))
 
 (ert-deftest test-get-file-params ()
   (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))

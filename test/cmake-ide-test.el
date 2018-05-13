@@ -61,6 +61,18 @@
     (should (equal (cide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
     (should (equal (cide--idb-obj-get fake-params 'directory) nil))))
 
+(ert-deftest test-json-to-file-params-case-insensitive ()
+  (let ((initial-system-type system-type))
+    (make-local-variable system-type)
+    (setq system-type 'windows-nt)
+    (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"/Foo/Bar/Dir/Foo.cpp\"}]")
+           (idb (cide--cdb-json-string-to-idb json-str))
+           (real-params (cide--idb-file-to-obj idb "/foo/bar/dir/foo.cpp"))
+           (fake-params (cide--idb-file-to-obj idb "oops")))
+      (should (equal (cide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+      (should (equal (cide--idb-obj-get fake-params 'directory) nil)))
+    (setq system-type initial-system-type)))
 
 (ert-deftest test-params-to-src-flags-1 ()
   (let* ((idb (cide--cdb-json-string-to-idb
@@ -569,6 +581,21 @@ company-c-headers to break."
      (cide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
 
+(ert-deftest test-flycheck-clang-args-for-windows ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"\",
+  \"command\": \"clang++ -Wall -Wextra -std=c++14 -c foo.cpp\",
+  \"file\": \"foo.cpp\"
+}
+]"))
+        (cmake-ide-build-dir "/tmp")
+        (cmake-ide-flags-c '("--target" "i686-pc-windows-gnu")))
+    (with-non-empty-file
+     (cide--set-flags-for-file idb (current-buffer))
+     (should (equal flycheck-clang-args '("--target" "i686-pc-windows-gnu" "-Wall" "-Wextra" "-c"))))))
+
 (ert-deftest test-flycheck-gcc-args ()
   (let ((idb (cide--cdb-json-string-to-idb
               "[
@@ -581,7 +608,7 @@ company-c-headers to break."
         (cmake-ide-build-dir "/tmp"))
     (with-non-empty-file
      (let* ((file-params (cide--idb-file-to-obj idb "foo.cpp"))
-	    (sys-includes (cide--params-to-sys-includes file-params)))
+            (sys-includes (cide--params-to-sys-includes file-params)))
        (cide--set-flags-for-src-file file-params (current-buffer) sys-includes))
      (should (equal flycheck-gcc-args '("-pipe" "-m64" "-g" "-fPIC" "-c"))))))
 
