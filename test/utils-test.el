@@ -99,8 +99,11 @@
       (with-temp-file temporary-filename
         (insert "-fmessage-length=0")
         (end-of-line)
+        (newline)
+        (insert "-nostdlib")
+        (end-of-line)
         (newline))
-      (should (equal (cide--get-file-params temporary-filename) "-fmessage-length=0"))
+      (should (equal (cide--get-file-params temporary-filename) "-fmessage-length=0 -nostdlib "))
       (delete-file temporary-filename)))
   (should-error (cide--get-file-params nil)))
 

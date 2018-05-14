@@ -489,7 +489,10 @@ company-c-headers to break."
                   \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
            (file-params (cide--idb-file-to-obj idb "file1")))
       (with-temp-file temporary-filename
-        (insert "-fmessage-length=0 -nostdlib")
+        (insert "-fmessage-length=0")
+        (end-of-line)
+        (newline)
+        (insert "-nostdlib")
         (end-of-line)
         (newline))
       (let ((args (cide--file-params-to-args file-params)))
