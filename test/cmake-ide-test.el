@@ -61,6 +61,18 @@
     (should (equal (cide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
     (should (equal (cide--idb-obj-get fake-params 'directory) nil))))
 
+(ert-deftest test-json-to-file-params-case-insensitive ()
+  (let ((initial-system-type system-type))
+    (make-local-variable system-type)
+    (setq system-type 'windows-nt)
+    (let* ((json-str "[{\"directory\": \"/foo/bar/dir\",
+                      \"command\": \"do the twist\", \"file\": \"/Foo/Bar/Dir/Foo.cpp\"}]")
+           (idb (cide--cdb-json-string-to-idb json-str))
+           (real-params (cide--idb-file-to-obj idb "/foo/bar/dir/foo.cpp"))
+           (fake-params (cide--idb-file-to-obj idb "oops")))
+      (should (equal (cide--idb-obj-get real-params 'directory) "/foo/bar/dir"))
+      (should (equal (cide--idb-obj-get fake-params 'directory) nil)))
+    (setq system-type initial-system-type)))
 
 (ert-deftest test-params-to-src-flags-1 ()
   (let* ((idb (cide--cdb-json-string-to-idb
@@ -465,6 +477,30 @@ company-c-headers to break."
     (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
   )
 
+
+(ert-deftest test-get-command-args-with-resolve-file-in-command ()
+  "Check if resolve file is read in in case it is used by CMake in command"
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let* ((temporary-filename (make-temp-file "test-get-command-args-with-resolve-file"))
+           (idb (cide--cdb-json-string-to-idb
+                 (concat "[{\"file\": \"file1\",
+                  \"command\": \"cmd1 " "@" temporary-filename " -Ifoo -Ibar -std=c++14 --foo --bar\"},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
+           (file-params (cide--idb-file-to-obj idb "file1")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0")
+        (end-of-line)
+        (newline)
+        (insert "-nostdlib")
+        (end-of-line)
+        (newline))
+      (let ((args (cide--file-params-to-args file-params)))
+        (should (equal args '("cmd1" "-fmessage-length=0" "-nostdlib" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
+      (delete-file temporary-filename)))
+  )
+
+
 (ert-deftest test-get-command-args-with-arguments ()
   "Check getting command arguments from file-params."
   (let* ((idb (cide--cdb-json-string-to-idb
@@ -476,6 +512,25 @@ company-c-headers to break."
          (args (cide--file-params-to-args file-params)))
     (should (equal args '("cmd1" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
   )
+
+
+(ert-deftest test-get-command-args-with-resolve-file-in-arguments ()
+  "Check if resolve file is read in in case it is used by CMake in argument"
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let* ((temporary-filename (make-temp-file "test-get-command-args-with-resolve-file"))
+           (idb (cide--cdb-json-string-to-idb
+                 (concat "[{\"file\": \"file1\",
+                  \"arguments\": [\"cmd1\", " "\"@" temporary-filename "\", " "\"-Ifoo\", \"-Ibar\", \"-std=c++14\", \"--foo\", \"--bar\"]},
+                 {\"file\": \"file2\",
+                  \"command\": \"cmd2 foo bar -g -pg -Ibaz -Iboo -Dloo\"}]")))
+           (file-params (cide--idb-file-to-obj idb "file1")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0 -nostdlib"))
+      (let ((args (cide--file-params-to-args file-params)))
+        (should (equal args '("cmd1" "-fmessage-length=0" "-nostdlib" "-Ifoo" "-Ibar" "-std=c++14" "--foo" "--bar"))))
+      (delete-file temporary-filename)))
+  )
+
 
 (ert-deftest test-all-commands ()
   "Check getting command arguments from file-params."
@@ -529,6 +584,21 @@ company-c-headers to break."
      (cide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c"))))))
 
+(ert-deftest test-flycheck-clang-args-for-windows ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"\",
+  \"command\": \"clang++ -Wall -Wextra -std=c++14 -c foo.cpp\",
+  \"file\": \"foo.cpp\"
+}
+]"))
+        (cmake-ide-build-dir "/tmp")
+        (cmake-ide-flags-c '("--target" "i686-pc-windows-gnu")))
+    (with-non-empty-file
+     (cide--set-flags-for-file idb (current-buffer))
+     (should (equal flycheck-clang-args '("--target" "i686-pc-windows-gnu" "-Wall" "-Wextra" "-c"))))))
+
 (ert-deftest test-flycheck-gcc-args ()
   (let ((idb (cide--cdb-json-string-to-idb
               "[
@@ -541,7 +611,7 @@ company-c-headers to break."
         (cmake-ide-build-dir "/tmp"))
     (with-non-empty-file
      (let* ((file-params (cide--idb-file-to-obj idb "foo.cpp"))
-	    (sys-includes (cide--params-to-sys-includes file-params)))
+            (sys-includes (cide--params-to-sys-includes file-params)))
        (cide--set-flags-for-src-file file-params (current-buffer) sys-includes))
      (should (equal flycheck-gcc-args '("-pipe" "-m64" "-g" "-fPIC" "-c"))))))
 

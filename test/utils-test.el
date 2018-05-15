@@ -33,6 +33,7 @@
 (add-to-list 'load-path cide--root-path)
 
 (require 'ert)
+(require 'cl)
 (require 'cmake-ide)
 
 
@@ -69,6 +70,64 @@
 (ert-deftest test-filter-first ()
   (should (equal (cide--filter-first (lambda (x) (equal x "foo")) '("bar" "foo")) "foo"))
   (should (equal (cide--filter-first (lambda (x) (equal x "quux")) '("bar" "foo")) nil)))
+
+(ert-deftest test-get-buffer-file-name ()
+  (cl-letf (((symbol-function 'cide--get-system-filename) #'(lambda (filename) filename)))
+    (let* ((utils-test-buffer (find-file "utils-test.el"))
+           (utils-test-filename (buffer-file-name (get-buffer "utils-test.el"))))
+      (should (equal (cide--get-buffer-file-name utils-test-buffer) utils-test-filename))))
+  (should-error (test-get-buffer-file-name nil)))
+
+(ert-deftest test-get-system-filename ()
+  (let ((initial-system-type system-type))
+    (should
+     (progn
+       (make-local-variable system-type)
+       (setq system-type 'windows-nt)
+       (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "c:/mytestpath/myfile.cpp")
+       (setq system-type initial-system-type)))
+    (should
+     (progn
+       (make-local-variable system-type)
+       (setq system-type 'any-other-system)
+       (equal (cide--get-system-filename "C:/MyTestPath/MyFile.cpp") "C:/MyTestPath/MyFile.cpp")
+       (setq system-type initial-system-type)))))
+
+(ert-deftest test-get-file-params ()
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0")
+        (end-of-line)
+        (newline)
+        (insert "-nostdlib")
+        (end-of-line)
+        (newline))
+      (should (equal (cide--get-file-params temporary-filename) "-fmessage-length=0 -nostdlib "))
+      (delete-file temporary-filename)))
+  (should-error (cide--get-file-params nil)))
+
+(ert-deftest test-replace-response-file ()
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0 -nostdlib")
+        (end-of-line)
+        (newline))
+      (should (equal (cide--replace-response-file (concat "@" temporary-filename)) (list "-fmessage-length=0" "-nostdlib")))
+      (delete-file temporary-filename)))
+  )
+
+(ert-deftest test-resolve-response-file ()
+  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+      (with-temp-file temporary-filename
+        (insert "-fmessage-length=0 -nostdlib")
+        (end-of-line)
+        (newline))
+      (should (equal (cide--resolve-response-file (list "-Iinclude" (concat "@" temporary-filename))) (list "-Iinclude" "-fmessage-length=0" "-nostdlib")))
+      (delete-file temporary-filename)))
+  )
 
 (provide 'utils-test)
 ;;; utils-test.el ends here

@@ -45,6 +45,7 @@
 (require 'cl-lib)
 (require 'seq)
 (require 's)
+(require 'dash)
 
 (defsubst cide--string-empty-p (string)
   "Check whether STRING is empty."
@@ -80,6 +81,7 @@
 (defcustom cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'.  DEPRECATED, use `cmake-ide-build-dir' instead."
+  
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -396,7 +398,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cide--set-flags-for-file (idb buffer)
   "Set the compiler flags from IDB for BUFFER visiting file FILE-NAME."
-  (let* ((file-name (buffer-file-name buffer))
+  (let* ((file-name (cide--get-buffer-file-name buffer))
          (file-params (cide--idb-file-to-obj idb file-name))
          (sys-includes (cide--params-to-sys-includes file-params))
          (all-commands (cide--idb-all-commands idb))
@@ -406,6 +408,17 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
     (if (cide--is-src-file file-name)
         (cide--set-flags-for-src-file file-params buffer sys-includes)
       (cide--set-flags-for-hdr-file idb buffer (cide--flags-to-sys-includes hdr-flags)))))
+
+(defun cide--get-buffer-file-name (buffer)
+  "Get the name of a file for a given buffer."
+  (let ((file-name (buffer-file-name buffer)))
+    (cide--get-system-filename file-name)))
+
+(defun cide--get-system-filename (file-name)
+  "Get the file name considering case sensitivity of the system."
+  (if (and file-name (eq system-type 'windows-nt))
+      (s-downcase file-name)
+    file-name))
 
 (defun cide--set-flags-for-src-file (file-params buffer sys-includes)
   "Set the compiler flags from FILE-PARAMS for source BUFFER with SYS-INCLUDES."
@@ -602,7 +615,7 @@ the object file's name just above."
         (let* ((std-regex "^-std=")
                (include-path (append sys-includes (cide--flags-to-include-paths flags)))
                (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
-               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered flags))))
+               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered (cide--get-compiler-flags flags)))))
           (make-local-variable 'flycheck-clang-include-path)
           (make-local-variable 'flycheck-gcc-include-path)
           (setq flycheck-clang-include-path include-path)
@@ -742,9 +755,28 @@ Return nil for non-CMake project."
   "Get the compiler command arguments from FILE-PARAMS."
   (let ((command (cide--idb-obj-get file-params 'command))
         (arguments (cide--idb-obj-get file-params 'arguments)))
-    (if command
-        (mapcar #'cide--quote-if-spaces (cide--split-command command))
-      (cide--vector-to-list arguments))))
+    (cide--resolve-response-file
+     (if command
+         (mapcar #'cide--quote-if-spaces (cide--split-command command))
+       (cide--vector-to-list arguments)))))
+
+(defun cide--resolve-response-file (argument-list)
+  "Matches response file string and adds its content to the object parameters."
+  (-flatten (mapcar #'cide--replace-response-file argument-list)))
+
+(defun cide--replace-response-file (argument)
+  "Matches a response file in string ARGUMENT returning a list of arguments"
+  (if (not (stringp argument))
+      argument
+    (if (string-match "@[^[:space:]]+" argument)
+        (let* ((response-file (substring argument 1))
+               (file-params (cide--get-file-params response-file)))
+          (mapcar #'cide--quote-if-spaces (cide--split-command file-params)))
+      argument)))
+
+(defun cide--get-file-params (response-file)
+  "Get file parameters from a response file given as compilation argument."
+  (replace-regexp-in-string "\\\n" " " (cide--get-string-from-file (expand-file-name response-file (cide--build-dir-from-cache)))))
 
 (defun cide--quote-if-spaces (str)
   "Add quotes to STR if it has spaces."
@@ -991,7 +1023,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
         (json (json-read-from-string json-str)))
     ;; map over all the JSON objects in JSON, which is an array of objects (CDB)
     (mapc (lambda (obj)
-            (let* ((file (cide--relativize (cide--idb-obj-get obj 'file)))
+            (let* ((file (cide--get-system-filename (cide--relativize (cide--idb-obj-get obj 'file))))
                    (objs (gethash file idb)))
               (push obj objs)
               (puthash file objs idb)))
