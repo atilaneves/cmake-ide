@@ -572,86 +572,103 @@ the object file's name just above."
          (hdr-includes (cide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
+(defun guard-quote-unacceptable (arg)
+  "If arg includes matched parenthesis, guard the arg with quotes"
+  (if (string-match-p ".*(.*).*" arg) (concat "\"" arg "\"") arg))
 
-(defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
+(defun merge-paired-arguments (args)
+  "Concatenates two arguments if the first argument ends with '='"
+  (defun merge-paired-arguments-helper (acc args)
+    (if (< (length args) 2) 
+        (append acc args)
+        (let ((a1 (car args)) (a2 (nth 1 args)))
+          (if (string-match-p "=$" a1) 
+            (merge-paired-arguments-helper (append acc (list (concat a1 a2))) (nthcdr 2 args))
+            (merge-paired-arguments-helper (append acc (list a1)) (nthcdr 1 args))
+            ))))
+  (merge-paired-arguments-helper '() args))
+
+
+(defun cmake-ide-set-compiler-flags (buffer rawflags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
-  (when (buffer-live-p buffer)
-    (with-current-buffer buffer
+  (let ((flags (merge-paired-arguments (mapcar 'guard-quote-unacceptable rawflags))))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
 
-      (when (featurep 'auto-complete-clang)
-        (make-local-variable 'ac-clang-flags)
-        (setq ac-clang-flags (cide--filter-ac-flags (cide--get-compiler-flags flags))))
+          (when (featurep 'auto-complete-clang)
+            (make-local-variable 'ac-clang-flags)
+            (setq ac-clang-flags (cide--filter-ac-flags (cide--get-compiler-flags flags))))
 
-      (when (featurep 'company)
-        (make-local-variable 'company-clang-arguments)
-        (setq company-clang-arguments (cide--filter-ac-flags (cide--get-compiler-flags flags))))
+          (when (featurep 'company)
+            (make-local-variable 'company-clang-arguments)
+            (setq company-clang-arguments (cide--filter-ac-flags (cide--get-compiler-flags flags))))
 
-      (when (featurep 'company-c-headers)
-        (make-local-variable 'company-c-headers-path-user)
-        (setq company-c-headers-path-user (cide--flags-to-include-paths flags))
-        (make-local-variable 'company-c-headers-path-system)
-        (when sys-includes
-          (setq company-c-headers-path-system (append sys-includes company-c-headers-path-system))))
+          (when (featurep 'company-c-headers)
+            (make-local-variable 'company-c-headers-path-user)
+            (setq company-c-headers-path-user (cide--flags-to-include-paths flags))
+            (make-local-variable 'company-c-headers-path-system)
+            (when sys-includes
+              (setq company-c-headers-path-system (append sys-includes company-c-headers-path-system))))
 
-      (when (and (featurep 'irony) (not (gethash (cide--build-dir) cide--cache-irony-dirs)))
-        (irony-cdb-json-add-compile-commands-path (cide--locate-project-dir) (cide--comp-db-file-name))
-        (puthash (cide--build-dir) t cide--cache-irony-dirs))
+          (when (and (featurep 'irony) (not (gethash (cide--build-dir) cide--cache-irony-dirs)))
+            (irony-cdb-json-add-compile-commands-path (cide--locate-project-dir) (cide--comp-db-file-name))
+            (puthash (cide--build-dir) t cide--cache-irony-dirs))
 
-      (when (featurep 'semantic)
-        (let ((dirs (cide--flags-to-include-paths flags)))
-          (when (boundp 'cide--semantic-system-include)
-            (mapc 'semantic-remove-system-include cide--semantic-system-include))
-          (mapc 'semantic-add-system-include dirs)
-          (setq-local cide--semantic-system-include dirs)))
+          (when (featurep 'semantic)
+            (let ((dirs (cide--flags-to-include-paths flags)))
+              (when (boundp 'cide--semantic-system-include)
+                (mapc 'semantic-remove-system-include cide--semantic-system-include))
+              (mapc 'semantic-add-system-include dirs)
+              (setq-local cide--semantic-system-include dirs)))
 
 
-      (let ((macro-regex "\\(^-std=\\|\\.o$\\|^-o$\\)"))
-        (make-local-variable 'c-macro-cppflags)
-        (setq c-macro-cppflags
-              (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
-                                                      (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
+          (let ((macro-regex "\\(^-std=\\|\\.o$\\|^-o$\\)"))
+            (make-local-variable 'c-macro-cppflags)
+            (setq c-macro-cppflags
+                  (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
+                                                          (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
 
-      (when (featurep 'flycheck)
-        (let* ((std-regex "^-std=")
-               (include-path (append sys-includes (cide--flags-to-include-paths flags)))
-               (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
-               (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered (cide--get-compiler-flags flags)))))
-          (make-local-variable 'flycheck-clang-include-path)
-          (make-local-variable 'flycheck-gcc-include-path)
-          (setq flycheck-clang-include-path include-path)
-          (setq flycheck-gcc-include-path include-path)
+          (when (featurep 'flycheck)
+            (let* ((std-regex "^-std=")
+                   (include-path (append sys-includes (cide--flags-to-include-paths flags)))
+                   (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
+                   (args (cide--filter (lambda (x) (not (string-match std-regex x))) (cide--flags-filtered (cide--get-compiler-flags flags)))))
+              (make-local-variable 'flycheck-clang-include-path)
+              (make-local-variable 'flycheck-gcc-include-path)
+              (setq flycheck-clang-include-path include-path)
+              (setq flycheck-gcc-include-path include-path)
 
-          (make-local-variable 'flycheck-clang-definitions)
-          (make-local-variable 'flycheck-gcc-definitions)
-          (setq flycheck-clang-definitions definitions)
-          (setq flycheck-gcc-definitions definitions)
+              (make-local-variable 'flycheck-clang-definitions)
+              (make-local-variable 'flycheck-gcc-definitions)
+              (setq flycheck-clang-definitions definitions)
+              (setq flycheck-gcc-definitions definitions)
 
-          (make-local-variable 'flycheck-clang-args)
-          (make-local-variable 'flycheck-gcc-args)
-          (setq flycheck-clang-args args)
-          (setq flycheck-gcc-args (cide--filter-output-arg args))
+              (make-local-variable 'flycheck-clang-args)
+              (make-local-variable 'flycheck-gcc-args)
+              (setq flycheck-clang-args args)
+              (setq flycheck-gcc-args (cide--filter-output-arg args))
 
-          (make-local-variable 'flycheck-clang-language-standard)
-          (make-local-variable 'flycheck-gcc-language-standard)
-          (let* ((stds (cide--filter (lambda (x) (string-match std-regex x)) flags))
-                 (repls (mapcar (lambda (x) (replace-regexp-in-string std-regex "" x)) stds)))
-            (when repls
-              (setq flycheck-clang-language-standard (car repls))
-              (setq flycheck-gcc-language-standard (car repls))
-              (unless cmake-ide-flycheck-cppcheck-strict-standards
-                (setq repls (mapcar 'cide--cmake-standard-to-cppcheck-standard repls)))
-              (setq repls (cide--filter 'cide--valid-cppcheck-standard-p repls))
-              (when repls
-                (make-local-variable 'flycheck-cppcheck-standards)
-                (setq flycheck-cppcheck-standards repls))))
+              (make-local-variable 'flycheck-clang-language-standard)
+              (make-local-variable 'flycheck-gcc-language-standard)
+              (let* ((stds (cide--filter (lambda (x) (string-match std-regex x)) flags))
+                     (repls (mapcar (lambda (x) (replace-regexp-in-string std-regex "" x)) stds)))
+                (when repls
+                  (setq flycheck-clang-language-standard (car repls))
+                  (setq flycheck-gcc-language-standard (car repls))
+                  (unless cmake-ide-flycheck-cppcheck-strict-standards
+                    (setq repls (mapcar 'cide--cmake-standard-to-cppcheck-standard repls)))
+                  (setq repls (cide--filter 'cide--valid-cppcheck-standard-p repls))
+                  (when repls
+                    (make-local-variable 'flycheck-cppcheck-standards)
+                    (setq flycheck-cppcheck-standards repls))))
 
-          (make-local-variable 'flycheck-cppcheck-include-path)
-          (setq flycheck-cppcheck-include-path (append sys-includes (cide--flags-to-include-paths flags))))
+              (make-local-variable 'flycheck-cppcheck-include-path)
+              (setq flycheck-cppcheck-include-path (append sys-includes (cide--flags-to-include-paths flags))))
 
-        (setq flycheck-clang-includes includes)
-        (setq flycheck-gcc-includes includes)
-        (flycheck-clear)
-        (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
+            (setq flycheck-clang-includes includes)
+            (setq flycheck-gcc-includes includes)
+            (flycheck-clear)
+            (run-at-time "0.5 sec" nil 'flycheck-buffer))))))
 
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
