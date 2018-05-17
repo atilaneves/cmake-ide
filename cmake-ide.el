@@ -572,10 +572,6 @@ the object file's name just above."
          (hdr-includes (cide--commands-to-hdr-includes all-commands)))
     (cmake-ide-set-compiler-flags buffer hdr-flags hdr-includes sys-includes)))
 
-(defun guard-quote-unacceptable (arg)
-  "If arg includes matched parenthesis, guard the arg with quotes"
-  (if (string-match-p ".*(.*).*" arg) (concat "\"" arg "\"") arg))
-
 (defun merge-paired-arguments (args)
   "Concatenates two arguments if the first argument ends with '='"
   (defun merge-paired-arguments-helper (acc args)
@@ -591,7 +587,7 @@ the object file's name just above."
 
 (defun cmake-ide-set-compiler-flags (buffer rawflags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
-  (let ((flags (merge-paired-arguments (mapcar 'guard-quote-unacceptable rawflags))))
+  (let ((flags (merge-paired-arguments rawflags)))
       (when (buffer-live-p buffer)
         (with-current-buffer buffer
 
