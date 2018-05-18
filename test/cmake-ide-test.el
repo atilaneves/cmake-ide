@@ -480,7 +480,7 @@ company-c-headers to break."
 
 (ert-deftest test-get-command-args-with-resolve-file-in-command ()
   "Check if resolve file is read in in case it is used by CMake in command"
-  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+  (cl-letf (((symbol-function 'cide--build-dir) #'(lambda () nil)))
     (let* ((temporary-filename (make-temp-file "test-get-command-args-with-resolve-file"))
            (idb (cide--cdb-json-string-to-idb
                  (concat "[{\"file\": \"file1\",
@@ -516,7 +516,7 @@ company-c-headers to break."
 
 (ert-deftest test-get-command-args-with-resolve-file-in-arguments ()
   "Check if resolve file is read in in case it is used by CMake in argument"
-  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+  (cl-letf (((symbol-function 'cide--build-dir) #'(lambda () nil)))
     (let* ((temporary-filename (make-temp-file "test-get-command-args-with-resolve-file"))
            (idb (cide--cdb-json-string-to-idb
                  (concat "[{\"file\": \"file1\",

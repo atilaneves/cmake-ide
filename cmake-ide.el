@@ -776,7 +776,7 @@ Return nil for non-CMake project."
 
 (defun cide--get-file-params (response-file)
   "Get file parameters from a response file given as compilation argument."
-  (replace-regexp-in-string "\\\n" " " (cide--get-string-from-file (expand-file-name response-file (cide--build-dir-from-cache)))))
+  (replace-regexp-in-string "\\\n" " " (cide--get-string-from-file (expand-file-name response-file (cide--build-dir)))))
 
 (defun cide--quote-if-spaces (str)
   "Add quotes to STR if it has spaces."

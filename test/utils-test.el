@@ -94,8 +94,10 @@
        (setq system-type initial-system-type)))))
 
 (ert-deftest test-get-file-params ()
-  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
-    (let ((temporary-filename (make-temp-file "test-get-file-params")))
+  (let ((temporary-filename (make-temp-file "test-get-file-params"))
+        (cide--build-dir-called nil)
+        (return-value nil))
+    (cl-letf (((symbol-function 'cide--build-dir) #'(lambda () (setq cide--build-dir-called t return-value nil))))
       (with-temp-file temporary-filename
         (insert "-fmessage-length=0")
         (end-of-line)
@@ -104,11 +106,12 @@
         (end-of-line)
         (newline))
       (should (equal (cide--get-file-params temporary-filename) "-fmessage-length=0 -nostdlib "))
-      (delete-file temporary-filename)))
+      (should (equal cide--build-dir-called t)))
+    (delete-file temporary-filename))
   (should-error (cide--get-file-params nil)))
 
 (ert-deftest test-replace-response-file ()
-  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+  (cl-letf (((symbol-function 'cide--build-dir) #'(lambda () nil)))
     (let ((temporary-filename (make-temp-file "test-get-file-params")))
       (with-temp-file temporary-filename
         (insert "-fmessage-length=0 -nostdlib")
@@ -119,7 +122,7 @@
   )
 
 (ert-deftest test-resolve-response-file ()
-  (cl-letf (((symbol-function 'cide--build-dir-from-cache) #'(lambda () nil)))
+  (cl-letf (((symbol-function 'cide--build-dir) #'(lambda () nil)))
     (let ((temporary-filename (make-temp-file "test-get-file-params")))
       (with-temp-file temporary-filename
         (insert "-fmessage-length=0 -nostdlib")
