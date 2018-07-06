@@ -81,7 +81,6 @@
 (defcustom cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'.  DEPRECATED, use `cmake-ide-build-dir' instead."
-  
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -1202,7 +1201,7 @@ returned unchanged."
   (if (not args)
       nil
     (if (string-equal "-o" (car args))
-	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here. 
+	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here.
       (cons (car args) (cide--filter-output-arg (cdr args))))))
 
 (provide 'cmake-ide)
