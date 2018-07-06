@@ -795,7 +795,7 @@ Return nil for non-CMake project."
 (defun cide--unquote (x)
   "Possibly unquote a string X."
   (if (and (stringp x) (> (length x) 2))
-      (if (and (equal (elt x 0) ?") (equal (elt x (1- (length x))) ?"))
+      (if (and (equal (elt x 0) ?\") (equal (elt x (1- (length x))) ?\"))
           (cl-subseq x 1 (1- (length x)))
         x)
     x))
