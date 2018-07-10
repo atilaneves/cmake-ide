@@ -81,7 +81,6 @@
 (defcustom cmake-ide-dir
   nil
   "The build directory to run CMake in.  If nil, runs in a temporary directory under `cmake-ide-build-pool-dir'.  DEPRECATED, use `cmake-ide-build-dir' instead."
-  
   :group 'cmake-ide
   :type 'directory
   :safe #'stringp
@@ -795,7 +794,7 @@ Return nil for non-CMake project."
 (defun cide--unquote (x)
   "Possibly unquote a string X."
   (if (and (stringp x) (> (length x) 2))
-      (if (and (equal (elt x 0) ?") (equal (elt x (1- (length x))) ?"))
+      (if (and (equal (elt x 0) ?\") (equal (elt x (1- (length x))) ?\"))
           (cl-subseq x 1 (1- (length x)))
         x)
     x))
@@ -1202,7 +1201,7 @@ returned unchanged."
   (if (not args)
       nil
     (if (string-equal "-o" (car args))
-	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here. 
+	(nthcdr 2 args) ;; We assume '-o <output>' is provided only once, hence we stop recursion here.
       (cons (car args) (cide--filter-output-arg (cdr args))))))
 
 (provide 'cmake-ide)
