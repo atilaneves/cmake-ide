@@ -617,7 +617,12 @@ company-c-headers to break."
 
 
 (ert-deftest test-cide--filter-output-arg ()
-  (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-o" "output" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall") )))
+  (should (equal (cide--filter-output-arg '()) '()))
+  (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall")))
+  (should (equal (cide--filter-output-arg '("-o" "output" "-fPIC" "-O3" "-march=native" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall")))
+  (should (equal (cide--filter-output-arg '("-o" "output1" "-o" "output2" "-fPIC" "-O3" "-march=native" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall")))
+  (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-Wall" "-o" "output")) '("-fPIC" "-O3" "-march=native" "-Wall")))
+  (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-o" "output" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall"))))
 
 (ert-deftest test-split-command ()
   (should (equal (cide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
