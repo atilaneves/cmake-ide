@@ -3,6 +3,8 @@
 
 (package-file "cmake-ide.el")
 
+(depends-on "dash")
+
 (development
  (depends-on "ert-runner")
  (depends-on "auto-complete-clang")
