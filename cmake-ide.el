@@ -62,6 +62,26 @@
 (declare-function irony-cdb-json-add-compile-commands-path "irony")
 (declare-function flycheck-clear "flycheck")
 
+(defcustom cmake-ide-use-rtags
+  nil
+  "Is cmake-ide launch and use rtags."
+  :group 'cmake-ide
+  :type 'boolean
+  :safe #'booleanp)
+
+(defcustom cmake-ide-use-flycheck
+  nil
+  "Is cmake-ide launch and use flycheck."
+  :group 'cmake-ide
+  :type 'boolean
+  :safe #'booleanp)
+
+(defcustom cmake-ide-set-flags
+  nil
+  "Is cmake-ide compute and send flags to other packages."
+  :group 'cmake-ide
+  :type 'boolean
+  :safe #'booleanp)
 
 (defcustom cmake-ide-flags-c
   nil
@@ -252,6 +272,13 @@ the closest possible matches available in cppcheck."
   (add-hook 'find-file-hook #'cmake-ide-maybe-run-cmake nil 'local)
   (cmake-ide-maybe-start-rdm))
 
+(defun cide--use-rtags()
+    (and (featurep 'rtags) cmake-ide-use-rtags))
+    
+
+(defun cide--use-flycheck()
+    (and (featurep 'flycheck) cmake-ide-use-flycheck))
+
 ;;;###autoload
 (defun cmake-ide-setup ()
   "Set up the Emacs hooks for working with CMake projects."
@@ -345,12 +372,13 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cide--on-cmake-finished ()
   "Set compiler flags for all buffers that requested it."
-  (let* ((idb (cide--cdb-json-file-to-idb))
-         (set-flags (lambda (x) (cide--set-flags-for-file idb x))))
-    (mapc set-flags cide--src-buffers)
-    (mapc set-flags cide--hdr-buffers)
-    (setq cide--src-buffers nil cide--hdr-buffers nil)
-    (cide--run-rc)))
+  (when cmake-ide-set-flags
+    (let* ((idb (cide--cdb-json-file-to-idb))
+	   (set-flags (lambda (x) (cide--set-flags-for-file idb x))))
+      (mapc set-flags cide--src-buffers)
+      (mapc set-flags cide--hdr-buffers)
+      (setq cide--src-buffers nil cide--hdr-buffers nil)
+      (cide--run-rc))))
 
 
 ;;;###autoload
@@ -375,7 +403,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
         ((file-exists-p cmake-ide-rdm-executable)
          (setq cide--rdm-executable cmake-ide-rdm-executable)
          cide--rdm-executable)
-        ((featurep 'rtags)
+        ((cide--use-rtags)
          (setq cide--rdm-executable (rtags-executable-find "rdm"))
          cide--rdm-executable)
         (t "rdm")))
@@ -383,7 +411,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 
 (defun cide--run-rc ()
   "Run rc to add definitions to the rtags daemon."
-  (when (featurep 'rtags)
+  (when (cide--use-rtags)
     (cmake-ide-maybe-start-rdm)
     (cide--message "Running rc for rtags")
     ;; change buffer so as to not insert text into a working file buffer
@@ -535,7 +563,7 @@ the object file's name just above."
            ret-obj
            ret-file-name)
 
-      (when (featurep 'rtags)
+      (when (cide--use-rtags)
         (setq ret-file-name
               (with-temp-buffer
                 (rtags-call-rc "--dependencies" file-name "included-by" :noerror t)
@@ -610,7 +638,7 @@ the object file's name just above."
               (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
                                                       (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
 
-      (when (featurep 'flycheck)
+      (when (cide--use-flycheck)
         (let* ((std-regex "^-std=")
                (include-path (append sys-includes (cide--flags-to-include-paths flags)))
                (definitions (append (cide--get-existing-definitions) (cide--flags-to-defines flags)))
@@ -1143,7 +1171,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (interactive)
-  (when (and (featurep 'rtags)
+  (when (and (cide--use-rtags)
              (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
                  (cide--locate-project-dir)))
 
