@@ -202,6 +202,12 @@ the closest possible matches available in cppcheck."
   :group 'cmake-ide
   :type '(repeat string))
 
+(defcustom cmake-ide-ac-flags-to-filter
+  '("-m32" "-m64" "-Werror" "-c" "-fPIC" "-pipe" "-g" "-ggdb" "-march=native")
+  "Flags to remove from arguments passed to auto-completion."
+  :group 'cmake-ide
+  :type '(repeat string))
+
 (defcustom cmake-ide-cmakelists-dir
   nil
   "The directory where the main CMakelists.txt is.  DEPRECATED use `cmake-ide-projet-dir' instead."
@@ -834,7 +840,7 @@ Return nil for non-CMake project."
   "Filter unwanted compiler arguments out from FLAGS."
   (cide--filter
    (lambda (x)
-     (cl-loop for flag in '("-m32" "-Werror" "-c" "-fPIC" "-pipe" "-g" "-ggdb")
+     (cl-loop for flag in cmake-ide-ac-flags-to-filter
               never (string-match (format "^%s$" flag) x)))
    flags))
 
