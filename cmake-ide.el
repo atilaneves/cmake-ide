@@ -608,6 +608,7 @@ the object file's name just above."
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
+  ;; FLAGS is a list of strings
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
 
@@ -642,7 +643,7 @@ the object file's name just above."
         (make-local-variable 'c-macro-cppflags)
         (setq c-macro-cppflags
               (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
-                                                      (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
+                                                 (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
 
       (when (featurep 'flycheck)
         (let* ((std-regex "^-std=")
@@ -794,6 +795,7 @@ Return nil for non-CMake project."
 
 (defun cide--file-params-to-args (file-params)
   "Get the compiler command arguments from FILE-PARAMS."
+  ;; file-params is also known as an object in the codebase
   (let ((command (cide--idb-obj-get file-params 'command))
         (arguments (cide--idb-obj-get file-params 'arguments)))
     (cide--resolve-response-file
@@ -923,16 +925,19 @@ Return nil for non-CMake project."
   (let ((raw-paths (cide--to-simple-flags flags "^-I")))
     (mapcar (lambda (x) (expand-file-name x (cide--build-dir))) raw-paths)))
 
-(defun cide--relativize (path)
-  "Make PATH relative to the build directory, but only if relative path with dots."
-  (if (or (equal path ".") (string-prefix-p ".." path))
-      (expand-file-name path (cide--build-dir))
-    path))
-
-
 (defun cide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines."
   (cide--to-simple-flags flags "^-D"))
+
+(defun cide--to-simple-flags (flags flag)
+  "A list of either directories or defines from FLAGS depending on FLAG."
+  (let* ((case-fold-search nil)
+         (res-flags (cide--filter
+                     (lambda (x)
+                       (let ((match (string-match flag x)))
+                         (and match (zerop match))))
+                     flags)))
+    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
 (defun cide--flags-to-includes (flags)
@@ -965,17 +970,6 @@ Return nil for non-CMake project."
 (defun cide--flags-filtered (flags)
   "Filter out defines and includes from FLAGS."
   (cide--filter (lambda (x) (not (cide--dash-i-or-dash-d-p x))) flags))
-
-
-(defun cide--to-simple-flags (flags flag)
-  "A list of either directories or defines from FLAGS depending on FLAG."
-  (let* ((case-fold-search nil)
-         (res-flags (cide--filter
-                     (lambda (x)
-                       (let ((match (string-match flag x)))
-                         (and match (zerop match))))
-                     flags)))
-    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
 (defun cide--get-compiler-flags (flags)
@@ -1072,6 +1066,12 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
           json)
     idb))
 
+(defun cide--relativize (path)
+  "Make PATH relative to the build directory, but only if relative path with dots."
+  (if (or (equal path ".") (string-prefix-p ".." path))
+      (expand-file-name path (cide--build-dir))
+    path))
+
 (defun cide--idb-obj-get (obj key)
   "Get the value in OBJ for KEY."
   (cdr (assoc key obj)))
@@ -1086,7 +1086,8 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
 (defun cide--idb-all-commands (idb)
   "A list of all commands in IDB."
-  (mapcar (lambda (x) (s-join " " (cide--file-params-to-args x))) (cide--idb-all-objs idb)))
+  (mapcar (lambda (x) (s-join " " (cide--file-params-to-args x)))
+          (cide--idb-all-objs idb)))
 
 
 (defun cide--idb-sorted-by-file-distance (idb file-name)
