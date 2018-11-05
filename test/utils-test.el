@@ -132,5 +132,11 @@
       (delete-file temporary-filename)))
   )
 
+
+(ert-deftest test-flags-to-sys-includes ()
+  (let ((flags '("-isystem" "foo" "quux" "toto" "-isystem" "bar" "haha")))
+    (should (equal (cide--flags-to-sys-includes flags)
+                   '("bar" "foo")))))
+
 (provide 'utils-test)
 ;;; utils-test.el ends here
