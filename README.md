@@ -3,6 +3,7 @@ cmake-ide
 
 [![Build Status](https://travis-ci.org/atilaneves/cmake-ide.svg?branch=master)](https://travis-ci.org/atilaneves/cmake-ide)
 [![Coverage Status](https://coveralls.io/repos/github/atilaneves/cmake-ide/badge.svg?branch=master)](https://coveralls.io/github/atilaneves/cmake-ide?branch=master)
+[![Melpa Status](http://melpa.milkbox.net/packages/cmake-ide-badge.svg)](http://melpa.milkbox.net/#/cmake-ide)
 
 CppCon 2015 Lightning talk on cmake-ide:
 ----------------------------------------
