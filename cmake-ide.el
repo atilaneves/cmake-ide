@@ -1150,8 +1150,8 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cide--get-compile-command (dir)
   "Return the compile command to use for DIR."
   (cond (cmake-ide-compile-command cmake-ide-compile-command)
-        ((file-exists-p (expand-file-name "build.ninja" dir)) (concat cmake-ide-ninja-command " -C " dir))
-        ((file-exists-p (expand-file-name "Makefile" dir)) (concat cmake-ide-make-command " -C " dir))
+        ((file-exists-p (expand-file-name "build.ninja" dir)) (concat cmake-ide-ninja-command " -C " (shell-quote-argument dir)))
+        ((file-exists-p (expand-file-name "Makefile" dir)) (concat cmake-ide-make-command " -C " (shell-quote-argument dir)))
         (t nil)))
 
 
