@@ -691,7 +691,8 @@ the object file's name just above."
       (cide--message "Running cmake for src path %s in build path %s" project-dir cmake-dir)
       (apply 'start-process (append (list "cmake" "*cmake*" cmake-ide-cmake-command)
                                     (cide--cmake-args)
-                                    (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" project-dir))))))
+                                    (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+                                          "-S" project-dir "-B" "."))))))
 
 
 (defun cide--project-key ()
