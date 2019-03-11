@@ -692,7 +692,7 @@ the object file's name just above."
       (apply 'start-process (append (list "cmake" "*cmake*" cmake-ide-cmake-command)
                                     (cide--cmake-args)
                                     (list "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
-                                          "-S" project-dir "-B" "."))))))
+                                          "-B" "." "-S" project-dir))))))
 
 
 (defun cide--project-key ()
