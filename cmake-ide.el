@@ -567,13 +567,15 @@ the object file's name just above."
 
       ret-file-name)))
 
-(defun cide--get-string-from-file (path)
-  "Return PATH's file content."
-  (if (file-exists-p path)
-      (with-temp-buffer
-        (insert-file-contents path)
-        (buffer-string))
-    ""))
+(defun cide--read-file (path)
+  "Return PATH's file content as a string."
+  (if (stringp path)
+      (if (file-exists-p path)
+          (with-temp-buffer
+            (insert-file-contents path)
+            (buffer-string))
+        "")
+    (cide--message "cide--read-file ERROR: %s is not a string" path)))
 
 (defun cide--set-flags-for-hdr-from-all-flags (idb buffer sys-includes)
   "Use IDB to set flags from a header BUFFER with SYS-INCLUDES from all project source files."
@@ -792,7 +794,7 @@ Return nil for non-CMake project."
 
 (defun cide--get-file-params (response-file)
   "Get file parameters from a response file given as compilation argument."
-  (replace-regexp-in-string "\\\n" " " (cide--get-string-from-file (expand-file-name response-file (cide--build-dir)))))
+  (replace-regexp-in-string "\\\n" " " (cide--read-file (expand-file-name response-file (cide--build-dir)))))
 
 (defun cide--quote-if-spaces (str)
   "Add quotes to STR if it has spaces."
@@ -1012,7 +1014,7 @@ computed IDBs, and if none are found actually performs the conversion."
           (cide--message "Non-existent compilation DB file %s" (cide--comp-db-file-name))
         (progn
           (cide--message "Converting JSON CDB %s to IDB" (cide--comp-db-file-name))
-          (setq idb (cide--cdb-json-string-to-idb (cide--get-string-from-file (cide--comp-db-file-name))))
+          (setq idb (cide--cdb-json-string-to-idb (cide--read-file (cide--comp-db-file-name))))
           (puthash (cide--build-dir) idb cide--cache-dir-to-idb)
           (puthash (cide--build-dir) (cide--hash-file (cide--comp-db-file-name)) cide--cache-dir-to-cdb-hash)
           (remhash (cide--build-dir) cide--cache-irony-dirs))))
@@ -1029,7 +1031,7 @@ computed IDBs, and if none are found actually performs the conversion."
 
 (defun cide--hash-file (file-name)
   "Calculate the hash of FILE-NAME."
-  (secure-hash 'md5 (cide--get-string-from-file file-name)))
+  (secure-hash 'md5 (cide--read-file file-name)))
 
 (defun cide--cdb-json-string-to-idb (json-str)
   "Tranform JSON-STR into an IDB.
@@ -1091,7 +1093,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
   (let* ((base-name (file-name-nondirectory file-name))
          (src-file-name (cide--idb-obj-get obj 'file)))
     (if (string-match (concat "# *include +[\"<] *" base-name)
-                      (cide--get-string-from-file src-file-name))
+                      (cide--read-file src-file-name))
         src-file-name
       nil)))
 
