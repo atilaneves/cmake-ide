@@ -664,7 +664,8 @@ the object file's name just above."
         (setq flycheck-clang-includes includes)
         (setq flycheck-gcc-includes includes)
         (flycheck-clear)
-        (run-at-time "0.5 sec" nil 'flycheck-buffer)))))
+	(when (bound-and-true-p flycheck-mode)
+          (run-at-time "0.5 sec" nil 'flycheck-buffer))))))
 
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
