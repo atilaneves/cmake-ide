@@ -81,6 +81,23 @@
          ,@body))
       )))
 
+(defmacro sentinel-mutex-test (&rest body)
+  "Start a cmake process and run the BODY with sentinel mutex and temp-project-dir checks."
+  `(with-sandbox
+     (write-file-str "CMakeLists.txt" "")
+     (should (equal cmake-sentinel-mutex nil))
+     (should (equal cmake-temp-project-dir nil))
+     (find-file "CMakeLists.txt")
+     (cmake-ide-run-cmake)
+     (should (equal cmake-sentinel-mutex t))
+     (should (equal cmake-temp-project-dir cide--sandbox-path))
+     (cide--mkdir "subdir")
+     (write-file-str "subdir/CMakeLists.txt" "")
+     (find-file "build/CMakeLists.txt")
+     ,@body
+     (should (equal cmake-sentinel-mutex t))
+     (should (equal cmake-temp-project-dir cide--sandbox-path))))
+
 (defun initialise-caches (cdb-json-str)
   "Initialise all DB caches using CDB-JSON-STR as the CDB."
   (write-file-str "compile_commands.json" cdb-json-str)
@@ -244,6 +261,15 @@ add_executable(app \"foo.cpp\")"
    (write-file-str "subdir/CMakeLists.txt" "stuff")
    (let ((default-directory (expand-file-name "subdir")))
      (should (equal (cide--build-dir) (file-name-as-directory (expand-file-name (cide--project-key) "/tmp/foo/bar/")))))))
+
+(ert-deftest test-cide--sentinel-mutex-test ()
+  (sentinel-mutex-test
+   (cmake-ide-maybe-run-cmake)
+   (cmake-ide-run-cmake)
+   (cmake-ide-load-db)
+   (cmake-ide-delete-file)
+   (cmake-ide-compile)
+   (cmake-ide-maybe-start-rdm)))
 
 (provide 'file-test)
 ;;; file-test.el ends here
