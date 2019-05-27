@@ -225,6 +225,16 @@ the closest possible matches available in cppcheck."
   "Whether or not to try all unique compiler flags for header files."
   )
 
+(defvar cmake-sentinel-mutex
+  nil
+  "One interactive execution is allowed at the same time."
+  )
+
+(defvar cmake-temp-project-dir
+  nil
+  "The project dir is kept while the sentinel works."
+  )
+
 (defun cide--make-hash-table ()
   "Make a hash table with equal for the test function."
   (make-hash-table :test #'equal))
@@ -288,13 +298,15 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
-  (when (cide--locate-project-dir)
+  (if (not cmake-sentinel-mutex)
+    (when (cide--locate-project-dir)
     (cmake-ide-maybe-start-rdm)
     (if (cide--need-to-run-cmake)
-        (cmake-ide-run-cmake)
+      (cmake-ide-run-cmake)
       (progn
         (cide--add-file-to-buffer-list)
-        (cide--on-cmake-finished)))))
+        (cide--on-cmake-finished))))
+    (cide--message "cmake is running, skip run.")))
 
 (defun cide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
@@ -319,23 +331,29 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
-  (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
-    (when (file-readable-p (buffer-file-name)) ; new files need not apply
-      (save-some-buffers 1)
-      (let ((project-dir (cide--locate-project-dir)))
-        (if project-dir ; no point if it's not a CMake project
-            ;; register this buffer to be either a header or source file
-            ;; waiting for results
-            (progn
-              (cide--add-file-to-buffer-list)
-              ;; run cmake only if project dir contains a CMakeLists.txt file.
-              (if (cide--locate-cmakelists)
-                  (let ((cmake-dir (cide--build-dir)))
-                    (let ((default-directory cmake-dir))
-                      (cide--run-cmake-impl project-dir cmake-dir)
-                      (cide--register-callback)))
-                (cide--message "No CMakeLists.txt found in project dir, skip cmake run.")))
-          (cide--message "try to run cmake on a non cmake project [%s]" default-directory))))))
+  (if (not cmake-sentinel-mutex)
+    (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
+      (when (file-readable-p (buffer-file-name)) ; new files need not apply
+        (save-some-buffers 1)
+        (let ((project-dir (cide--locate-project-dir)))
+          (if project-dir ; no point if it's not a CMake project
+              (if (not (file-exists-p (expand-file-name "CMakeCache.txt" project-dir)))
+                  ;; register this buffer to be either a header or source file
+                  ;; waiting for results
+                  (progn
+                    (cide--add-file-to-buffer-list)
+                    ;; run cmake only if project dir contains a CMakeLists.txt file.
+                    (if (cide--locate-cmakelists)
+                        (let ((cmake-dir (cide--build-dir)))
+                          (let ((default-directory cmake-dir))
+                            (cide--run-cmake-impl project-dir cmake-dir)
+                            (cide--register-callback)
+			    (setq cmake-temp-project-dir project-dir)
+			    (setq cmake-sentinel-mutex t)))
+                      (cide--message "No CMakeLists.txt found in project dir, skip cmake run.")))
+		(cide--message "CMakeCache.txt found in project dir, skip cmake run."))
+            (cide--message "try to run cmake on a non cmake project [%s]" default-directory)))))
+    (cide--message "Another cmake is already running, skip cmake run.")))
 
 
 (defun cide--message (str &rest vars)
@@ -349,7 +367,9 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
      (cide--message "Finished running CMake")
      (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
          (cide--on-cmake-finished)
-       (cide--message "CMake failed, see *cmake* for details.")))))
+       (cide--message "CMake failed, see *cmake* for details."))
+     (setq cmake-sentinel-mutex nil)
+     (setq cmake-temp-project-dir nil))))
 
 (defun cide--register-a-callback (callback)
   "Register CALLBACK to be called when CMake finishes running."
@@ -369,14 +389,16 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 (defun cmake-ide-load-db ()
   "Load compilation DB and set flags for current buffer."
   (interactive)
-  (when (cide--locate-project-dir)
-    (cide--message "cmake-ide-load-db for file %s" (buffer-file-name))
-    (cmake-ide-maybe-start-rdm)
-    (let* ((file-name buffer-file-name)
-           (buffers (list (current-buffer)))
-           (cide--src-buffers (if (cide--is-src-file file-name) buffers nil))
-           (cide--hdr-buffers (if (cide--is-src-file file-name) nil buffers)))
-      (cide--on-cmake-finished))))
+  (if (not cmake-sentinel-mutex)
+    (when (cide--locate-project-dir)
+      (cide--message "cmake-ide-load-db for file %s" (buffer-file-name))
+      (cmake-ide-maybe-start-rdm)
+      (let* ((file-name buffer-file-name)
+             (buffers (list (current-buffer)))
+             (cide--src-buffers (if (cide--is-src-file file-name) buffers nil))
+             (cide--hdr-buffers (if (cide--is-src-file file-name) nil buffers)))
+        (cide--on-cmake-finished)))
+    (cide--message "cmake is running, skip run.")))
 
 (defvar cide--rdm-executable nil
   "Rdm executable location path.")
@@ -670,21 +692,23 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
-  (when (cide--locate-project-dir)
-    (if (cide--build-dir)
-        (let ((filename (buffer-file-name))
-              (buffer (current-buffer))
-              (name (buffer-name)))
-          (if (not (and filename (file-exists-p filename)))
-              (error "Buffer '%s' is not visiting a file!" name)
-            (when (yes-or-no-p "Are you sure you want to remove this file? ")
-              (delete-file filename)
-              (kill-buffer buffer)
-              (let ((project-dir (cide--locate-project-dir)))
-                (when (and project-dir  (file-exists-p (expand-file-name "CMakeLists.txt" project-dir)))
-                  (cide--run-cmake-impl project-dir (cide--build-dir)))
-                (cide--message "File '%s' successfully removed" filename)))))
-      (error "Not possible to delete a file without setting cmake-ide-build-dir"))))
+  (if (not cmake-sentinel-mutex)
+    (when (cide--locate-project-dir)
+      (if (cide--build-dir)
+          (let ((filename (buffer-file-name))
+                (buffer (current-buffer))
+                (name (buffer-name)))
+            (if (not (and filename (file-exists-p filename)))
+                (error "Buffer '%s' is not visiting a file!" name)
+              (when (yes-or-no-p "Are you sure you want to remove this file? ")
+                (delete-file filename)
+                (kill-buffer buffer)
+                (let ((project-dir (cide--locate-project-dir)))
+                  (when (and project-dir  (file-exists-p (expand-file-name "CMakeLists.txt" project-dir)))
+                    (cide--run-cmake-impl project-dir (cide--build-dir)))
+                  (cide--message "File '%s' successfully removed" filename)))))
+        (error "Not possible to delete a file without setting cmake-ide-build-dir")))
+    (cide--message "cmake is running, skip run.")))
 
 
 (defun cide--run-cmake-impl (project-dir cmake-dir)
@@ -1000,7 +1024,8 @@ CMakeLists.txt file.  Return nil if not found."
   "Return the path to the project directory."
   (let ((cmakelists (cide--locate-cmakelists)))
     ;; if project dir is set by the user, use this value.
-    (or (and (cide--project-dir-var) (expand-file-name (cide--project-dir-var)))
+    (or cmake-temp-project-dir
+        (and (cide--project-dir-var) (expand-file-name (cide--project-dir-var)))
         (and cmakelists (file-name-directory cmakelists)) ; else try to use cmakelists dir
         nil ; if no CMakeLists.txt nor project-dir set, return nil and prevent cmake-ide to do anything else
         )))
@@ -1138,17 +1163,19 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
-  (when (cide--locate-project-dir)
-    (if (cide--build-dir)
-        (let ((compile-command (cide--get-compile-command (cide--build-dir))))
-          ;; compile-command could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
-          (if compile-command
-              (if (functionp compile-command)
-                  (funcall compile-command)
-                (compile compile-command))
-            (call-interactively compile-command)))
-      (call-interactively compile-command))
-    (cide--run-rc)))
+  (if (not cmake-sentinel-mutex)
+    (when (cide--locate-project-dir)
+      (if (cide--build-dir)
+          (let ((compile-command (cide--get-compile-command (cide--build-dir))))
+            ;; compile-command could be nil, if so prompt for compile command (i.e. in a non-cmake project ...)
+            (if compile-command
+                (if (functionp compile-command)
+                    (funcall compile-command)
+                  (compile compile-command))
+              (call-interactively compile-command)))
+        (call-interactively compile-command))
+      (cide--run-rc))
+    (cide--message "cmake is running, skip run.")))
 
 
 (defun cide--get-compile-command (dir)
@@ -1163,20 +1190,22 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (interactive)
-  (when (and (featurep 'rtags)
-             (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
-                 (cide--locate-project-dir)))
+  (if (not cmake-sentinel-mutex)
+    (when (and (featurep 'rtags)
+               (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
+                   (cide--locate-project-dir)))
 
-    (unless (cide--process-running-p "rdm")
-      (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-        (cide--message "Starting rdm server")
-        (with-current-buffer buf
-          (let ((rdm-process (start-process "rdm" (current-buffer)
-                                            (cmake-ide-rdm-executable)
-                                            "-c" cmake-ide-rdm-rc-path)))
-                                        ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
-            (sleep-for 0.8)
-            (set-process-query-on-exit-flag rdm-process nil)))))))
+      (unless (cide--process-running-p "rdm")
+        (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
+          (cide--message "Starting rdm server")
+          (with-current-buffer buf
+            (let ((rdm-process (start-process "rdm" (current-buffer)
+                                              (cmake-ide-rdm-executable)
+                                              "-c" cmake-ide-rdm-rc-path)))
+                                          ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
+              (sleep-for 0.8)
+              (set-process-query-on-exit-flag rdm-process nil))))))
+    (cide--message "cmake is running, skip run.")))
 
 
 (defun cide--process-running-p (name)
