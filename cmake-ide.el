@@ -308,8 +308,18 @@ the closest possible matches available in cppcheck."
         (cide--on-cmake-finished))))
     (cide--message "cmake is running, skip run.")))
 
+(defun cide--delete-from-buffer-list ()
+  "Remove buffer from the list of files whose flags are updated
+when CMake finishes running."
+  (if (cide--is-src-file buffer-file-name)
+      (setq cide--src-buffers (delete (current-buffer) cide--src-buffers))
+    (setq cide--hdr-buffers (delete (current-buffer) cide--hdr-buffers))))
+
 (defun cide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
+  ; cleanup if the buffer is killed
+  (add-hook 'kill-buffer-hook 'cide--delete-from-buffer-list nil t)
+  ; add to either the list of sources or headers
   (if (cide--is-src-file buffer-file-name)
       (add-to-list 'cide--src-buffers (current-buffer))
     (add-to-list 'cide--hdr-buffers (current-buffer))))
