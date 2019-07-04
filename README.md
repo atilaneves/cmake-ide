@@ -82,8 +82,15 @@ Non-CMake projects
 ------------------
 
 Use `.dir-locals.el` to set the `cmake-ide-project-dir` and `cmake-ide-build-dir` variables
-(use absolute paths). If a file called `compile_commands.json` exists in `cmake-ide-build-dir`,
-it will work just as well as for CMake projects.
+(use absolute paths).
+
+.dir-locals.el:
+  ((nil . ((cmake-ide-build-dir . "/path/to/build/dir")
+         (cmake-ide-project-dir . "/path/to/project/dir"))))
+
+If a file called `compile_commands.json` exists in `cmake-ide-build-dir`,
+it will work just as well as for CMake projects. Bear (https://github.com/rizsotto/Bear)
+can be used to generate a compile_commands.json from a make command.
 
 
 Installation
