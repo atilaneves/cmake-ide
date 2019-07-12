@@ -4,6 +4,7 @@
 
 ;; Author:  Atila Neves <atila.neves@gmail.com>
 ;; Version: 0.6
+;; Package-Version: 20190527.907
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5") (seq "1.11") (levenshtein "0") (s "1.11.0"))
 ;; Keywords: languages
 ;; URL: http://github.com/atilaneves/cmake-ide
@@ -225,7 +226,7 @@ the closest possible matches available in cppcheck."
   "Whether or not to try all unique compiler flags for header files."
   )
 
-(defvar cmake-sentinel-mutex
+(defvar cmake-sentinel-flag
   nil
   "One interactive execution is allowed at the same time."
   )
@@ -298,15 +299,13 @@ the closest possible matches available in cppcheck."
 (defun cmake-ide-maybe-run-cmake ()
   "Run CMake if the compilation database JSON file is not found."
   (interactive)
-  (if (not cmake-sentinel-mutex)
-    (when (cide--locate-project-dir)
-    (cmake-ide-maybe-start-rdm)
-    (if (cide--need-to-run-cmake)
-      (cmake-ide-run-cmake)
-      (progn
-        (cide--add-file-to-buffer-list)
-        (cide--on-cmake-finished))))
-    (cide--message "cmake is running, skip run.")))
+  (when (cide--locate-project-dir)
+  (cmake-ide-maybe-start-rdm)
+  (if (cide--need-to-run-cmake)
+    (cmake-ide-run-cmake)
+    (progn
+      (cide--add-file-to-buffer-list)
+        (cide--on-cmake-finished)))))
 
 (defun cide--add-file-to-buffer-list ()
   "Add buffer to the appropriate list for when CMake finishes running."
@@ -331,7 +330,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
  and parsing the JSON file deposited there with the compiler
  flags."
   (interactive)
-  (if (not cmake-sentinel-mutex)
+  (if (not cmake-sentinel-flag)
     (when (buffer-file-name) ; if we call cmake-ide-run-cmake from a scatch buffer, do nothing
       (when (file-readable-p (buffer-file-name)) ; new files need not apply
         (save-some-buffers 1)
@@ -349,7 +348,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
                             (cide--run-cmake-impl project-dir cmake-dir)
                             (cide--register-callback)
 			    (setq cmake-temp-project-dir project-dir)
-			    (setq cmake-sentinel-mutex t)))
+			    (setq cmake-sentinel-flag t)))
                       (cide--message "No CMakeLists.txt found in project dir, skip cmake run.")))
 		(cide--message "CMakeCache.txt found in project dir, skip cmake run."))
             (cide--message "try to run cmake on a non cmake project [%s]" default-directory)))))
@@ -368,7 +367,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
      (if (= 0 (process-exit-status process)) ; only perform post cmake operation on success.
          (cide--on-cmake-finished)
        (cide--message "CMake failed, see *cmake* for details."))
-     (setq cmake-sentinel-mutex nil)
+     (setq cmake-sentinel-flag nil)
      (setq cmake-temp-project-dir nil))))
 
 (defun cide--register-a-callback (callback)
@@ -389,7 +388,7 @@ This works by calling cmake in a temporary directory (or `cmake-ide-build-dir')
 (defun cmake-ide-load-db ()
   "Load compilation DB and set flags for current buffer."
   (interactive)
-  (if (not cmake-sentinel-mutex)
+  (if (not cmake-sentinel-flag)
     (when (cide--locate-project-dir)
       (cide--message "cmake-ide-load-db for file %s" (buffer-file-name))
       (cmake-ide-maybe-start-rdm)
@@ -692,7 +691,7 @@ the object file's name just above."
 (defun cmake-ide-delete-file ()
   "Remove file connected to current buffer and kill buffer, then run CMake."
   (interactive)
-  (if (not cmake-sentinel-mutex)
+  (if (not cmake-sentinel-flag)
     (when (cide--locate-project-dir)
       (if (cide--build-dir)
           (let ((filename (buffer-file-name))
@@ -1163,7 +1162,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-compile ()
   "Compile the project."
   (interactive)
-  (if (not cmake-sentinel-mutex)
+  (if (not cmake-sentinel-flag)
     (when (cide--locate-project-dir)
       (if (cide--build-dir)
           (let ((compile-command (cide--get-compile-command (cide--build-dir))))
@@ -1190,24 +1189,22 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 (defun cmake-ide-maybe-start-rdm ()
   "Start the rdm (rtags) server."
   (interactive)
-  (if (not cmake-sentinel-mutex)
-    (when (and (featurep 'rtags)
-               (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
-                   (cide--locate-project-dir)))
+  (when (and (featurep 'rtags)
+             (or (and (cide--comp-db-file-name) (file-exists-p (cide--comp-db-file-name)))
+                 (cide--locate-project-dir)))
 
-      (unless (cide--process-running-p "rdm")
-        (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
-          (cide--message "Starting rdm server")
-          (with-current-buffer buf
-            (let ((rdm-process (start-process "rdm" (current-buffer)
-                                              (cmake-ide-rdm-executable)
-                                              "-c" cmake-ide-rdm-rc-path)))
-                                          ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
-              (sleep-for 0.8)
-              (set-process-query-on-exit-flag rdm-process nil))))))
-    (cide--message "cmake is running, skip run.")))
+    (unless (cide--process-running-p "rdm")
+      (let ((buf (get-buffer-create cmake-ide-rdm-buffer-name)))
+        (cide--message "Starting rdm server")
+        (with-current-buffer buf
+          (let ((rdm-process (start-process "rdm" (current-buffer)
+                                            (cmake-ide-rdm-executable)
+                                            "-c" cmake-ide-rdm-rc-path)))
+                                        ; add a small delay before going on, since rdm could take some time to be ready to treat rc commands
+            (sleep-for 0.8)
+            (set-process-query-on-exit-flag rdm-process nil)))))))
 
-
+  
 (defun cide--process-running-p (name)
   "If a process called NAME is running or not."
   (or (get-process name) (cide--system-process-running-p name)))
