@@ -50,7 +50,9 @@
      (when (f-dir? cide--sandbox-path)
        (f-delete cide--sandbox-path :force))
      (f-mkdir cide--sandbox-path)
-     ,@body))
+     ,@body)
+     (when (and (cide--build-dir) (f-dir? (cide--build-dir)))
+       (f-delete (cide--build-dir) :force)))
 
 (defun write-file-str (name str)
   "Write to a file named NAME with contents STR."
@@ -81,21 +83,21 @@
          ,@body))
       )))
 
-(defmacro sentinel-mutex-test (&rest body)
-  "Start a cmake process and run the BODY with sentinel mutex and temp-project-dir checks."
+(defmacro sentinel-flag-test (&rest body)
+  "Start a cmake process and run the BODY with sentinel flag and temp-project-dir checks."
   `(with-sandbox
      (write-file-str "CMakeLists.txt" "")
-     (should (equal cmake-sentinel-mutex nil))
+     (should (equal cmake-sentinel-flag nil))
      (should (equal cmake-temp-project-dir nil))
      (find-file "CMakeLists.txt")
      (cmake-ide-run-cmake)
-     (should (equal cmake-sentinel-mutex t))
+     (should (equal cmake-sentinel-flag t))
      (should (equal cmake-temp-project-dir cide--sandbox-path))
      (cide--mkdir "subdir")
      (write-file-str "subdir/CMakeLists.txt" "")
      (find-file "build/CMakeLists.txt")
      ,@body
-     (should (equal cmake-sentinel-mutex t))
+     (should (equal cmake-sentinel-flag t))
      (should (equal cmake-temp-project-dir cide--sandbox-path))))
 
 (defun initialise-caches (cdb-json-str)
@@ -262,14 +264,12 @@ add_executable(app \"foo.cpp\")"
    (let ((default-directory (expand-file-name "subdir")))
      (should (equal (cide--build-dir) (file-name-as-directory (expand-file-name (cide--project-key) "/tmp/foo/bar/")))))))
 
-(ert-deftest test-cide--sentinel-mutex-test ()
-  (sentinel-mutex-test
-   (cmake-ide-maybe-run-cmake)
+(ert-deftest test-cide--sentinel-flag-test ()
+  (sentinel-flag-test
    (cmake-ide-run-cmake)
    (cmake-ide-load-db)
    (cmake-ide-delete-file)
-   (cmake-ide-compile)
-   (cmake-ide-maybe-start-rdm)))
+   (cmake-ide-compile)))
 
 (provide 'file-test)
 ;;; file-test.el ends here
