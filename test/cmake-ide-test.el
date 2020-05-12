@@ -624,8 +624,11 @@ company-c-headers to break."
   (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-Wall" "-o" "output")) '("-fPIC" "-O3" "-march=native" "-Wall")))
   (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-o" "output" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall"))))
 
-(ert-deftest test-split-with-quoted-spaced-string ()
+(ert-deftest test-split-with-quoted-single-spaced-string ()
   (should (equal (cide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
+
+(ert-deftest test-split-with-quoted-multi-spaced-string ()
+  (should (equal (cide--split-command "foo \"quux    toto\" bar") '("foo" "quux    toto" "bar"))))
 
 (ert-deftest test-split-with-quoted-string ()
   ;; See #177
@@ -675,7 +678,7 @@ company-c-headers to break."
     (with-non-empty-file
      (cide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-definitions '("VERSION=\"1.0.0\"")))
-     (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-pedantic" "-c")))
+     (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c")))
      )))
 
 (ert-deftest test-project-key-basic ()

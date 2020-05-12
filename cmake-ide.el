@@ -1156,7 +1156,41 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
 (defun cide--split-command (command-string)
   "Split COMMAND-STRING and return a list of strings."
-  (split-string-and-unquote (replace-regexp-in-string "\\\\\"" "\"" command-string)))
+  (let (word-break-p parse-word split)
+    (setq word-break-p (lambda (str escaped quoted)
+                         "True if str is considered a word break"
+                         (or (equal str "")
+                             (and (not escaped) (not quoted) (equal (substring str 0 1) " "))
+                             (and quoted (not escaped) (equal (substring str 0 1) "\"")))))
+
+    (setq parse-word (lambda (str quoted)
+                       "Parse a word (if quoted is true then the word is quoted)"
+                       (let ((word "") escaped)
+                         (if quoted
+                             (setq str (substring str 1 nil))
+                           ())
+                         (while (not (funcall word-break-p str escaped quoted))
+                           (if (or escaped (not (equal (substring str 0 1) "\\")))
+                               (setq word (concat word (substring str 0 1)))
+                             ())
+                           (setq escaped (and (not escaped) (equal (substring str 0 1) "\\")))
+                           (setq str (substring str 1 nil)))
+                         (cond
+                          ((and quoted (not (equal str "")) (equal (substring str 0 1) "\""))
+                           (setq str (substring str 1 nil)))
+                          (quoted (error "\"%s\" contains a odd number of not escaped quotes (\")" command-string)))
+                         (list word str))))
+
+    (setq split (lambda (str)
+                  "Splits a string into a list of commands"
+                  (cond
+                   ((equal str "") '())
+                   ((equal (substring str 0 1) " ") (funcall split (substring str 1 nil)))
+                   (t (let ((word-and-rest (funcall parse-word str (equal (substring str 0 1) "\""))) words)
+                        (setq words (funcall split (nth 1 word-and-rest)))
+                        (append (list (car word-and-rest)) words))))))
+
+    (funcall split (replace-regexp-in-string "\\\\\"" "\"" command-string))))
 
 ;;;###autoload
 (defun cmake-ide-compile ()
