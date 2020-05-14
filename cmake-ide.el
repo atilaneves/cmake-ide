@@ -664,6 +664,8 @@ the object file's name just above."
           (setq flycheck-clang-args args)
           (setq flycheck-gcc-args (cide--filter-output-arg args))
 
+          (setq flycheck-clang-tidy-build-path (cide--comp-db-file-name))
+
           (make-local-variable 'flycheck-clang-language-standard)
           (make-local-variable 'flycheck-gcc-language-standard)
           (let* ((stds (cide--filter (lambda (x) (string-match std-regex x)) flags))
