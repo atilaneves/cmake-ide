@@ -1183,12 +1183,14 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
     (setq split (lambda (str)
                   "Splits a string into a list of commands"
-                  (cond
-                   ((equal str "") '())
-                   ((equal (substring str 0 1) " ") (funcall split (substring str 1 nil)))
-                   (t (let ((word-and-rest (funcall parse-word str (equal (substring str 0 1) "\""))) words)
-                        (setq words (funcall split (nth 1 word-and-rest)))
-                        (append (list (car word-and-rest)) words))))))
+                  (let ((words '()))
+                    (while (not (equal str ""))
+                      (if (equal (substring str 0 1) " ")
+                          (setq str (substring str 1 nil))
+                        (let ((word-and-rest (funcall parse-word str (equal (substring str 0 1) "\""))))
+                          (push (car word-and-rest) words)
+                          (setq str (nth 1 word-and-rest)))))
+                    (reverse words))))
 
     (funcall split (replace-regexp-in-string "\\\\\"" "\"" command-string))))
 
