@@ -608,6 +608,7 @@ the object file's name just above."
 
 (defun cmake-ide-set-compiler-flags (buffer flags includes sys-includes)
   "Set ac-clang and flycheck variables for BUFFER from FLAGS, INCLUDES and SYS-INCLUDES."
+  ;; FLAGS is a list of strings
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
 
@@ -642,7 +643,7 @@ the object file's name just above."
         (make-local-variable 'c-macro-cppflags)
         (setq c-macro-cppflags
               (mapconcat 'identity (cide--filter (lambda (x) (not (string-match macro-regex x)))
-                                                      (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
+                                                 (cide--filter-ac-flags (cide--get-compiler-flags flags))) " ")))
 
       (when (featurep 'flycheck)
         (let* ((std-regex "^-std=")
@@ -796,6 +797,7 @@ Return nil for non-CMake project."
 
 (defun cide--file-params-to-args (file-params)
   "Get the compiler command arguments from FILE-PARAMS."
+  ;; file-params is also known as an object in the codebase
   (let ((command (cide--idb-obj-get file-params 'command))
         (arguments (cide--idb-obj-get file-params 'arguments)))
     (cide--resolve-response-file
@@ -925,16 +927,19 @@ Return nil for non-CMake project."
   (let ((raw-paths (cide--to-simple-flags flags "^-I")))
     (mapcar (lambda (x) (expand-file-name x (cide--build-dir))) raw-paths)))
 
-(defun cide--relativize (path)
-  "Make PATH relative to the build directory, but only if relative path with dots."
-  (if (or (equal path ".") (string-prefix-p ".." path))
-      (expand-file-name path (cide--build-dir))
-    path))
-
-
 (defun cide--flags-to-defines (flags)
   "From FLAGS (a list of flags) to a list of defines."
   (cide--to-simple-flags flags "^-D"))
+
+(defun cide--to-simple-flags (flags flag)
+  "A list of either directories or defines from FLAGS depending on FLAG."
+  (let* ((case-fold-search nil)
+         (res-flags (cide--filter
+                     (lambda (x)
+                       (let ((match (string-match flag x)))
+                         (and match (zerop match))))
+                     flags)))
+    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
 (defun cide--flags-to-includes (flags)
@@ -967,17 +972,6 @@ Return nil for non-CMake project."
 (defun cide--flags-filtered (flags)
   "Filter out defines and includes from FLAGS."
   (cide--filter (lambda (x) (not (cide--dash-i-or-dash-d-p x))) flags))
-
-
-(defun cide--to-simple-flags (flags flag)
-  "A list of either directories or defines from FLAGS depending on FLAG."
-  (let* ((case-fold-search nil)
-         (res-flags (cide--filter
-                     (lambda (x)
-                       (let ((match (string-match flag x)))
-                         (and match (zerop match))))
-                     flags)))
-    (mapcar (lambda (x) (replace-regexp-in-string flag "" x)) res-flags)))
 
 
 (defun cide--get-compiler-flags (flags)
@@ -1074,6 +1068,12 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
           json)
     idb))
 
+(defun cide--relativize (path)
+  "Make PATH relative to the build directory, but only if relative path with dots."
+  (if (or (equal path ".") (string-prefix-p ".." path))
+      (expand-file-name path (cide--build-dir))
+    path))
+
 (defun cide--idb-obj-get (obj key)
   "Get the value in OBJ for KEY."
   (cdr (assoc key obj)))
@@ -1088,7 +1088,8 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
 (defun cide--idb-all-commands (idb)
   "A list of all commands in IDB."
-  (mapcar (lambda (x) (s-join " " (cide--file-params-to-args x))) (cide--idb-all-objs idb)))
+  (mapcar (lambda (x) (s-join " " (cide--file-params-to-args x)))
+          (cide--idb-all-objs idb)))
 
 
 (defun cide--idb-sorted-by-file-distance (idb file-name)
@@ -1157,7 +1158,43 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
 
 (defun cide--split-command (command-string)
   "Split COMMAND-STRING and return a list of strings."
-  (split-string-and-unquote (replace-regexp-in-string "\\\\\"" "\"" command-string)))
+  (let (word-break-p parse-word split)
+    (setq word-break-p (lambda (str escaped quoted)
+                         "True if str is considered a word break"
+                         (or (equal str "")
+                             (and (not escaped) (not quoted) (equal (substring str 0 1) " "))
+                             (and quoted (not escaped) (equal (substring str 0 1) "\"")))))
+
+    (setq parse-word (lambda (str quoted)
+                       "Parse a word (if quoted is true then the word is quoted)"
+                       (let ((word "") escaped)
+                         (if quoted
+                             (setq str (substring str 1 nil))
+                           ())
+                         (while (not (funcall word-break-p str escaped quoted))
+                           (if (or escaped (not (equal (substring str 0 1) "\\")))
+                               (setq word (concat word (substring str 0 1)))
+                             ())
+                           (setq escaped (and (not escaped) (equal (substring str 0 1) "\\")))
+                           (setq str (substring str 1 nil)))
+                         (cond
+                          ((and quoted (not (equal str "")) (equal (substring str 0 1) "\""))
+                           (setq str (substring str 1 nil)))
+                          (quoted (error "\"%s\" contains a odd number of not escaped quotes (\")" command-string)))
+                         (list word str))))
+
+    (setq split (lambda (str)
+                  "Splits a string into a list of commands"
+                  (let ((words '()))
+                    (while (not (equal str ""))
+                      (if (equal (substring str 0 1) " ")
+                          (setq str (substring str 1 nil))
+                        (let ((word-and-rest (funcall parse-word str (equal (substring str 0 1) "\""))))
+                          (push (car word-and-rest) words)
+                          (setq str (nth 1 word-and-rest)))))
+                    (reverse words))))
+
+    (funcall split (replace-regexp-in-string "\\\\\"" "\"" command-string))))
 
 ;;;###autoload
 (defun cmake-ide-compile ()

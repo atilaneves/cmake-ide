@@ -624,8 +624,20 @@ company-c-headers to break."
   (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-Wall" "-o" "output")) '("-fPIC" "-O3" "-march=native" "-Wall")))
   (should (equal (cide--filter-output-arg '("-fPIC" "-O3" "-march=native" "-o" "output" "-Wall")) '("-fPIC" "-O3" "-march=native" "-Wall"))))
 
-(ert-deftest test-split-command ()
+(ert-deftest test-split-with-quoted-single-spaced-string ()
   (should (equal (cide--split-command "foo \"quux toto\" bar") '("foo" "quux toto" "bar"))))
+
+(ert-deftest test-split-with-quoted-multi-spaced-string ()
+  (should (equal (cide--split-command "foo \"quux    toto\" bar") '("foo" "quux    toto" "bar"))))
+
+(ert-deftest test-split-with-quoted-string ()
+  ;; See #177
+  (let ((command "g++ -Wall -Wextra -DVERSION=\"1.0.0\" -o foo.o -c foo.cpp"))
+    (should (equal
+             (cide--split-command command)
+             '("g++" "-Wall" "-Wextra" "-DVERSION=\"1.0.0\"" "-o" "foo.o" "-c" "foo.cpp")
+             ))
+    ))
 
 (ert-deftest test-issue-142 ()
   (let ((idb (cide--cdb-json-string-to-idb
@@ -639,6 +651,35 @@ company-c-headers to break."
     (with-non-empty-file
      (cide--set-flags-for-file idb (current-buffer))
      (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-pedantic" "-c"))))))
+
+(ert-deftest test-issue-148 ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+    \"command\": \"cc -c -Wp,-MD,tools/.fit_image.o.d -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -include ./include/libfdt_env.h -idirafterinclude -idirafter./arch/arm/include -I./lib/libfdt -I./tools -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -D_GNU_SOURCE -DMKIMAGE_DTC=\\\\\\\"dtc\\\\\\\" -o tools/fit_image.o tools/fit_image.c\",
+    \"directory\": \"/home/ljj/dev/u-boot\",
+    \"file\": \"/home/ljj/dev/u-boot/tools/fit_image.c\"
+}
+]")))
+    (with-non-empty-file
+     (cide--set-flags-for-file idb (current-buffer))
+     ;; no asserts, it just should not error
+     )))
+
+(ert-deftest test-issue-177-whole ()
+  (let ((idb (cide--cdb-json-string-to-idb
+              "[
+{
+  \"directory\": \"/tmp\",
+  \"command\": \"g++ -Wall -Wextra -DVERSION=\\\"1.0.0\\\" -std=c++14 -o /tmp/main.cpp.o -c /tmp/main.cpp\",
+  \"file\": \"/tmp/main.cpp\"
+}
+]")))
+    (with-non-empty-file
+     (cide--set-flags-for-file idb (current-buffer))
+     (should (equal flycheck-clang-definitions '("VERSION=\"1.0.0\"")))
+     (should (equal flycheck-clang-args '("-Wall" "-Wextra" "-c")))
+     )))
 
 (ert-deftest test-project-key-basic ()
   (setq cmake-ide-build-dir nil cmake-ide-dir nil)
@@ -681,20 +722,6 @@ company-c-headers to break."
   (setq cmake-ide-project-dir "./test1")
   (let ((dir1 (cide--build-dir)))
     (cide--message "dir 1 %s" dir1)))
-
-(ert-deftest test-issue-148 ()
-  (let ((idb (cide--cdb-json-string-to-idb
-              "[
-{
-    \"command\": \"cc -c -Wp,-MD,tools/.fit_image.o.d -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -include ./include/libfdt_env.h -idirafterinclude -idirafter./arch/arm/include -I./lib/libfdt -I./tools -DUSE_HOSTCC -D__KERNEL_STRICT_NAMES -D_GNU_SOURCE -DMKIMAGE_DTC=\\\\\\\"dtc\\\\\\\" -o tools/fit_image.o tools/fit_image.c\",
-    \"directory\": \"/home/ljj/dev/u-boot\",
-    \"file\": \"/home/ljj/dev/u-boot/tools/fit_image.c\"
-}
-]")))
-    (with-non-empty-file
-     (cide--set-flags-for-file idb (current-buffer))
-     ;; no asserts, it just should not error
-     )))
 
 
 (provide 'cmake-ide-test)
