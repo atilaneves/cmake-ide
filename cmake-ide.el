@@ -148,9 +148,10 @@
 
 (defcustom cmake-ide-cmake-args
   nil
-  "The options passed to cmake when calling it."
+  "List of options passed to cmake when calling it."
   :group 'cmake-ide
-  :type '(repeat string))
+  :type '(repeat string)
+  :safe (lambda (val) (and (listp val) (-all-p 'stringp val))))
 
 (defcustom cmake-ide-header-search-other-file
   t
@@ -733,7 +734,7 @@ the object file's name just above."
 
 (defun cide--cmake-args ()
   "Return a list of arguments to pass to CMake when calling it."
-  (or cmake-ide-cmake-args cmake-ide-cmake-args (split-string cmake-ide-cmake-opts)))
+  (or cmake-ide-cmake-args (split-string cmake-ide-cmake-opts)))
 
 (defun cide--build-dir ()
   "Return the directory name to run CMake in."
