@@ -976,11 +976,14 @@ Return nil for non-CMake project."
 
 
 (defun cide--get-compiler-flags (flags)
-  "Use FLAGS to return all compiler flags including existing ones."
-  (append (cide--get-existing-compiler-flags) flags))
+  "Use FLAGS to return all compiler flags including existing ones.
+Returns a list of strings."
+  (append (split-string (cide--get-existing-compiler-flags)) flags))
 
 (defun cide--get-existing-compiler-flags ()
-  "Return existing ac-clang flags for this mode, if set."
+  "Return existing ac-clang flags for this mode, if set.
+Returns a string.
+"
   (if (eq major-mode 'c++-mode)
       (cide--symbol-value 'cmake-ide-flags-c++)
     (cide--symbol-value 'cmake-ide-flags-c)))
