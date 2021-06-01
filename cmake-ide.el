@@ -1252,7 +1252,6 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
             (sleep-for 0.8)
             (set-process-query-on-exit-flag rdm-process nil)))))))
 
-  
 
 (defun cide--process-running-p (name)
   "If a process called NAME is running or not."
