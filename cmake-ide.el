@@ -978,7 +978,13 @@ Return nil for non-CMake project."
 (defun cide--get-compiler-flags (flags)
   "Use FLAGS to return all compiler flags including existing ones.
 Returns a list of strings."
-  (append (split-string (cide--get-existing-compiler-flags)) flags))
+  (condition-case nil
+      ;; Assume flags is a string
+      (append (split-string (cide--get-existing-compiler-flags)) flags)
+    ;; On exception
+    (wrong-type-argument
+     ;; Treat as list of strings.
+     (append (cide--get-existing-compiler-flags) flags))))
 
 (defun cide--get-existing-compiler-flags ()
   "Return existing ac-clang flags for this mode, if set.
@@ -1246,7 +1252,7 @@ The IDB is hash mapping files to all JSON objects (usually only one) in the CDB.
             (sleep-for 0.8)
             (set-process-query-on-exit-flag rdm-process nil)))))))
 
-  
+
 (defun cide--process-running-p (name)
   "If a process called NAME is running or not."
   (or (get-process name) (cide--system-process-running-p name)))
