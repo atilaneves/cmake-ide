@@ -551,7 +551,7 @@ the object file's name just above."
   (if cmake-ide-header-search-other-file
       (when (and buffer (buffer-live-p buffer))
         (with-current-buffer buffer
-          (let ((other-file-name (ff-other-file-name)))
+          (let ((other-file-name (ff-find-the-other-file)))
             (if other-file-name (expand-file-name other-file-name) nil))))
     nil))
 
